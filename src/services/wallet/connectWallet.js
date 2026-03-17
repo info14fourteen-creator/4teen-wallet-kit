@@ -51,18 +51,24 @@ function resolveAddress(adapter, provider) {
     adapter?.address,
     adapter?.publicKey,
     adapter?.account?.address,
+    adapter?.provider?.address,
+    adapter?.provider?.selectedAddress,
+    adapter?.provider?.defaultAddress?.base58,
+    adapter?.provider?.tronWeb?.defaultAddress?.base58,
+    adapter?.tronWeb?.defaultAddress?.base58,
     provider?.address,
     provider?.selectedAddress,
     provider?.defaultAddress?.base58,
-    provider?.tronWeb?.defaultAddress?.base58,
-    adapter?.tronWeb?.defaultAddress?.base58
+    provider?.tronWeb?.defaultAddress?.base58
   ];
 
   return candidates.find(isUsableAddress) || null;
 }
 
 async function tryRequestAccounts(provider) {
-  if (!provider || typeof provider.request !== 'function') return null;
+  if (!provider || typeof provider.request !== 'function') {
+    return null;
+  }
 
   const methods = ['tron_requestAccounts', 'requestAccounts'];
 
@@ -70,24 +76,50 @@ async function tryRequestAccounts(provider) {
     try {
       const res = await provider.request({ method });
 
-      if (Array.isArray(res) && isUsableAddress(res[0])) return res[0];
-      if (typeof res === 'string' && isUsableAddress(res)) return res;
-      if (res?.address && isUsableAddress(res.address)) return res.address;
+      if (Array.isArray(res) && isUsableAddress(res[0])) {
+        return res[0];
+      }
+
+      if (typeof res === 'string' && isUsableAddress(res)) {
+        return res;
+      }
+
+      if (res?.address && isUsableAddress(res.address)) {
+        return res.address;
+      }
+
+      if (res?.data?.address && isUsableAddress(res.data.address)) {
+        return res.data.address;
+      }
     } catch (_) {}
   }
 
   return null;
 }
 
-async function waitForAddress(adapter, provider) {
-  for (let i = 0; i < 10; i++) {
-    const addr =
+async function waitForAddress(adapter, provider, attempts = 12, delayMs = 250) {
+  for (let i = 0; i < attempts; i += 1) {
+    const address =
       resolveAddress(adapter, provider) ||
       (i === 0 ? await tryRequestAccounts(provider) : null);
 
-    if (isUsableAddress(addr)) return addr;
+    if (isUsableAddress(address)) {
+      console.log('[4TEEN] waitForAdapterAddress attempt', {
+        attempt: i + 1,
+        adapter: resolveAdapterName(adapter),
+        address
+      });
 
-    await new Promise((r) => setTimeout(r, 250));
+      return address;
+    }
+
+    console.log('[4TEEN] waitForAdapterAddress attempt', {
+      attempt: i + 1,
+      adapter: resolveAdapterName(adapter),
+      address: null
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 
   return null;
@@ -96,17 +128,21 @@ async function waitForAddress(adapter, provider) {
 function pickAdapter(appkit, walletId) {
   const adapters = resolveAdapters(appkit);
 
-  if (!adapters.length) return null;
-
-  if (walletId) {
-    return adapters.find(
-      (a) =>
-        resolveAdapterId(a) === walletId ||
-        resolveAdapterName(a) === walletId
-    ) || null;
+  if (!adapters.length) {
+    return null;
   }
 
-  return adapters.find((a) => a?.connected) || adapters[0];
+  if (walletId) {
+    return (
+      adapters.find(
+        (adapter) =>
+          resolveAdapterId(adapter) === walletId ||
+          resolveAdapterName(adapter) === walletId
+      ) || null
+    );
+  }
+
+  return adapters.find((adapter) => adapter?.connected) || null;
 }
 
 // ===== MAIN =====
@@ -122,21 +158,30 @@ export async function connectWallet(appkit, walletId = null) {
       throw new Error('Wallet kit not initialized');
     }
 
-    // 🔥 IMPORTANT
-    if (walletId && typeof appkit.connect === 'function') {
-      await appkit.connect(walletId);
-    } else if (!walletId && typeof appkit.open === 'function') {
-      await appkit.open();
-      return { ok: true }; 
-    } else {
-      throw new Error('Wallet connection method not available');
+    if (!walletId) {
+      if (typeof appkit.openWalletPicker === 'function') {
+        appkit.openWalletPicker();
+        setWalletState({
+          connecting: false,
+          walletPickerOpen: true
+        });
+        return { ok: true };
+      }
+
+      throw new Error('Wallet picker is not available');
     }
 
     const adapter = pickAdapter(appkit, walletId);
 
     if (!adapter) {
-      throw new Error('Adapter not found after connect');
+      throw new Error('Adapter not found');
     }
+
+    if (typeof adapter.connect !== 'function') {
+      throw new Error('Adapter connect method not available');
+    }
+
+    await adapter.connect();
 
     const provider = resolveProvider(appkit, adapter);
     const address = await waitForAddress(adapter, provider);
@@ -175,7 +220,11 @@ export async function connectWallet(appkit, walletId = null) {
       provider: state.provider
     });
 
-    return { ok: true, address, walletId: walletIdResolved };
+    return {
+      ok: true,
+      address,
+      walletId: walletIdResolved
+    };
   } catch (error) {
     console.error('[4TEEN] connectWallet failed', error);
 
@@ -192,7 +241,7 @@ export async function connectWallet(appkit, walletId = null) {
       tronWeb: null,
       trxBalance: null,
       fourteenBalance: null,
-      walletPickerOpen: true, // 🔥 
+      walletPickerOpen: true,
       error: error?.message || 'Wallet connection failed'
     });
 
