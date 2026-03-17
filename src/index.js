@@ -14,6 +14,11 @@ export function initFourteenConnect({ projectId }) {
   appkit = init.appkit || null;
   tronAdapter = init.tronAdapter || null;
 
+  console.log('[4TEEN] initFourteenConnect', {
+    hasAppkit: !!appkit,
+    hasTronAdapter: !!tronAdapter
+  });
+
   if (appkit) {
     restoreSession(appkit).catch((error) => {
       console.error('[4TEEN] restoreSession failed', error);
