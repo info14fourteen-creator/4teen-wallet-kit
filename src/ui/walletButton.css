@@ -1,0 +1,41 @@
+.fourteen-wallet-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  background: #111;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.fourteen-wallet-button--connected {
+  gap: 12px;
+}
+
+.fourteen-wallet-button__label {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.fourteen-wallet-button__address {
+  font-weight: 600;
+}
+
+.fourteen-wallet-button__balance {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.95;
+}
+
+.fourteen-wallet-button__balance img,
+.fourteen-wallet-button__wallet-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
