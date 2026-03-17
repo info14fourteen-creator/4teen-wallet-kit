@@ -53,27 +53,33 @@ function createDropdown({ onRefresh, onDisconnect }) {
   return dropdown;
 }
 
-function renderIdle(root) {
+function getVariantClass(variant) {
+  if (variant === 'compact') return 'fw-wallet-button--compact';
+  if (variant === 'hero') return 'fw-wallet-button--hero';
+  return 'fw-wallet-button--standard';
+}
+
+function renderIdle(root, variant) {
   root.innerHTML = `
-    <button type="button" class="fw-wallet-button fw-wallet-button--idle">
+    <button type="button" class="fw-wallet-button fw-wallet-button--idle ${getVariantClass(variant)}">
       <span class="fw-wallet-button__wallet-dot"></span>
       <span class="fw-wallet-button__label">CONNECT WALLET</span>
     </button>
   `;
 }
 
-function renderConnecting(root) {
+function renderConnecting(root, variant) {
   root.innerHTML = `
-    <button type="button" class="fw-wallet-button fw-wallet-button--connecting" disabled>
+    <button type="button" class="fw-wallet-button fw-wallet-button--connecting ${getVariantClass(variant)}" disabled>
       <span class="fw-wallet-spinner"></span>
       <span class="fw-wallet-button__label">CONNECTING...</span>
     </button>
   `;
 }
 
-function renderError(root, message) {
+function renderError(root, variant, message) {
   root.innerHTML = `
-    <button type="button" class="fw-wallet-button fw-wallet-button--error">
+    <button type="button" class="fw-wallet-button fw-wallet-button--error ${getVariantClass(variant)}">
       <span class="fw-wallet-button__wallet-dot"></span>
       <span class="fw-wallet-button__label">CONNECT WALLET</span>
     </button>
@@ -81,12 +87,14 @@ function renderError(root, message) {
   `;
 }
 
-function renderConnected(root, state) {
+function renderConnected(root, state, variant) {
+  const compact = variant === 'compact';
+
   root.innerHTML = `
-    <button type="button" class="fw-wallet-button fw-wallet-button--connected">
+    <button type="button" class="fw-wallet-button fw-wallet-button--connected ${getVariantClass(variant)}">
       <span class="fw-wallet-button__status-dot"></span>
       <span class="fw-wallet-button__address">${state.shortAddress || ''}</span>
-      <span class="fw-wallet-button__divider"></span>
+      ${compact ? '' : '<span class="fw-wallet-button__divider"></span>'}
       <span class="fw-wallet-button__balance">
         <span class="fw-wallet-button__balance-value">${formatNumber(state.trxBalance)}</span>
         ${createTRXIcon()}
@@ -105,6 +113,7 @@ export function mountWalletButton(target, options = {}) {
     throw new Error('mountWalletButton: target is required');
   }
 
+  const variant = options.variant || 'standard';
   const root = document.createElement('div');
   root.className = 'fw-wallet-root';
   target.innerHTML = '';
@@ -159,23 +168,23 @@ export function mountWalletButton(target, options = {}) {
     closeDropdown();
 
     if (state.connecting) {
-      renderConnecting(root);
+      renderConnecting(root, variant);
       return;
     }
 
     if (state.connected) {
-      renderConnected(root, state);
+      renderConnected(root, state, variant);
       bindConnected();
       return;
     }
 
     if (state.error) {
-      renderError(root, state.error);
+      renderError(root, variant, state.error);
       bindDisconnected();
       return;
     }
 
-    renderIdle(root);
+    renderIdle(root, variant);
     bindDisconnected();
   }
 
