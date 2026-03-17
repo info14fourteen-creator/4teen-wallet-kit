@@ -1,32 +1,79 @@
-import { initWalletKit } from './services/wallet/initWalletKit.js';
-import { connectWallet } from './services/wallet/connectWallet.js';
-import { disconnectWallet } from './services/wallet/disconnectWallet.js';
-import { restoreSession } from './services/wallet/restoreSession.js';
-import { refreshAllBalances } from './services/balances/refreshAllBalances.js';
-import { getWalletState, subscribeWalletState } from './core/store/walletStore.js';
-import { mountWalletButton } from './ui/walletButton.js';
+<script>
+(function () {
+  const BASE = "https://info14fourteen-creator.github.io/4teen-wallet-kit";
+  const PROJECT_ID = "9939c89b9fce5af4c2c69f1835c5164b";
+  const BUILD = Date.now();
 
-let appkit = null;
-let tronAdapter = null;
+  function loadCSS(url) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector(`link[href^="${url.split("?")[0]}"]`);
+      if (existing) return resolve();
 
-export function initFourteenConnect({ projectId }) {
-  const init = initWalletKit({ projectId });
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = url;
+      link.onload = resolve;
+      link.onerror = () => reject(new Error("Failed to load CSS: " + url));
+      document.head.appendChild(link);
+    });
+  }
 
-  appkit = init.appkit;
-  tronAdapter = init.tronAdapter;
+  function loadScript(url) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src^="${url.split("?")[0]}"]`);
+      if (existing && window.FourteenConnect) return resolve();
 
-  restoreSession(appkit).catch(console.error);
+      const s = document.createElement("script");
+      s.src = url;
+      s.async = false;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error("Failed to load script: " + url));
+      document.head.appendChild(s);
+    });
+  }
 
-  return {
-    connect: () => connectWallet(appkit),
-    disconnect: () => disconnectWallet(appkit),
-    restore: () => restoreSession(appkit),
-    refreshBalances: () => refreshAllBalances(),
-    getState: () => getWalletState(),
-    subscribe: (listener) => subscribeWalletState(listener),
-    getAppkit: () => appkit,
-    getTronAdapter: () => tronAdapter
-  };
-}
+  async function bootstrap() {
+    await loadCSS(`${BASE}/4teen-wallet-kit.css?v=${BUILD}`);
+    await loadScript(`${BASE}/fourteen-connect.umd.js?v=${BUILD}`);
 
-export { mountWalletButton };
+    if (!window.FourteenConnect) {
+      throw new Error("window.FourteenConnect is missing");
+    }
+
+    window.FourteenConnect.initDebugOverlay({ maxLogs: 300 });
+
+    const kit = window.FourteenConnect.initFourteenConnect({
+      projectId: PROJECT_ID
+    });
+
+    window.FourteenKit = kit;
+
+    document.querySelectorAll("[data-fourteen-wallet]").forEach((slot) => {
+      if (slot.dataset.fourteenMounted === "1") return;
+
+      const variant = slot.getAttribute("data-variant") || "standard";
+
+      window.FourteenConnect.mountWalletButton(slot, {
+        variant,
+        onConnectClick: async () => {
+          await kit.connect();
+        },
+        onRefresh: async () => {
+          await kit.refreshBalances();
+        },
+        onDisconnect: async () => {
+          await kit.disconnect();
+        }
+      });
+
+      slot.dataset.fourteenMounted = "1";
+    });
+
+    console.log("[4TEEN] Wallet kit ready");
+  }
+
+  bootstrap().catch((error) => {
+    console.error("[4TEEN] Wallet bootstrap failed:", error);
+  });
+})();
+</script>
