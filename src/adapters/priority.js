@@ -5,5 +5,6 @@ export const WALLET_PRIORITY = [
   'trust',
   'bitget',
   'binance',
-  'metamask'
+  'metamask',
+  'walletconnect'
 ];
