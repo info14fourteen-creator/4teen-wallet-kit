@@ -8,11 +8,14 @@ const state = {
   walletName: null,
   address: null,
   shortAddress: null,
-  tronWeb: null,
   provider: null,
+  adapter: null,
+  tronWeb: null,
   trxBalance: null,
   fourteenBalance: null,
-  error: null
+  error: null,
+  availableWallets: [],
+  selectedWalletId: null
 };
 
 export function getWalletState() {
@@ -21,6 +24,7 @@ export function getWalletState() {
 
 export function setWalletState(patch = {}) {
   Object.assign(state, patch);
+
   for (const listener of listeners) {
     listener(getWalletState());
   }
@@ -34,11 +38,13 @@ export function resetWalletState() {
     walletName: null,
     address: null,
     shortAddress: null,
-    tronWeb: null,
     provider: null,
+    adapter: null,
+    tronWeb: null,
     trxBalance: null,
     fourteenBalance: null,
-    error: null
+    error: null,
+    selectedWalletId: null
   });
 }
 
