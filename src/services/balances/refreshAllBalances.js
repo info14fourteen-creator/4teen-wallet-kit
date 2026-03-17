@@ -1,4 +1,4 @@
-import { setWalletState, getWalletState } from '../../core/store/walletStore.js';
+import { getWalletState, setWalletState } from '../../core/store/walletStore.js';
 import { getTrxBalance } from './getTrxBalance.js';
 import { getFourteenBalance } from './getFourteenBalance.js';
 
