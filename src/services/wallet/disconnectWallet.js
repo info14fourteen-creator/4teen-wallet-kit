@@ -1,7 +1,12 @@
-import { resetWalletState } from '../../core/store/walletStore.js';
+import { resetWalletState, setWalletState } from '../../core/store/walletStore.js';
 
 function resolveAdapters(appkit) {
-  const adapters = appkit?.getConnectors?.() || appkit?.connectors || appkit?.adapters || [];
+  const adapters =
+    appkit?.getConnectors?.() ||
+    appkit?.connectors ||
+    appkit?.adapters ||
+    [];
+
   return Array.isArray(adapters) ? adapters : [];
 }
 
@@ -12,14 +17,14 @@ async function safeDisconnectAdapter(adapter) {
     adapter.disconnect,
     adapter.close,
     adapter.reset
-  ].filter((method) => typeof method === 'function');
+  ].filter((fn) => typeof fn === 'function');
 
   for (const method of methods) {
     try {
       await method.call(adapter);
     } catch (error) {
-      console.warn('[4TEEN] adapter disconnect method failed', {
-        adapter: adapter?.name || adapter?.id || 'unknown',
+      console.warn('[4TEEN] adapter disconnect failed', {
+        adapter: adapter?.name || adapter?.id,
         error
       });
     }
@@ -28,11 +33,12 @@ async function safeDisconnectAdapter(adapter) {
 
 export async function disconnectWallet(appkit) {
   try {
-    if (appkit && typeof appkit.disconnect === 'function') {
+    // appkit disconnect (WalletConnect etc)
+    if (appkit?.disconnect) {
       try {
         await appkit.disconnect();
-      } catch (error) {
-        console.warn('[4TEEN] appkit.disconnect failed', error);
+      } catch (e) {
+        console.warn('[4TEEN] appkit.disconnect error', e);
       }
     }
 
@@ -42,16 +48,14 @@ export async function disconnectWallet(appkit) {
       await safeDisconnectAdapter(adapter);
     }
 
-    if (typeof window !== 'undefined') {
-      try {
-        if (window.tronLink?.ready) {
-          // no-op
-        }
-      } catch (error) {
-        console.warn('[4TEEN] tronLink cleanup probe failed', error);
-      }
-    }
   } finally {
+    // 🔥 
     resetWalletState();
+
+    setWalletState({
+      walletPickerOpen: true,
+      connecting: false,
+      connected: false
+    });
   }
 }
