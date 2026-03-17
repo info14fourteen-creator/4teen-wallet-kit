@@ -6,6 +6,7 @@ import {
   showSuccessNotice
 } from './noticeCenter.js';
 import { trxIcon, fourteenIcon } from './icons.js';
+import { showWalletPicker, hideWalletPicker } from './walletPicker.js';
 
 function formatNumber(value, digits = 2) {
   const num = Number(value || 0);
@@ -110,6 +111,7 @@ export function mountWalletButton(target, options = {}) {
 
   let isDropdownOpen = false;
   let unsubscribe = null;
+  let latestState = null;
 
   function closeDropdown() {
     const existing = root.querySelector('.fw-wallet-dropdown');
@@ -137,12 +139,26 @@ export function mountWalletButton(target, options = {}) {
     isDropdownOpen = true;
   }
 
+  async function openPicker() {
+    const wallets = Array.isArray(latestState?.availableWallets) ? latestState.availableWallets : [];
+
+    showWalletPicker({
+      wallets,
+      onSelect: async (wallet) => {
+        await options.onConnectClick?.(wallet.id);
+      },
+      onClose: () => {
+        hideWalletPicker();
+      }
+    });
+  }
+
   function bindDisconnected() {
     const button = root.querySelector('.fw-wallet-button');
 
     button?.addEventListener('click', async () => {
       closeDropdown();
-      await options.onConnectClick?.();
+      await openPicker();
     });
   }
 
@@ -156,6 +172,7 @@ export function mountWalletButton(target, options = {}) {
   }
 
   function render(state) {
+    latestState = state;
     closeDropdown();
 
     if (state.connecting) {
@@ -184,6 +201,7 @@ export function mountWalletButton(target, options = {}) {
   document.addEventListener('click', handleOutsideClick);
 
   return () => {
+    hideWalletPicker();
     closeDropdown();
     document.removeEventListener('click', handleOutsideClick);
     unsubscribe?.();
