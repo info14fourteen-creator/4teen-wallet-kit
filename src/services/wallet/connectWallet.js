@@ -7,6 +7,10 @@ import {
   showNeutralNotice,
   showSuccessNotice
 } from '../../ui/noticeCenter.js';
+import {
+  isTrustWalletBrowser,
+  connectTrustFallback
+} from '../../adapters/trustFallback.js';
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -90,6 +94,41 @@ function isWalletConnect(adapter) {
   return adapter?.name === 'WalletConnect';
 }
 
+async function connectViaTrustFallback(appkit) {
+  const result = await connectTrustFallback();
+
+  if (appkit) {
+    appkit.connectedAdapter = null;
+  }
+
+  setWalletState({
+    connecting: false,
+    connected: true,
+    walletId: result.walletId,
+    walletName: result.walletName,
+    activeWalletId: result.walletId,
+    selectedWalletId: result.walletId,
+    address: result.address,
+    shortAddress: shortenAddress(result.address),
+    adapter: null,
+    provider: result.provider,
+    tronWeb: result.tronWeb || null,
+    error: null,
+    walletPickerOpen: false
+  });
+
+  await refreshAllBalances();
+
+  showSuccessNotice('Wallet connected');
+
+  return {
+    ok: true,
+    address: result.address,
+    walletId: result.walletId,
+    walletName: result.walletName
+  };
+}
+
 export async function connectWallet(appkit, walletId = null) {
   if (!appkit) {
     const error = new Error('Wallet module is not ready');
@@ -109,6 +148,23 @@ export async function connectWallet(appkit, walletId = null) {
   }
 
   try {
+    const wantsTrust = walletId === 'Trust';
+
+    if (wantsTrust && isTrustWalletBrowser()) {
+      setWalletState({
+        connecting: true,
+        connected: false,
+        error: null,
+        selectedWalletId: 'Trust',
+        activeWalletId: 'Trust',
+        walletPickerOpen: false
+      });
+
+      showNeutralNotice('Connecting Trust Wallet...');
+
+      return await connectViaTrustFallback(appkit);
+    }
+
     const adapter = appkit.getAdapterByName(walletId);
 
     if (!adapter) {
@@ -126,6 +182,7 @@ export async function connectWallet(appkit, walletId = null) {
       connected: false,
       error: null,
       selectedWalletId: adapter.name,
+      activeWalletId: adapter.name,
       walletPickerOpen: false
     });
 
