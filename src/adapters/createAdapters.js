@@ -1,13 +1,15 @@
-import { TronLinkAdapter } from '@tronweb3/tronwallet-adapter-tronlink';
-import { OkxWalletAdapter } from '@tronweb3/tronwallet-adapter-okxwallet';
-import { BinanceWalletAdapter } from '@tronweb3/tronwallet-adapter-binance';
-import { TrustAdapter } from '@tronweb3/tronwallet-adapter-trust';
-import { BitKeepAdapter } from '@tronweb3/tronwallet-adapter-bitkeep';
-import { TokenPocketAdapter } from '@tronweb3/tronwallet-adapter-tokenpocket';
-import { MetaMaskAdapter } from '@tronweb3/tronwallet-adapter-metamask';
-import { WalletConnectAdapter } from '@tronweb3/tronwallet-adapter-walletconnect';
+import {
+  TronLinkAdapter,
+  OkxWalletAdapter,
+  BinanceWalletAdapter,
+  TrustAdapter,
+  BitKeepAdapter,
+  TokenPocketAdapter,
+  MetaMaskAdapter,
+  WalletConnectAdapter
+} from '@tronweb3/tronwallet-adapters';
 
-export function createWalletAdapters(projectId) {
+export function createWalletAdapters({ projectId }) {
   return [
     new TronLinkAdapter(),
     new OkxWalletAdapter(),
@@ -21,7 +23,13 @@ export function createWalletAdapters(projectId) {
     new WalletConnectAdapter({
       network: 'Mainnet',
       options: {
-        projectId
+        projectId,
+        metadata: {
+          name: '4TEEN',
+          description: '4TEEN wallet connection',
+          url: 'https://4teen.me',
+          icons: ['https://4teen.me/logo.png']
+        }
       }
     })
   ];
