@@ -1,6 +1,12 @@
 import { defineConfig } from 'vite';
+import { resolve } from 'path';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      buffer: resolve('node_modules/buffer')
+    }
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
