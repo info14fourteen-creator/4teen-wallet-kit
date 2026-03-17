@@ -9,12 +9,18 @@ let appkit = null;
 let tronAdapter = null;
 
 export function initFourteenConnect({ projectId }) {
-  const init = initWalletKit({ projectId });
+  const init = initWalletKit({ projectId }) || {};
 
-  appkit = init.appkit;
-  tronAdapter = init.tronAdapter;
+  appkit = init.appkit || null;
+  tronAdapter = init.tronAdapter || null;
 
-  restoreSession(appkit).catch(console.error);
+  if (appkit) {
+    restoreSession(appkit).catch((error) => {
+      console.error('[4TEEN] restoreSession failed', error);
+    });
+  } else {
+    console.error('[4TEEN] initWalletKit did not return appkit');
+  }
 
   return {
     connect: () => connectWallet(appkit),
