@@ -66,9 +66,7 @@ function resolveAddress(adapter, provider) {
 }
 
 async function tryRequestAccounts(provider) {
-  if (!provider || typeof provider.request !== 'function') {
-    return null;
-  }
+  if (!provider || typeof provider.request !== 'function') return null;
 
   const methods = ['tron_requestAccounts', 'requestAccounts'];
 
@@ -76,50 +74,28 @@ async function tryRequestAccounts(provider) {
     try {
       const res = await provider.request({ method });
 
-      if (Array.isArray(res) && isUsableAddress(res[0])) {
-        return res[0];
-      }
-
-      if (typeof res === 'string' && isUsableAddress(res)) {
-        return res;
-      }
-
-      if (res?.address && isUsableAddress(res.address)) {
-        return res.address;
-      }
-
-      if (res?.data?.address && isUsableAddress(res.data.address)) {
-        return res.data.address;
-      }
+      if (Array.isArray(res) && isUsableAddress(res[0])) return res[0];
+      if (typeof res === 'string' && isUsableAddress(res)) return res;
+      if (res?.address && isUsableAddress(res.address)) return res.address;
+      if (res?.data?.address && isUsableAddress(res.data.address)) return res.data.address;
     } catch (_) {}
   }
 
   return null;
 }
 
-async function waitForAddress(adapter, provider, attempts = 12, delayMs = 250) {
-  for (let i = 0; i < attempts; i += 1) {
-    const address =
+async function waitForAddress(adapter, provider) {
+  for (let i = 0; i < 12; i++) {
+    const addr =
       resolveAddress(adapter, provider) ||
       (i === 0 ? await tryRequestAccounts(provider) : null);
 
-    if (isUsableAddress(address)) {
-      console.log('[4TEEN] waitForAdapterAddress attempt', {
-        attempt: i + 1,
-        adapter: resolveAdapterName(adapter),
-        address
-      });
-
-      return address;
+    if (isUsableAddress(addr)) {
+      console.log('[4TEEN] address resolved', addr);
+      return addr;
     }
 
-    console.log('[4TEEN] waitForAdapterAddress attempt', {
-      attempt: i + 1,
-      adapter: resolveAdapterName(adapter),
-      address: null
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    await new Promise((r) => setTimeout(r, 250));
   }
 
   return null;
@@ -128,21 +104,17 @@ async function waitForAddress(adapter, provider, attempts = 12, delayMs = 250) {
 function pickAdapter(appkit, walletId) {
   const adapters = resolveAdapters(appkit);
 
-  if (!adapters.length) {
-    return null;
-  }
+  if (!adapters.length) return null;
 
   if (walletId) {
-    return (
-      adapters.find(
-        (adapter) =>
-          resolveAdapterId(adapter) === walletId ||
-          resolveAdapterName(adapter) === walletId
-      ) || null
-    );
+    return adapters.find(
+      (a) =>
+        resolveAdapterId(a) === walletId ||
+        resolveAdapterName(a) === walletId
+    ) || null;
   }
 
-  return adapters.find((adapter) => adapter?.connected) || null;
+  return adapters.find((a) => a?.connected) || null;
 }
 
 // ===== MAIN =====
@@ -161,24 +133,26 @@ export async function connectWallet(appkit, walletId = null) {
     if (!walletId) {
       if (typeof appkit.openWalletPicker === 'function') {
         appkit.openWalletPicker();
+
         setWalletState({
           connecting: false,
           walletPickerOpen: true
         });
+
         return { ok: true };
       }
 
-      throw new Error('Wallet picker is not available');
+      throw new Error('Wallet picker not available');
     }
 
     const adapter = pickAdapter(appkit, walletId);
 
     if (!adapter) {
-      throw new Error('Adapter not found');
+      throw new Error(`Adapter not found: ${walletId}`);
     }
 
     if (typeof adapter.connect !== 'function') {
-      throw new Error('Adapter connect method not available');
+      throw new Error(`Adapter ${walletId} has no connect()`);
     }
 
     await adapter.connect();
