@@ -21,14 +21,49 @@ function getBrowserHint() {
   const href = String(window.location.href || '').toLowerCase();
   const ua = String(window.navigator?.userAgent || '').toLowerCase();
 
-  if (href.includes('utm_source=tronlink') || ua.includes('tronlink')) return 'TronLink';
-  if (href.includes('utm_source=trust') || href.includes('trust_ios_browser') || ua.includes('trustwallet') || ua.includes('trust')) return 'Trust';
-  if (href.includes('utm_source=okx') || ua.includes('okex/') || ua.includes('okapp/') || ua.includes('okx')) return 'OKX Wallet';
-  if (href.includes('utm_source=binance') || ua.includes('bnc/') || ua.includes('binance')) return 'Binance Wallet';
-  if (href.includes('utm_source=metamask') || ua.includes('metamask')) return 'MetaMask';
-  if (ua.includes('tokenpocket') || ua.includes('tp/')) return 'TokenPocket';
+  if (href.includes('utm_source=okx') || ua.includes('okex/') || ua.includes('okapp/') || ua.includes('okx')) {
+    return 'OKX Wallet';
+  }
+
+  if (href.includes('utm_source=binance') || ua.includes('bnc/') || ua.includes('binance')) {
+    return 'Binance Wallet';
+  }
+
+  if (href.includes('utm_source=tronlink') || ua.includes('tronlink')) {
+    return 'TronLink';
+  }
+
+  if (href.includes('utm_source=trust') || href.includes('trust_ios_browser') || ua.includes('trustwallet') || ua.includes('trust')) {
+    return 'Trust';
+  }
+
+  if (href.includes('utm_source=metamask') || ua.includes('metamask')) {
+    return 'MetaMask';
+  }
+
+  if (ua.includes('tokenpocket') || ua.includes('tp/')) {
+    return 'TokenPocket';
+  }
 
   return '';
+}
+
+function getWalletPriority(name, browserHint, activeWalletId) {
+  if (activeWalletId && name === activeWalletId) return 1000;
+  if (browserHint && name === browserHint) return 900;
+
+  const base = {
+    'OKX Wallet': 800,
+    'Binance Wallet': 790,
+    'TronLink': 780,
+    'Trust': 770,
+    'TokenPocket': 760,
+    'MetaMask': 750,
+    'WalletConnect': 100,
+    'Bitget Wallet': 740
+  };
+
+  return base[name] || 1;
 }
 
 function normalizeConnectedAdapters(adapters, activeWalletId = null) {
@@ -38,18 +73,14 @@ function normalizeConnectedAdapters(adapters, activeWalletId = null) {
     return null;
   }
 
-  if (activeWalletId) {
-    const active = connectedAdapters.find((adapter) => adapter?.name === activeWalletId);
-    if (active) return active;
-  }
-
   const browserHint = getBrowserHint();
-  if (browserHint) {
-    const hinted = connectedAdapters.find((adapter) => adapter?.name === browserHint);
-    if (hinted) return hinted;
-  }
 
-  return connectedAdapters[0];
+  const sorted = [...connectedAdapters].sort((a, b) => {
+    return getWalletPriority(b?.name, browserHint, activeWalletId) -
+      getWalletPriority(a?.name, browserHint, activeWalletId);
+  });
+
+  return sorted[0] || null;
 }
 
 function scheduleRestore(kit, delay = 300) {
