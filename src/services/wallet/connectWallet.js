@@ -71,7 +71,7 @@ function buildTronWeb(address, adapter) {
   return tronWeb;
 }
 
-async function waitForAdapterAddress(adapter, attempts = 16, delay = 250) {
+async function waitForAdapterAddress(adapter, attempts = 18, delay = 250) {
   for (let i = 0; i < attempts; i += 1) {
     const address = resolveAdapterAddress(adapter);
 
@@ -88,7 +88,7 @@ async function waitForAdapterAddress(adapter, attempts = 16, delay = 250) {
   return null;
 }
 
-export async function connectWallet(appkit) {
+export async function connectWallet(appkit, walletId = null) {
   if (!appkit) {
     const error = new Error('Wallet module is not ready');
 
@@ -107,17 +107,18 @@ export async function connectWallet(appkit) {
   }
 
   try {
-    const adapter = appkit.selectAdapter();
+    const adapter = appkit.selectAdapter(walletId);
 
     if (!adapter) {
-      throw new Error('No supported wallet adapter is available');
+      throw new Error('Selected wallet is not available');
     }
 
     setWalletState({
       connecting: true,
       connected: false,
       error: null,
-      selectedWalletId: adapter.name
+      selectedWalletId: adapter.name,
+      walletPickerOpen: false
     });
 
     showNeutralNotice(`Connecting ${adapter.name}...`);
