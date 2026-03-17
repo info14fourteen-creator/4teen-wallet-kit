@@ -1,0 +1,163 @@
+.fw-wallet-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.56);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 2147482500;
+}
+
+.fw-wallet-picker {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(94vw, 420px);
+  max-height: min(78vh, 620px);
+  overflow: auto;
+  background: rgba(26, 26, 26, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
+  padding: 14px;
+  z-index: 2147482600;
+  font-family: Inter, Arial, Helvetica, sans-serif;
+}
+
+.fw-wallet-picker__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.fw-wallet-picker__title {
+  color: rgb(255, 255, 255);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.fw-wallet-picker__close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(0, 0, 0);
+  color: rgb(255, 255, 255);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.fw-wallet-picker__close svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+
+.fw-wallet-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fw-wallet-picker__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    180deg,
+    rgba(38, 38, 38, 0.98) 0%,
+    rgba(26, 26, 26, 0.98) 100%
+  );
+  color: rgb(255, 255, 255);
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.fw-wallet-picker__item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 105, 0, 0.38);
+}
+
+.fw-wallet-picker__item:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.fw-wallet-picker__item-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.fw-wallet-picker__icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.fw-wallet-picker__name {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgb(255, 255, 255);
+}
+
+.fw-wallet-picker__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.fw-wallet-picker__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.fw-wallet-picker__dot--ready {
+  background: rgb(26, 224, 58);
+  box-shadow: 0 0 10px rgba(26, 224, 58, 0.66);
+}
+
+.fw-wallet-picker__dot--not-ready {
+  background: rgb(255, 48, 73);
+  box-shadow: 0 0 10px rgba(255, 48, 73, 0.58);
+}
+
+.fw-wallet-picker__status-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgb(242, 242, 242);
+  text-transform: uppercase;
+}
+
+@media (max-width: 640px) {
+  .fw-wallet-picker {
+    width: min(96vw, 390px);
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .fw-wallet-picker__item {
+    padding: 10px 11px;
+  }
+
+  .fw-wallet-picker__name {
+    font-size: 12px;
+  }
+}
