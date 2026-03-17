@@ -33,7 +33,13 @@ function getWalletMeta(wallet) {
 }
 
 function isReady(wallet) {
+  if (wallet.id === 'WalletConnect') return true;
   return wallet.readyState === 'Found';
+}
+
+function getStatusText(wallet) {
+  if (wallet.id === 'WalletConnect') return 'Ready';
+  return wallet.readyState === 'Found' ? 'Ready' : 'Unavailable';
 }
 
 function ensurePicker() {
@@ -94,7 +100,7 @@ export function showWalletPicker({ wallets = [], onSelect, onClose }) {
       </span>
       <span class="fw-wallet-picker__status">
         <span class="fw-wallet-picker__dot ${ready ? 'fw-wallet-picker__dot--ready' : 'fw-wallet-picker__dot--not-ready'}"></span>
-        <span class="fw-wallet-picker__status-text">${ready ? 'Ready' : 'Unavailable'}</span>
+        <span class="fw-wallet-picker__status-text">${getStatusText(wallet)}</span>
       </span>
     `;
 
