@@ -24,21 +24,41 @@ async function safeDisconnectAdapter(adapter) {
       await method.call(adapter);
     } catch (error) {
       console.warn('[4TEEN] adapter disconnect failed', {
-        adapter: adapter?.name || adapter?.id,
+        adapter: adapter?.name || adapter?.id || 'unknown',
         error
       });
     }
   }
 }
 
+function clearRuntimeCaches() {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.__FOURTEEN_WALLETCONNECT_URI__ = null;
+  } catch (_) {}
+
+  try {
+    window.__FOURTEEN_LAST_SELECTED_WALLET__ = null;
+  } catch (_) {}
+
+  try {
+    window.__FOURTEEN_CONNECT_IN_PROGRESS__ = false;
+  } catch (_) {}
+}
+
 export async function disconnectWallet(appkit) {
   try {
-    // appkit disconnect (WalletConnect etc)
-    if (appkit?.disconnect) {
+    setWalletState({
+      connecting: false,
+      error: null
+    });
+
+    if (appkit?.disconnect && typeof appkit.disconnect === 'function') {
       try {
         await appkit.disconnect();
-      } catch (e) {
-        console.warn('[4TEEN] appkit.disconnect error', e);
+      } catch (error) {
+        console.warn('[4TEEN] appkit.disconnect failed', error);
       }
     }
 
@@ -48,14 +68,18 @@ export async function disconnectWallet(appkit) {
       await safeDisconnectAdapter(adapter);
     }
 
+    clearRuntimeCaches();
   } finally {
-    // 🔥 
     resetWalletState();
 
     setWalletState({
-      walletPickerOpen: true,
+      initialized: true,
       connecting: false,
-      connected: false
+      connected: false,
+      walletPickerOpen: true,
+      error: null
     });
   }
+
+  return { ok: true };
 }
