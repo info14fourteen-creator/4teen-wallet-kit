@@ -2,6 +2,7 @@ import { TronWeb } from 'tronweb';
 import { getWalletState, setWalletState } from '../../core/store/walletStore.js';
 
 const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
+const TRONGRID_FULL_HOST = 'https://api.trongrid.io';
 
 function isUsableAddress(value) {
   return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
@@ -13,18 +14,18 @@ function getWindowSafe() {
 
 function getReadOnlyTronWeb() {
   return new TronWeb({
-    fullHost: 'https://api.trongrid.io'
+    fullHost: TRONGRID_FULL_HOST
   });
 }
 
 function normalizeSunToTrx(value) {
-  const num = Number(value || 0);
+  const num = Number(value ?? 0);
   if (!Number.isFinite(num)) return null;
   return Number((num / 1_000_000).toFixed(6));
 }
 
 function normalizeTokenUnits(value) {
-  const num = Number(value || 0);
+  const num = Number(value ?? 0);
   if (!Number.isFinite(num)) return null;
   return num / 1_000_000;
 }
@@ -34,6 +35,14 @@ function decodeHexBalance(hexValue) {
 
   try {
     return parseInt(hexValue, 16);
+  } catch {
+    return null;
+  }
+}
+
+function base58ToHexSafe(address) {
+  try {
+    return TronWeb.address.toHex(address);
   } catch {
     return null;
   }
@@ -50,6 +59,33 @@ function extractAccountBalance(response) {
   return null;
 }
 
+function getProviderName(provider) {
+  if (!provider) return '';
+
+  const win = getWindowSafe();
+
+  if (provider === win?.tronLink || provider === win?.tronLink?.tronWeb) return 'TronLink';
+  if (provider === win?.okxwallet || provider === win?.okxwallet?.tronWeb) return 'OKX Wallet';
+  if (provider === win?.okxWallet || provider === win?.okxWallet?.tronWeb) return 'OKX Wallet';
+  if (provider === win?.tp || provider === win?.tp?.tronWeb) return 'TokenPocket';
+  if (provider === win?.tokenPocket || provider === win?.tokenPocket?.tronWeb) return 'TokenPocket';
+  if (provider === win?.bitkeep || provider === win?.bitkeep?.tronWeb) return 'Bitget Wallet';
+  if (provider === win?.bitget || provider === win?.bitget?.tronWeb) return 'Bitget Wallet';
+  if (provider === win?.trustwallet || provider === win?.trustwallet?.tronWeb) return 'Trust';
+  if (provider === win?.trustWallet || provider === win?.trustWallet?.tronWeb) return 'Trust';
+  if (provider === win?.BinanceChain) return 'Binance Wallet';
+  if (provider === win?.ethereum) return 'MetaMask';
+
+  if (provider?.isTronLink) return 'TronLink';
+  if (provider?.isOkxWallet || provider?.isOKExWallet) return 'OKX Wallet';
+  if (provider?.isTokenPocket) return 'TokenPocket';
+  if (provider?.isBitKeep || provider?.isBitget) return 'Bitget Wallet';
+  if (provider?.isTrust || provider?.isTrustWallet) return 'Trust';
+  if (provider?.isMetaMask) return 'MetaMask';
+
+  return '';
+}
+
 function getTronWebCandidates(provider) {
   const win = getWindowSafe();
 
@@ -58,7 +94,6 @@ function getTronWebCandidates(provider) {
     provider,
     provider?.provider?.tronWeb,
     provider?.provider,
-
     win?.tronLink?.tronWeb,
     win?.okxwallet?.tronWeb,
     win?.okxWallet?.tronWeb,
@@ -80,7 +115,6 @@ function getProviderCandidates(provider) {
     provider?.provider,
     provider?.tronWeb,
     provider?.tronWeb?.provider,
-
     win?.tronLink,
     win?.okxwallet,
     win?.okxWallet,
@@ -90,17 +124,10 @@ function getProviderCandidates(provider) {
     win?.bitget,
     win?.trustwallet,
     win?.trustWallet,
+    win?.BinanceChain,
+    win?.ethereum,
     win?.tronWeb
   ].filter(Boolean);
-}
-
-function hasValidAddress(tronWeb, address) {
-  const addr =
-    tronWeb?.defaultAddress?.base58 ||
-    tronWeb?.tronWeb?.defaultAddress?.base58 ||
-    null;
-
-  return !!(addr && address && addr === address);
 }
 
 function isValidTronWeb(tronWeb) {
@@ -114,37 +141,111 @@ function isValidTronWeb(tronWeb) {
   );
 }
 
-function pickBestTronWeb(provider, address) {
+function getTronWebAddress(tronWeb) {
+  return (
+    tronWeb?.defaultAddress?.base58 ||
+    tronWeb?.tronWeb?.defaultAddress?.base58 ||
+    null
+  );
+}
+
+function hasValidAddress(tronWeb, address) {
+  const current = getTronWebAddress(tronWeb);
+  return !!(current && address && current === address);
+}
+
+function scoreTronWebCandidate(tronWeb, address, walletId) {
+  if (!isValidTronWeb(tronWeb)) return -100000;
+
+  const name = getProviderName(tronWeb);
+  const currentAddress = getTronWebAddress(tronWeb);
+  const normalizedWalletId = String(walletId || '').trim().toLowerCase();
+
+  let score = 0;
+
+  if (currentAddress && currentAddress === address) score += 10000;
+  if (currentAddress && currentAddress !== address) score -= 8000;
+
+  if (typeof tronWeb?.trx?.getBalance === 'function') score += 200;
+  if (typeof tronWeb?.contract === 'function') score += 100;
+  if (typeof tronWeb?.transactionBuilder?.triggerConstantContract === 'function') score += 100;
+
+  if (normalizedWalletId && name && name.toLowerCase() === normalizedWalletId) score += 4000;
+
+  if (normalizedWalletId && normalizedWalletId !== 'tronlink' && name === 'TronLink') score -= 12000;
+  if (normalizedWalletId && normalizedWalletId !== 'okx wallet' && name === 'OKX Wallet') score -= 3000;
+  if (normalizedWalletId && normalizedWalletId !== 'tokenpocket' && name === 'TokenPocket') score -= 3000;
+  if (normalizedWalletId && normalizedWalletId !== 'bitget wallet' && name === 'Bitget Wallet') score -= 3000;
+  if (normalizedWalletId && normalizedWalletId !== 'trust' && name === 'Trust') score -= 3000;
+  if (normalizedWalletId && normalizedWalletId !== 'binance wallet' && name === 'Binance Wallet') score -= 3000;
+  if (normalizedWalletId && normalizedWalletId !== 'metamask' && name === 'MetaMask') score -= 3000;
+
+  return score;
+}
+
+function pickBestTronWeb(provider, address, walletId) {
   const candidates = getTronWebCandidates(provider);
 
-  for (const tw of candidates) {
-    if (isValidTronWeb(tw) && hasValidAddress(tw, address)) {
-      return tw;
-    }
+  if (!candidates.length) return null;
+
+  const ranked = candidates
+    .map((item) => ({
+      item,
+      score: scoreTronWebCandidate(item, address, walletId)
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  return ranked[0]?.score > -100000 ? ranked[0].item : null;
+}
+
+async function tryProviderRequest(provider, method, params) {
+  if (!provider) return null;
+
+  if (typeof provider.request === 'function') {
+    try {
+      return await provider.request({
+        method,
+        params
+      });
+    } catch {}
   }
 
-  for (const tw of candidates) {
-    if (isValidTronWeb(tw)) {
-      return tw;
-    }
+  if (typeof provider.send === 'function') {
+    try {
+      return await provider.send(method, params);
+    } catch {}
   }
 
   return null;
 }
 
-async function tryProviderRequest(provider, method, params) {
-  if (!provider || typeof provider.request !== 'function') {
-    return null;
+async function readTrxBalanceViaProvider(address, provider) {
+  const providers = getProviderCandidates(provider);
+  const addressHex = base58ToHexSafe(address);
+
+  if (!addressHex) return null;
+
+  for (const item of providers) {
+    const res = await tryProviderRequest(item, 'walletsolidity/getaccount', { address: addressHex });
+    const balanceSun = extractAccountBalance(res);
+    const trx = normalizeSunToTrx(balanceSun);
+
+    if (trx !== null) {
+      return trx;
+    }
   }
 
-  try {
-    return await provider.request({
-      method,
-      ...params
-    });
-  } catch {
-    return null;
+  for (const item of providers) {
+    const res = await tryProviderRequest(item, 'wallet/getaccount', { address: addressHex });
+    const balanceSun = extractAccountBalance(res);
+    const trx = normalizeSunToTrx(balanceSun);
+
+    if (trx !== null) {
+      return trx;
+    }
   }
+
+  return null;
 }
 
 async function readTrxBalance(address, tronWeb, provider) {
@@ -160,38 +261,12 @@ async function readTrxBalance(address, tronWeb, provider) {
       if (trx !== null) {
         return trx;
       }
-    } catch (_) {}
+    } catch {}
   }
 
-  const providers = getProviderCandidates(provider);
-  const addressHex = base58ToHexSafe(address);
-
-  if (addressHex) {
-    for (const item of providers) {
-      const res = await tryProviderRequest(item, 'walletsolidity/getaccount', {
-        params: { address: addressHex }
-      });
-
-      const balanceSun = extractAccountBalance(res);
-      const trx = normalizeSunToTrx(balanceSun);
-
-      if (trx !== null) {
-        return trx;
-      }
-    }
-
-    for (const item of providers) {
-      const res = await tryProviderRequest(item, 'wallet/getaccount', {
-        params: { address: addressHex }
-      });
-
-      const balanceSun = extractAccountBalance(res);
-      const trx = normalizeSunToTrx(balanceSun);
-
-      if (trx !== null) {
-        return trx;
-      }
-    }
+  const providerTrx = await readTrxBalanceViaProvider(address, provider);
+  if (providerTrx !== null) {
+    return providerTrx;
   }
 
   const readOnly = getReadOnlyTronWeb();
@@ -218,7 +293,7 @@ async function readTokenBalanceViaContract(address, tronWeb) {
   const raw = await contract.balanceOf(address).call();
 
   const value =
-    typeof raw === 'object' && raw !== null && raw.toString
+    typeof raw === 'object' && raw !== null && typeof raw.toString === 'function'
       ? raw.toString()
       : String(raw);
 
@@ -262,12 +337,14 @@ async function readTokenBalanceViaTrigger(address, tronWeb) {
   return value;
 }
 
-function base58ToHexSafe(address) {
+function createReadOnlyBalanceReader(address) {
+  const tronWeb = getReadOnlyTronWeb();
+
   try {
-    return TronWeb.address.toHex(address);
-  } catch {
-    return null;
-  }
+    tronWeb.setAddress(address);
+  } catch {}
+
+  return tronWeb;
 }
 
 export async function refreshAllBalances({ address, walletId, provider } = {}) {
@@ -281,15 +358,15 @@ export async function refreshAllBalances({ address, walletId, provider } = {}) {
     throw new Error('refreshAllBalances: invalid address');
   }
 
-  const tronWeb = pickBestTronWeb(finalProvider, finalAddress);
-  const balanceReader = tronWeb || getReadOnlyTronWeb();
+  const injectedTronWeb = pickBestTronWeb(finalProvider, finalAddress, finalWalletId);
+  const readOnlyTronWeb = createReadOnlyBalanceReader(finalAddress);
 
   setWalletState({
     address: finalAddress,
     walletId: finalWalletId,
     activeWalletId: finalWalletId,
     provider: finalProvider,
-    tronWeb: tronWeb || null
+    tronWeb: injectedTronWeb || null
   });
 
   let trxBalance = null;
@@ -299,20 +376,20 @@ export async function refreshAllBalances({ address, walletId, provider } = {}) {
   let tokenError = null;
 
   try {
-    trxBalance = await readTrxBalance(finalAddress, tronWeb, finalProvider);
-  } catch (e) {
-    trxError = e;
-    console.error('[4TEEN] TRX balance error', e);
+    trxBalance = await readTrxBalance(finalAddress, injectedTronWeb, finalProvider);
+  } catch (error) {
+    trxError = error;
+    console.error('[4TEEN] TRX balance error', error);
   }
 
   try {
-    fourteenBalance = await readTokenBalanceViaContract(finalAddress, balanceReader);
-  } catch (e) {
-    tokenError = e;
-    console.error('[4TEEN] token contract error', e);
+    fourteenBalance = await readTokenBalanceViaContract(finalAddress, readOnlyTronWeb);
+  } catch (error) {
+    tokenError = error;
+    console.error('[4TEEN] token contract error', error);
 
     try {
-      fourteenBalance = await readTokenBalanceViaTrigger(finalAddress, balanceReader);
+      fourteenBalance = await readTokenBalanceViaTrigger(finalAddress, readOnlyTronWeb);
       tokenError = null;
     } catch (fallbackError) {
       tokenError = fallbackError;
