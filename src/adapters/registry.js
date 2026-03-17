@@ -5,5 +5,6 @@ export const WALLET_REGISTRY = {
   trust: { id: 'trust', name: 'Trust Wallet' },
   bitget: { id: 'bitget', name: 'Bitget Wallet' },
   tokenpocket: { id: 'tokenpocket', name: 'TokenPocket' },
-  metamask: { id: 'metamask', name: 'MetaMask' }
+  metamask: { id: 'metamask', name: 'MetaMask' },
+  walletconnect: { id: 'walletconnect', name: 'WalletConnect' }
 };
