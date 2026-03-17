@@ -22,24 +22,32 @@ function getBrowserHint() {
   const ua = String(window.navigator?.userAgent || '').toLowerCase();
 
   if (href.includes('utm_source=tronlink') || ua.includes('tronlink')) return 'TronLink';
-  if (href.includes('utm_source=trust') || href.includes('utm_source=trust_ios_browser') || ua.includes('trust')) return 'Trust';
-  if (href.includes('utm_source=okx') || ua.includes('okx')) return 'OKX Wallet';
-  if (href.includes('utm_source=binance') || ua.includes('binance')) return 'Binance Wallet';
+  if (href.includes('utm_source=trust') || href.includes('trust_ios_browser') || ua.includes('trustwallet') || ua.includes('trust')) return 'Trust';
+  if (href.includes('utm_source=okx') || ua.includes('okex/') || ua.includes('okapp/') || ua.includes('okx')) return 'OKX Wallet';
+  if (href.includes('utm_source=binance') || ua.includes('bnc/') || ua.includes('binance')) return 'Binance Wallet';
   if (href.includes('utm_source=metamask') || ua.includes('metamask')) return 'MetaMask';
+  if (ua.includes('tokenpocket') || ua.includes('tp/')) return 'TokenPocket';
 
   return '';
 }
 
-function normalizeConnectedAdapters(adapters) {
+function normalizeConnectedAdapters(adapters, activeWalletId = null) {
   const connectedAdapters = adapters.filter((adapter) => !!adapter?.connected);
 
-  if (connectedAdapters.length <= 1) {
-    return connectedAdapters[0] || null;
+  if (connectedAdapters.length === 0) {
+    return null;
+  }
+
+  if (activeWalletId) {
+    const active = connectedAdapters.find((adapter) => adapter?.name === activeWalletId);
+    if (active) return active;
   }
 
   const browserHint = getBrowserHint();
-  const hinted = connectedAdapters.find((adapter) => adapter?.name === browserHint);
-  if (hinted) return hinted;
+  if (browserHint) {
+    const hinted = connectedAdapters.find((adapter) => adapter?.name === browserHint);
+    if (hinted) return hinted;
+  }
 
   return connectedAdapters[0];
 }
@@ -69,7 +77,8 @@ function bindAdapterEvents(kit, adapter) {
 
   try {
     adapter.on('connect', () => {
-      kit.connectedAdapter = normalizeConnectedAdapters(kit.adapters) || adapter;
+      const state = getWalletState();
+      kit.connectedAdapter = normalizeConnectedAdapters(kit.adapters, state.activeWalletId) || adapter;
       kit.updateAvailableWallets();
       scheduleRestore(kit, 200);
     });
@@ -77,9 +86,18 @@ function bindAdapterEvents(kit, adapter) {
 
   try {
     adapter.on('disconnect', () => {
+      const state = getWalletState();
+
+      if (state.activeWalletId === adapter.name) {
+        setWalletState({
+          activeWalletId: null
+        });
+      }
+
       if (kit.connectedAdapter?.name === adapter.name) {
         kit.connectedAdapter = null;
       }
+
       kit.updateAvailableWallets();
       scheduleRestore(kit, 200);
     });
@@ -116,10 +134,13 @@ function createWalletKit({ projectId }) {
     },
 
     getConnectedAdapter() {
-      const normalized = normalizeConnectedAdapters(this.adapters);
+      const state = getWalletState();
+      const normalized = normalizeConnectedAdapters(this.adapters, state.activeWalletId);
+
       if (normalized) {
         this.connectedAdapter = normalized;
       }
+
       return this.connectedAdapter || null;
     },
 
@@ -129,7 +150,8 @@ function createWalletKit({ projectId }) {
       this.connectedAdapter = adapter || null;
 
       setWalletState({
-        selectedWalletId: adapter?.name || null
+        selectedWalletId: adapter?.name || null,
+        activeWalletId: adapter?.name || null
       });
 
       return adapter;
@@ -141,9 +163,7 @@ function createWalletKit({ projectId }) {
 
       if (!address) return null;
 
-      return {
-        address
-      };
+      return { address };
     },
 
     getWalletProvider() {
@@ -170,7 +190,8 @@ function createWalletKit({ projectId }) {
     bindAdapterEvents(kit, adapter);
   });
 
-  kit.connectedAdapter = normalizeConnectedAdapters(kit.adapters);
+  const state = getWalletState();
+  kit.connectedAdapter = normalizeConnectedAdapters(kit.adapters, state.activeWalletId);
   kit.updateAvailableWallets();
 
   return kit;
