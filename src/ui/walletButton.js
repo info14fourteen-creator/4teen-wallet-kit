@@ -140,6 +140,10 @@ export function mountWalletButton(target, options = {}) {
   }
 
   async function openPicker() {
+    try {
+      await options.onConnectClick?.(null);
+    } catch (_) {}
+
     const wallets = Array.isArray(latestState?.availableWallets) ? latestState.availableWallets : [];
 
     showWalletPicker({
