@@ -1,46 +1,32 @@
-import './ui/walletButton.css';
-
 import { initWalletKit } from './services/wallet/initWalletKit.js';
 import { connectWallet } from './services/wallet/connectWallet.js';
 import { disconnectWallet } from './services/wallet/disconnectWallet.js';
 import { restoreSession } from './services/wallet/restoreSession.js';
-import { mountWalletButton } from './ui/walletButton.js';
-import { getWalletState, subscribeWalletState } from './core/store/walletStore.js';
 import { refreshAllBalances } from './services/balances/refreshAllBalances.js';
-import { getTokenContractData } from './services/readonly/getTokenContractData.js';
-import { printWalletDiagnostics } from './diagnostics/walletDiagnostics.js';
+import { getWalletState, subscribeWalletState } from './core/store/walletStore.js';
+import { mountWalletButton } from './ui/walletButton.js';
 
 let appkit = null;
+let tronAdapter = null;
 
-export function initFourteenConnect({ projectId, buttonTarget }) {
-  appkit = initWalletKit({ projectId });
+export function initFourteenConnect({ projectId }) {
+  const init = initWalletKit({ projectId });
 
-  if (buttonTarget) {
-    mountWalletButton(buttonTarget, {
-      onConnectClick: async () => {
-        await connectWallet(appkit);
-      },
-      onRefresh: async () => {
-        await refreshAllBalances();
-      },
-      onDisconnect: async () => {
-        await disconnectWallet(appkit);
-      },
-      onDiagnostics: () => {
-        printWalletDiagnostics();
-      }
-    });
-  }
+  appkit = init.appkit;
+  tronAdapter = init.tronAdapter;
 
   restoreSession(appkit).catch(console.error);
 
   return {
     connect: () => connectWallet(appkit),
     disconnect: () => disconnectWallet(appkit),
+    restore: () => restoreSession(appkit),
     refreshBalances: () => refreshAllBalances(),
     getState: () => getWalletState(),
     subscribe: (listener) => subscribeWalletState(listener),
-    getTokenContractData: () => getTokenContractData(),
-    diagnostics: () => printWalletDiagnostics()
+    getAppkit: () => appkit,
+    getTronAdapter: () => tronAdapter
   };
 }
+
+export { mountWalletButton };
