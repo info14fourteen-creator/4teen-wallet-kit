@@ -46,16 +46,14 @@ function buildTronWeb(address, adapter) {
   const existing =
     adapter?.tronWeb ||
     adapter?.provider?.tronWeb ||
-    null;
+    (typeof window !== 'undefined' ? window?.tronWeb || null : null);
 
   if (existing) {
     try {
       if (typeof existing.setAddress === 'function' && address) {
         existing.setAddress(address);
       }
-    } catch (_) {
-      // ignore
-    }
+    } catch (_) {}
 
     return existing;
   }
@@ -71,7 +69,7 @@ function buildTronWeb(address, adapter) {
   return tronWeb;
 }
 
-async function waitForAdapterAddress(adapter, attempts = 18, delay = 250) {
+async function waitForAdapterAddress(adapter, attempts = 20, delay = 250) {
   for (let i = 0; i < attempts; i += 1) {
     const address = resolveAdapterAddress(adapter);
 
@@ -92,11 +90,20 @@ function isWalletConnect(adapter) {
   return adapter?.name === 'WalletConnect';
 }
 
-function canAttemptConnect(adapter) {
-  if (!adapter) return false;
-  if (isWalletConnect(adapter)) return true;
+async function waitForUsableAdapter(appkit, walletId, attempts = 12, delay = 250) {
+  for (let i = 0; i < attempts; i += 1) {
+    const adapter = appkit.getAdapterByName(walletId);
 
-  return adapter.readyState === 'Found';
+    if (adapter) {
+      if (isWalletConnect(adapter) || adapter.readyState === 'Found' || adapter.connected) {
+        return adapter;
+      }
+    }
+
+    await sleep(delay);
+  }
+
+  return appkit.getAdapterByName(walletId) || null;
 }
 
 export async function connectWallet(appkit, walletId = null) {
@@ -118,15 +125,17 @@ export async function connectWallet(appkit, walletId = null) {
   }
 
   try {
-    const adapter = appkit.selectAdapter(walletId);
+    const adapter = await waitForUsableAdapter(appkit, walletId);
 
     if (!adapter) {
       throw new Error('Selected wallet is not available');
     }
 
-    if (!canAttemptConnect(adapter)) {
+    if (!isWalletConnect(adapter) && adapter.readyState !== 'Found' && !adapter.connected) {
       throw new Error(`${adapter.name} is not available in this browser`);
     }
+
+    appkit.connectedAdapter = adapter;
 
     setWalletState({
       connecting: true,
@@ -138,9 +147,11 @@ export async function connectWallet(appkit, walletId = null) {
 
     showNeutralNotice(`Connecting ${adapter.name}...`);
 
-    await adapter.connect();
+    if (!adapter.connected) {
+      await adapter.connect();
+    }
 
-    const address = await waitForAdapterAddress(adapter, 18, 250);
+    const address = await waitForAdapterAddress(adapter, 20, 250);
 
     if (!address) {
       throw new Error('Wallet connected but address not resolved');
