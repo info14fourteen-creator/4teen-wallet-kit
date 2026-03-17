@@ -28,6 +28,7 @@
     "@tronweb3/tronwallet-adapter-trust": "latest",
     "@tronweb3/tronwallet-adapter-bitkeep": "latest",
     "@tronweb3/tronwallet-adapter-tokenpocket": "latest",
+    "@tronweb3/tronwallet-adapter-metamask": "latest",
     "@tronweb3/tronwallet-adapter-walletconnect": "latest",
     "tronweb": "latest"
   },
