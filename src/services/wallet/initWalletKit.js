@@ -10,17 +10,36 @@ export function initWalletKit({ projectId }) {
     return { appkit, tronAdapter };
   }
 
-  const result = createWalletModal({ projectId });
+  try {
+    const result = createWalletModal({ projectId }) || {};
 
-  appkit = result?.appkit || null;
-  tronAdapter = result?.tronAdapter || null;
+    appkit = result.appkit || null;
+    tronAdapter = result.tronAdapter || null;
 
-  initialized = true;
+    initialized = true;
 
-  setWalletState({
-    initialized: true,
-    error: null
-  });
+    setWalletState({
+      initialized: true,
+      error: null
+    });
 
-  return { appkit, tronAdapter };
+    console.log('[4TEEN] initWalletKit result', {
+      hasAppkit: !!appkit,
+      hasTronAdapter: !!tronAdapter
+    });
+
+    return { appkit, tronAdapter };
+  } catch (error) {
+    console.error('[4TEEN] initWalletKit failed', error);
+
+    setWalletState({
+      initialized: false,
+      error: error?.message || 'initWalletKit failed'
+    });
+
+    return {
+      appkit: null,
+      tronAdapter: null
+    };
+  }
 }
