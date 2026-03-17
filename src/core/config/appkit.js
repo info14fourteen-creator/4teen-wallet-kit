@@ -1,27 +1,44 @@
 import { createAppKit } from '@reown/appkit';
 import { TronAdapter } from '@reown/appkit-adapter-tron';
 import { tronMainnet } from '@reown/appkit/networks';
-import { APP_METADATA } from './constants.js';
 import { createWalletAdapters } from '../../adapters/createAdapters.js';
 
-let modal = null;
+let appkitInstance = null;
+let tronAdapterInstance = null;
+
+const APP_METADATA = {
+  name: '4TEEN Wallet Kit',
+  description: 'Wallet connection layer for 4TEEN on TRON',
+  url: 'https://4teen.me',
+  icons: ['https://4teen.me/logo.png']
+};
 
 export function createWalletModal({ projectId }) {
-  if (modal) return modal;
+  if (appkitInstance) {
+    return {
+      appkit: appkitInstance,
+      tronAdapter: tronAdapterInstance
+    };
+  }
 
-  const tronAdapter = new TronAdapter({
-    walletAdapters: createWalletAdapters()
+  const walletAdapters = createWalletAdapters(projectId);
+
+  tronAdapterInstance = new TronAdapter({
+    walletAdapters
   });
 
-  modal = createAppKit({
-    adapters: [tronAdapter],
-    networks: [tronMainnet],
-    metadata: APP_METADATA,
+  appkitInstance = createAppKit({
     projectId,
+    metadata: APP_METADATA,
+    networks: [tronMainnet],
+    adapters: [tronAdapterInstance],
     features: {
       analytics: false
     }
   });
 
-  return modal;
+  return {
+    appkit: appkitInstance,
+    tronAdapter: tronAdapterInstance
+  };
 }
