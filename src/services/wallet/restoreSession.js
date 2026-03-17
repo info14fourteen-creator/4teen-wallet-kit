@@ -2,26 +2,51 @@ import { setWalletState, getWalletState } from '../../core/store/walletStore.js'
 import { shortenAddress } from '../../core/utils/address.js';
 import { refreshAllBalances } from '../balances/refreshAllBalances.js';
 
+let restoreInFlight = false;
+let lastRestoreAt = 0;
+let lastRestoredSignature = null;
+
 function normalizeText(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase();
+  return String(value || '').trim().toLowerCase();
 }
 
 function isUsableAddress(value) {
   return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
 }
 
+function getWindowSafe() {
+  return typeof window !== 'undefined' ? window : null;
+}
+
+function getNavigatorSafe() {
+  return typeof navigator !== 'undefined' ? navigator : null;
+}
+
+function getLocationHref() {
+  const win = getWindowSafe();
+  return win?.location?.href || '';
+}
+
+function getUserAgent() {
+  const nav = getNavigatorSafe();
+  return nav?.userAgent || '';
+}
+
 function resolveAdapters(appkit) {
-  const adapters = appkit?.getConnectors?.() || appkit?.connectors || appkit?.adapters || [];
+  const adapters =
+    appkit?.getConnectors?.() ||
+    appkit?.connectors ||
+    appkit?.adapters ||
+    [];
+
   return Array.isArray(adapters) ? adapters : [];
 }
 
 function resolveAdapterId(adapter) {
   return (
+    adapter?.id ||
     adapter?.name ||
     adapter?.adapterName ||
-    adapter?.id ||
     adapter?.key ||
     null
   );
@@ -41,14 +66,9 @@ function resolveAdapterReadyState(adapter) {
   return String(adapter?.readyState || '');
 }
 
-function getUserAgent() {
-  if (typeof navigator === 'undefined') return '';
-  return navigator.userAgent || '';
-}
-
 function detectPreferredWalletId() {
   const ua = normalizeText(getUserAgent());
-  const href = normalizeText(typeof window !== 'undefined' ? window.location?.href : '');
+  const href = normalizeText(getLocationHref());
 
   if (ua.includes('okex') || ua.includes('okx')) return 'OKX Wallet';
   if (ua.includes('tokenpocket')) return 'TokenPocket';
@@ -61,36 +81,34 @@ function detectPreferredWalletId() {
 }
 
 function resolveAddressFromAdapter(adapter) {
-  return (
-    adapter?.address ||
-    adapter?.publicKey ||
-    adapter?.account?.address ||
-    adapter?.adapter?.address ||
-    null
-  );
-}
+  const candidates = [
+    adapter?.address,
+    adapter?.publicKey,
+    adapter?.account?.address,
+    adapter?.adapter?.address,
+    adapter?.provider?.address,
+    adapter?.provider?.selectedAddress,
+    adapter?.provider?.defaultAddress?.base58,
+    adapter?.provider?.tronWeb?.defaultAddress?.base58,
+    adapter?.tronWeb?.defaultAddress?.base58
+  ];
 
-function resolveAddressFromProvider(provider) {
-  return (
-    provider?.address ||
-    provider?.selectedAddress ||
-    provider?.defaultAddress?.base58 ||
-    provider?.tronWeb?.defaultAddress?.base58 ||
-    null
-  );
+  return candidates.find(isUsableAddress) || null;
 }
 
 function resolveProviderFromAdapter(appkit, adapter) {
-  return (
+  const provider = (
     adapter?.provider ||
+    adapter?.wallet ||
     appkit?.getWalletProvider?.() ||
     adapter?.tronWeb ||
-    (typeof window !== 'undefined' ? window.tronWeb : null) ||
     null
   );
+
+  return provider || null;
 }
 
-function scoreAdapter(adapter, preferredWalletId, activeWalletId) {
+function scoreAdapter(adapter, preferredWalletId) {
   const id = resolveAdapterId(adapter);
   const name = resolveAdapterName(adapter);
   const readyState = resolveAdapterReadyState(adapter);
@@ -99,114 +117,130 @@ function scoreAdapter(adapter, preferredWalletId, activeWalletId) {
   let score = 0;
 
   if (connected) score += 1000;
-  if (readyState === 'Found') score += 100;
-  if (readyState === 'Installed') score += 90;
-  if (readyState === 'Loadable') score += 70;
-  if (readyState === 'Loading') score += 15;
+  if (readyState === 'Found') score += 200;
+  if (readyState === 'Installed') score += 180;
+  if (readyState === 'Loadable') score += 120;
+  if (readyState === 'Loading') score += 10;
 
-  if (activeWalletId && (id === activeWalletId || name === activeWalletId)) {
+  if (preferredWalletId && (id === preferredWalletId || name === preferredWalletId)) {
     score += 10000;
   }
 
-  if (preferredWalletId && (id === preferredWalletId || name === preferredWalletId)) {
-    score += 5000;
-  }
-
-  if (preferredWalletId && preferredWalletId !== 'TronLink' && (id === 'TronLink' || name === 'TronLink')) {
-    score -= 500;
+  if (
+    preferredWalletId &&
+    preferredWalletId !== 'TronLink' &&
+    (id === 'TronLink' || name === 'TronLink')
+  ) {
+    score -= 4000;
   }
 
   return score;
 }
 
-function pickActiveAdapter(appkit) {
+function pickBestAdapter(appkit) {
   const adapters = resolveAdapters(appkit);
   const preferredWalletId = detectPreferredWalletId();
-  const state = getWalletState();
-  const activeWalletId = state.activeWalletId || state.walletId || null;
 
-  if (!adapters.length) {
-    return null;
-  }
+  if (!adapters.length) return null;
 
   const ranked = adapters
     .map((adapter) => ({
       adapter,
-      score: scoreAdapter(adapter, preferredWalletId, activeWalletId)
+      score: scoreAdapter(adapter, preferredWalletId)
     }))
     .sort((a, b) => b.score - a.score);
 
-  const winner = ranked[0]?.adapter || null;
-  return winner;
+  return ranked[0]?.adapter || null;
+}
+
+function buildRestoreSignature(adapter, address) {
+  return `${resolveAdapterName(adapter)}::${address || 'null'}::${detectPreferredWalletId() || 'none'}`;
 }
 
 export async function restoreSession(appkit) {
+  const now = Date.now();
+
   if (!appkit) {
-    console.warn('[4TEEN] restoreSession skipped: appkit is missing');
     return false;
   }
 
-  const adapters = resolveAdapters(appkit);
-
-  console.log('[4TEEN] restoreSession check', {
-    hasAppkit: !!appkit,
-    adapters: adapters.map((adapter) => ({
-      name: resolveAdapterName(adapter),
-      connected: !!adapter?.connected,
-      readyState: resolveAdapterReadyState(adapter)
-    })),
-    address: getWalletState().address || null
-  });
-
-  const activeAdapter = pickActiveAdapter(appkit);
-  if (!activeAdapter) {
+  if (restoreInFlight) {
     return false;
   }
 
-  const provider = resolveProviderFromAdapter(appkit, activeAdapter);
-  const addressCandidates = [
-    resolveAddressFromAdapter(activeAdapter),
-    resolveAddressFromProvider(provider),
-    appkit?.getAccount?.()?.address || null,
-    typeof window !== 'undefined' ? window.tronWeb?.defaultAddress?.base58 : null
-  ];
-
-  const address = addressCandidates.find(isUsableAddress) || null;
-
-  if (!address) {
+  if (now - lastRestoreAt < 1200) {
     return false;
   }
 
-  const walletId = resolveAdapterId(activeAdapter);
-  const walletName = resolveAdapterName(activeAdapter);
-
-  setWalletState({
-    connected: true,
-    connecting: false,
-
-    walletId,
-    walletName,
-    activeWalletId: walletId,
-    activeWalletName: walletName,
-
-    address,
-    shortAddress: shortenAddress(address),
-
-    provider,
-    tronWeb: provider?.tronWeb || provider || null,
-
-    error: null
-  });
+  restoreInFlight = true;
+  lastRestoreAt = now;
 
   try {
-    await refreshAllBalances({
-      address,
-      walletId,
-      provider
-    });
-  } catch (error) {
-    console.error('[4TEEN] restoreSession refreshAllBalances failed', error);
-  }
+    const adapters = resolveAdapters(appkit);
 
-  return true;
+    console.log('[4TEEN] restoreSession check', {
+      hasAppkit: !!appkit,
+      adapters: adapters.map((adapter) => ({
+        name: resolveAdapterName(adapter),
+        connected: !!adapter?.connected,
+        readyState: resolveAdapterReadyState(adapter)
+      })),
+      address: getWalletState().address || null
+    });
+
+    const selectedAdapter = pickBestAdapter(appkit);
+    if (!selectedAdapter) {
+      return false;
+    }
+
+    const provider = resolveProviderFromAdapter(appkit, selectedAdapter);
+    const address = resolveAddressFromAdapter(selectedAdapter);
+
+    if (!isUsableAddress(address)) {
+      return false;
+    }
+
+    const signature = buildRestoreSignature(selectedAdapter, address);
+    if (lastRestoredSignature === signature) {
+      return true;
+    }
+
+    const walletId = resolveAdapterId(selectedAdapter);
+    const walletName = resolveAdapterName(selectedAdapter);
+
+    setWalletState({
+      initialized: true,
+      connecting: false,
+      connected: true,
+
+      walletId,
+      walletName,
+      activeWalletId: walletId,
+      activeWalletName: walletName,
+
+      address,
+      shortAddress: shortenAddress(address),
+
+      provider,
+      tronWeb: provider?.tronWeb || provider || null,
+
+      error: null
+    });
+
+    lastRestoredSignature = signature;
+
+    try {
+      await refreshAllBalances({
+        address,
+        walletId,
+        provider
+      });
+    } catch (error) {
+      console.error('[4TEEN] restoreSession refreshAllBalances failed', error);
+    }
+
+    return true;
+  } finally {
+    restoreInFlight = false;
+  }
 }
