@@ -10,16 +10,8 @@ const APP_METADATA = {
   name: '4TEEN Wallet Kit',
   description: 'Wallet connection layer for 4TEEN on TRON',
   url: 'https://4teen.me',
-  icons: ['https://4teen.me/logo.png']
+  icons: ['https://img2.creatium.app/disk2/4c/c7/a4/1c875d6b871b8c3824991c86b88e0a0f37/logo_sq_white.png']
 };
-
-export function getAppKit() {
-  return appkitInstance;
-}
-
-export function getTronAdapter() {
-  return tronAdapterInstance;
-}
 
 export function createWalletModal({ projectId }) {
   if (appkitInstance) {
@@ -29,17 +21,13 @@ export function createWalletModal({ projectId }) {
     };
   }
 
-  if (!projectId) {
-    throw new Error('createWalletModal: projectId is required');
-  }
-
   const walletAdapters = createWalletAdapters(projectId);
 
   tronAdapterInstance = new TronAdapter({
     walletAdapters
   });
 
-  const created = createAppKit({
+  appkitInstance = createAppKit({
     projectId,
     metadata: APP_METADATA,
     networks: [tronMainnet],
@@ -48,8 +36,6 @@ export function createWalletModal({ projectId }) {
       analytics: false
     }
   });
-
-  appkitInstance = created || null;
 
   return {
     appkit: appkitInstance,
