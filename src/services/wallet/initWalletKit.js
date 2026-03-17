@@ -1,5 +1,6 @@
 import { createWalletAdapters } from '../../adapters/createAdapters.js';
 import { setWalletState, getWalletState } from '../../core/store/walletStore.js';
+import { restoreSession } from './restoreSession.js';
 
 let initialized = false;
 let walletKit = null;
@@ -11,6 +12,81 @@ function mapAdaptersToWallets(adapters) {
     readyState: adapter.readyState || 'Unknown',
     connected: !!adapter.connected
   }));
+}
+
+function getBrowserHint() {
+  if (typeof window === 'undefined') return '';
+
+  const href = String(window.location.href || '').toLowerCase();
+  const ua = String(window.navigator?.userAgent || '').toLowerCase();
+
+  if (href.includes('utm_source=tronlink') || ua.includes('tronlink')) return 'TronLink';
+  if (href.includes('utm_source=trust') || href.includes('utm_source=trust_ios_browser') || ua.includes('trust')) return 'Trust';
+  if (href.includes('utm_source=okx') || ua.includes('okx')) return 'OKX Wallet';
+  if (href.includes('utm_source=binance') || ua.includes('binance')) return 'Binance Wallet';
+  if (href.includes('utm_source=metamask') || ua.includes('metamask')) return 'MetaMask';
+
+  return '';
+}
+
+function normalizeConnectedAdapters(adapters) {
+  const connectedAdapters = adapters.filter((adapter) => !!adapter?.connected);
+
+  if (connectedAdapters.length <= 1) {
+    return connectedAdapters[0] || null;
+  }
+
+  const browserHint = getBrowserHint();
+  const hinted = connectedAdapters.find((adapter) => adapter?.name === browserHint);
+  if (hinted) return hinted;
+
+  return connectedAdapters[0];
+}
+
+function scheduleRestore(kit) {
+  Promise.resolve().then(() => {
+    restoreSession(kit).catch((error) => {
+      console.error('[4TEEN] scheduled restoreSession failed', error);
+    });
+  });
+}
+
+function bindAdapterEvents(kit, adapter) {
+  if (!adapter || typeof adapter.on !== 'function') {
+    return;
+  }
+
+  try {
+    adapter.on('readyStateChanged', () => {
+      kit.updateAvailableWallets();
+      scheduleRestore(kit);
+    });
+  } catch (_) {}
+
+  try {
+    adapter.on('connect', () => {
+      kit.connectedAdapter = normalizeConnectedAdapters(kit.adapters) || adapter;
+      kit.updateAvailableWallets();
+      scheduleRestore(kit);
+    });
+  } catch (_) {}
+
+  try {
+    adapter.on('disconnect', () => {
+      if (kit.connectedAdapter?.name === adapter.name) {
+        kit.connectedAdapter = null;
+      }
+      kit.updateAvailableWallets();
+      scheduleRestore(kit);
+    });
+  } catch (_) {}
+
+  try {
+    adapter.on('accountsChanged', () => {
+      kit.updateAvailableWallets();
+      scheduleRestore(kit);
+    });
+  } catch (_) {}
 }
 
 function createWalletKit({ projectId }) {
@@ -35,6 +111,14 @@ function createWalletKit({ projectId }) {
       return this.adapters.find((adapter) => adapter?.name === name) || null;
     },
 
+    getConnectedAdapter() {
+      const normalized = normalizeConnectedAdapters(this.adapters);
+      if (normalized) {
+        this.connectedAdapter = normalized;
+      }
+      return this.connectedAdapter || null;
+    },
+
     selectAdapter(name) {
       const adapter = name ? this.getAdapterByName(name) : null;
 
@@ -48,7 +132,7 @@ function createWalletKit({ projectId }) {
     },
 
     getAccount() {
-      const adapter = this.connectedAdapter;
+      const adapter = this.getConnectedAdapter();
       const address = adapter?.address || null;
 
       if (!address) return null;
@@ -59,7 +143,7 @@ function createWalletKit({ projectId }) {
     },
 
     getWalletProvider() {
-      const adapter = this.connectedAdapter;
+      const adapter = this.getConnectedAdapter();
       if (!adapter) return null;
 
       return adapter.tronWeb || adapter.provider || adapter;
@@ -78,19 +162,12 @@ function createWalletKit({ projectId }) {
     }
   };
 
-  kit.updateAvailableWallets();
-
   kit.adapters.forEach((adapter) => {
-    if (typeof adapter?.on === 'function') {
-      try {
-        adapter.on('readyStateChanged', () => {
-          kit.updateAvailableWallets();
-        });
-      } catch (_) {
-        // ignore
-      }
-    }
+    bindAdapterEvents(kit, adapter);
   });
+
+  kit.connectedAdapter = normalizeConnectedAdapters(kit.adapters);
+  kit.updateAvailableWallets();
 
   return kit;
 }
