@@ -1,3 +1,4 @@
+import { TronWeb } from 'tronweb';
 import { getWalletState, setWalletState } from '../../core/store/walletStore.js';
 
 const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
@@ -10,71 +11,19 @@ function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
 }
 
-// ===== PROVIDER RESOLUTION (FIXED) =====
-
-function getTronWebCandidates(provider) {
-  const win = getWindowSafe();
-
-  return [
-    // highest priority — explicit provider
-    provider?.tronWeb,
-    provider,
-
-    // injected sources (ordered by reliability)
-    win?.tronLink?.tronWeb,
-    win?.okxwallet?.tronWeb,
-    win?.okxWallet?.tronWeb,
-    win?.tp?.tronWeb,
-    win?.tokenPocket?.tronWeb,
-    win?.bitkeep?.tronWeb,
-    win?.bitget?.tronWeb,
-    win?.trustwallet?.tronWeb,
-    win?.trustWallet?.tronWeb,
-
-    // fallback
-    win?.tronWeb
-  ].filter(Boolean);
+function getReadOnlyTronWeb() {
+  return new TronWeb({
+    fullHost: 'https://api.trongrid.io'
+  });
 }
-
-function hasValidAddress(tronWeb, address) {
-  const addr =
-    tronWeb?.defaultAddress?.base58 ||
-    tronWeb?.tronWeb?.defaultAddress?.base58 ||
-    null;
-
-  return addr && address && addr === address;
-}
-
-function isValidTronWeb(tronWeb) {
-  return (
-    tronWeb &&
-    typeof tronWeb?.trx?.getBalance === 'function'
-  );
-}
-
-function pickBestTronWeb(provider, address) {
-  const candidates = getTronWebCandidates(provider);
-
-  // 1. perfect match (address совпадает)
-  for (const tw of candidates) {
-    if (isValidTronWeb(tw) && hasValidAddress(tw, address)) {
-      return tw;
-    }
-  }
-
-  // 2. просто валидный tronWeb
-  for (const tw of candidates) {
-    if (isValidTronWeb(tw)) {
-      return tw;
-    }
-  }
-
-  return candidates[0] || null;
-}
-
-// ===== HELPERS =====
 
 function normalizeSunToTrx(value) {
+  const num = Number(value || 0);
+  if (!Number.isFinite(num)) return null;
+  return Number((num / 1_000_000).toFixed(6));
+}
+
+function normalizeTokenUnits(value) {
   const num = Number(value || 0);
   if (!Number.isFinite(num)) return null;
   return num / 1_000_000;
@@ -90,18 +39,163 @@ function decodeHexBalance(hexValue) {
   }
 }
 
-// ===== READERS =====
+function extractAccountBalance(response) {
+  if (!response) return null;
 
-async function readTrxBalance(address, tronWeb) {
+  if (typeof response.balance === 'number') return response.balance;
+  if (typeof response?.data?.balance === 'number') return response.data.balance;
+  if (typeof response?.account?.balance === 'number') return response.account.balance;
+  if (typeof response?.result?.balance === 'number') return response.result.balance;
+
+  return null;
+}
+
+function getTronWebCandidates(provider) {
+  const win = getWindowSafe();
+
+  return [
+    provider?.tronWeb,
+    provider,
+    provider?.provider?.tronWeb,
+    provider?.provider,
+
+    win?.tronLink?.tronWeb,
+    win?.okxwallet?.tronWeb,
+    win?.okxWallet?.tronWeb,
+    win?.tp?.tronWeb,
+    win?.tokenPocket?.tronWeb,
+    win?.bitkeep?.tronWeb,
+    win?.bitget?.tronWeb,
+    win?.trustwallet?.tronWeb,
+    win?.trustWallet?.tronWeb,
+    win?.tronWeb
+  ].filter(Boolean);
+}
+
+function getProviderCandidates(provider) {
+  const win = getWindowSafe();
+
+  return [
+    provider,
+    provider?.provider,
+    provider?.tronWeb,
+    provider?.tronWeb?.provider,
+
+    win?.tronLink,
+    win?.okxwallet,
+    win?.okxWallet,
+    win?.tp,
+    win?.tokenPocket,
+    win?.bitkeep,
+    win?.bitget,
+    win?.trustwallet,
+    win?.trustWallet,
+    win?.tronWeb
+  ].filter(Boolean);
+}
+
+function hasValidAddress(tronWeb, address) {
+  const addr =
+    tronWeb?.defaultAddress?.base58 ||
+    tronWeb?.tronWeb?.defaultAddress?.base58 ||
+    null;
+
+  return !!(addr && address && addr === address);
+}
+
+function isValidTronWeb(tronWeb) {
+  return !!(
+    tronWeb &&
+    (
+      typeof tronWeb?.trx?.getBalance === 'function' ||
+      typeof tronWeb?.contract === 'function' ||
+      typeof tronWeb?.transactionBuilder?.triggerConstantContract === 'function'
+    )
+  );
+}
+
+function pickBestTronWeb(provider, address) {
+  const candidates = getTronWebCandidates(provider);
+
+  for (const tw of candidates) {
+    if (isValidTronWeb(tw) && hasValidAddress(tw, address)) {
+      return tw;
+    }
+  }
+
+  for (const tw of candidates) {
+    if (isValidTronWeb(tw)) {
+      return tw;
+    }
+  }
+
+  return null;
+}
+
+async function tryProviderRequest(provider, method, params) {
+  if (!provider || typeof provider.request !== 'function') {
+    return null;
+  }
+
+  try {
+    return await provider.request({
+      method,
+      ...params
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function readTrxBalance(address, tronWeb, provider) {
   if (!isUsableAddress(address)) {
     throw new Error('TRX balance: invalid address');
   }
 
-  if (!tronWeb?.trx?.getBalance) {
-    throw new Error('TRX balance: tronWeb not ready');
+  if (tronWeb?.trx?.getBalance) {
+    try {
+      const balanceSun = await tronWeb.trx.getBalance(address);
+      const trx = normalizeSunToTrx(balanceSun);
+
+      if (trx !== null) {
+        return trx;
+      }
+    } catch (_) {}
   }
 
-  const balanceSun = await tronWeb.trx.getBalance(address);
+  const providers = getProviderCandidates(provider);
+  const addressHex = base58ToHexSafe(address);
+
+  if (addressHex) {
+    for (const item of providers) {
+      const res = await tryProviderRequest(item, 'walletsolidity/getaccount', {
+        params: { address: addressHex }
+      });
+
+      const balanceSun = extractAccountBalance(res);
+      const trx = normalizeSunToTrx(balanceSun);
+
+      if (trx !== null) {
+        return trx;
+      }
+    }
+
+    for (const item of providers) {
+      const res = await tryProviderRequest(item, 'wallet/getaccount', {
+        params: { address: addressHex }
+      });
+
+      const balanceSun = extractAccountBalance(res);
+      const trx = normalizeSunToTrx(balanceSun);
+
+      if (trx !== null) {
+        return trx;
+      }
+    }
+  }
+
+  const readOnly = getReadOnlyTronWeb();
+  const balanceSun = await readOnly.trx.getBalance(address);
   const trx = normalizeSunToTrx(balanceSun);
 
   if (trx === null) {
@@ -128,9 +222,9 @@ async function readTokenBalanceViaContract(address, tronWeb) {
       ? raw.toString()
       : String(raw);
 
-  const num = Number(value) / 1_000_000;
+  const num = normalizeTokenUnits(value);
 
-  if (!Number.isFinite(num)) {
+  if (num === null) {
     throw new Error('Token balance: invalid result');
   }
 
@@ -159,15 +253,22 @@ async function readTokenBalanceViaTrigger(address, tronWeb) {
 
   const hexValue = res?.constant_result?.[0] || null;
   const raw = decodeHexBalance(hexValue);
+  const value = normalizeTokenUnits(raw);
 
-  if (!Number.isFinite(raw)) {
+  if (value === null) {
     throw new Error('Token fallback: decode failed');
   }
 
-  return raw / 1_000_000;
+  return value;
 }
 
-// ===== MAIN =====
+function base58ToHexSafe(address) {
+  try {
+    return TronWeb.address.toHex(address);
+  } catch {
+    return null;
+  }
+}
 
 export async function refreshAllBalances({ address, walletId, provider } = {}) {
   const state = getWalletState();
@@ -181,6 +282,7 @@ export async function refreshAllBalances({ address, walletId, provider } = {}) {
   }
 
   const tronWeb = pickBestTronWeb(finalProvider, finalAddress);
+  const balanceReader = tronWeb || getReadOnlyTronWeb();
 
   setWalletState({
     address: finalAddress,
@@ -196,33 +298,27 @@ export async function refreshAllBalances({ address, walletId, provider } = {}) {
   let trxError = null;
   let tokenError = null;
 
-  // ===== TRX =====
-
   try {
-    trxBalance = await readTrxBalance(finalAddress, tronWeb);
+    trxBalance = await readTrxBalance(finalAddress, tronWeb, finalProvider);
   } catch (e) {
     trxError = e;
     console.error('[4TEEN] TRX balance error', e);
   }
 
-  // ===== TOKEN =====
-
   try {
-    fourteenBalance = await readTokenBalanceViaContract(finalAddress, tronWeb);
+    fourteenBalance = await readTokenBalanceViaContract(finalAddress, balanceReader);
   } catch (e) {
     tokenError = e;
     console.error('[4TEEN] token contract error', e);
 
     try {
-      fourteenBalance = await readTokenBalanceViaTrigger(finalAddress, tronWeb);
+      fourteenBalance = await readTokenBalanceViaTrigger(finalAddress, balanceReader);
       tokenError = null;
     } catch (fallbackError) {
       tokenError = fallbackError;
       console.error('[4TEEN] token fallback error', fallbackError);
     }
   }
-
-  // ===== FAIL SAFE =====
 
   if (trxBalance === null && fourteenBalance === null) {
     throw new Error('Failed to fetch any balances');
