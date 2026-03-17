@@ -6,22 +6,22 @@ let initialized = false;
 let walletKit = null;
 let restoreTimer = null;
 
-function getWindowSafe() {
-  return typeof window !== 'undefined' ? window : null;
-}
-
-function getUserAgent() {
-  const win = getWindowSafe();
-  return String(win?.navigator?.userAgent || '').toLowerCase();
-}
-
-function getLocationHref() {
-  const win = getWindowSafe();
-  return String(win?.location?.href || '').toLowerCase();
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function isUsableAddress(value) {
   return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
+}
+
+function resolveAdapters(appkit) {
+  const adapters =
+    appkit?.getConnectors?.() ||
+    appkit?.connectors ||
+    appkit?.adapters ||
+    [];
+
+  return Array.isArray(adapters) ? adapters : [];
 }
 
 function readAddressFromAnyProvider(adapter) {
@@ -32,7 +32,6 @@ function readAddressFromAnyProvider(adapter) {
     adapter.tronWeb?.defaultAddress?.base58,
     adapter.provider?.defaultAddress?.base58,
     adapter.provider?.tronWeb?.defaultAddress?.base58,
-    adapter.tronLink?.defaultAddress?.base58,
     adapter.wallet?.defaultAddress?.base58
   ];
 
@@ -43,191 +42,31 @@ function readAddressFromAnyProvider(adapter) {
   return null;
 }
 
-function isOkxBrowser() {
-  const ua = getUserAgent();
-  const href = getLocationHref();
-  const win = getWindowSafe();
-
-  return (
-    href.includes('utm_source=okx') ||
-    ua.includes('okex/') ||
-    ua.includes('okapp/') ||
-    ua.includes('okx') ||
-    !!win?.okxwallet ||
-    !!win?.okxWallet
-  );
-}
-
-function isBinanceBrowser() {
-  const ua = getUserAgent();
-  const href = getLocationHref();
-
-  return (
-    href.includes('utm_source=binance') ||
-    ua.includes('bnc/') ||
-    ua.includes('binance')
-  );
-}
-
-function isTronLinkBrowser() {
-  const ua = getUserAgent();
-  const href = getLocationHref();
-  const win = getWindowSafe();
-
-  return (
-    href.includes('utm_source=tronlink') ||
-    ua.includes('tronlink') ||
-    !!win?.tronLink ||
-    !!win?.tronWeb?.isTronLink
-  );
-}
-
-function isTrustBrowser() {
-  const ua = getUserAgent();
-  const href = getLocationHref();
-  const win = getWindowSafe();
-
-  return (
-    href.includes('utm_source=trust') ||
-    href.includes('trust_ios_browser') ||
-    ua.includes('trustwallet') ||
-    ua.includes('trust wallet') ||
-    (!!win?.trustwallet || !!win?.trustWallet)
-  );
-}
-
-function isMetaMaskBrowser() {
-  const ua = getUserAgent();
-  const href = getLocationHref();
-
-  return href.includes('utm_source=metamask') || ua.includes('metamask');
-}
-
-function isTokenPocketBrowser() {
-  const ua = getUserAgent();
-  const win = getWindowSafe();
-
-  return (
-    ua.includes('tokenpocket') ||
-    ua.includes('tp/') ||
-    !!win?.tp ||
-    !!win?.tokenPocket
-  );
-}
-
-function isBitgetBrowser() {
-  const ua = getUserAgent();
-  const href = getLocationHref();
-  const win = getWindowSafe();
-
-  return (
-    href.includes('utm_source=bitget') ||
-    href.includes('utm_source=bitkeep') ||
-    ua.includes('bitkeep') ||
-    ua.includes('bitget') ||
-    !!win?.bitkeep ||
-    !!win?.bitget
-  );
-}
-
-function getBrowserHint() {
-  if (isOkxBrowser()) return 'OKX Wallet';
-  if (isBinanceBrowser()) return 'Binance Wallet';
-  if (isTronLinkBrowser()) return 'TronLink';
-  if (isTrustBrowser()) return 'Trust';
-  if (isMetaMaskBrowser()) return 'MetaMask';
-  if (isTokenPocketBrowser()) return 'TokenPocket';
-  if (isBitgetBrowser()) return 'Bitget Wallet';
-  return '';
-}
-
-function getWalletPriority(name, browserHint, activeWalletId) {
-  if (activeWalletId && name === activeWalletId) return 1000;
-  if (browserHint && name === browserHint) return 900;
-
-  const base = {
-    'OKX Wallet': 800,
-    'Binance Wallet': 790,
-    'TronLink': 780,
-    'Trust': 770,
-    'TokenPocket': 760,
-    'MetaMask': 750,
-    'Bitget Wallet': 740,
-    'WalletConnect': 100
-  };
-
-  return base[name] || 1;
-}
-
-function isAdapterAllowedInCurrentBrowser(adapterName, browserHint) {
-  if (!browserHint) return true;
-
-  if (browserHint === 'OKX Wallet') {
-    return adapterName === 'OKX Wallet' || adapterName === 'WalletConnect';
-  }
-
-  if (browserHint === 'Binance Wallet') {
-    return adapterName === 'Binance Wallet' || adapterName === 'WalletConnect';
-  }
-
-  if (browserHint === 'TronLink') {
-    return adapterName === 'TronLink' || adapterName === 'WalletConnect';
-  }
-
-  if (browserHint === 'MetaMask') {
-    return adapterName === 'MetaMask' || adapterName === 'WalletConnect';
-  }
-
-  if (browserHint === 'TokenPocket') {
-    return adapterName === 'TokenPocket' || adapterName === 'WalletConnect';
-  }
-
-  if (browserHint === 'Bitget Wallet') {
-    return adapterName === 'Bitget Wallet' || adapterName === 'WalletConnect';
-  }
-
-  if (browserHint === 'Trust') {
-    return adapterName === 'Trust' || adapterName === 'WalletConnect';
-  }
-
-  return true;
-}
-
 function normalizeConnectedAdapters(adapters, activeWalletId = null) {
-  const browserHint = getBrowserHint();
-
   const connectedAdapters = adapters.filter((adapter) => {
     if (!adapter) return false;
 
-    const adapterAddress = readAddressFromAnyProvider(adapter);
-    const adapterConnected = !!adapter.connected || !!adapterAddress;
-
-    if (!adapterConnected) return false;
-
-    return isAdapterAllowedInCurrentBrowser(adapter?.name, browserHint);
+    const address = readAddressFromAnyProvider(adapter);
+    return !!adapter.connected || !!address;
   });
 
-  if (connectedAdapters.length === 0) {
-    return null;
+  if (!connectedAdapters.length) return null;
+
+  if (activeWalletId) {
+    const found = connectedAdapters.find(
+      (a) => a?.name === activeWalletId
+    );
+    if (found) return found;
   }
 
-  const sorted = [...connectedAdapters].sort((a, b) => {
-    return (
-      getWalletPriority(b?.name, browserHint, activeWalletId) -
-      getWalletPriority(a?.name, browserHint, activeWalletId)
-    );
-  });
-
-  return sorted[0] || null;
+  return connectedAdapters[0];
 }
 
 function mapAdaptersToWallets(adapters, activeWalletId = null) {
-  const browserHint = getBrowserHint();
   const normalized = normalizeConnectedAdapters(adapters, activeWalletId);
 
   return adapters.map((adapter) => {
-    const allowed = isAdapterAllowedInCurrentBrowser(adapter?.name, browserHint);
-    const realReadyState = adapter?.readyState || 'Unknown';
+    const readyState = adapter?.readyState || 'Unknown';
 
     let connected = false;
 
@@ -238,28 +77,26 @@ function mapAdaptersToWallets(adapters, activeWalletId = null) {
     return {
       id: adapter.name,
       name: adapter.name,
-      readyState: allowed ? realReadyState : 'NotFound',
+      readyState,
       connected
     };
   });
 }
 
-function scheduleRestore(kit, delay = 250) {
+function scheduleRestore(kit, delay = 300) {
   if (restoreTimer) {
     clearTimeout(restoreTimer);
   }
 
   restoreTimer = setTimeout(() => {
     restoreSession(kit).catch((error) => {
-      console.error('[4TEEN] scheduled restoreSession failed', error);
+      console.error('[4TEEN] restoreSession error', error);
     });
   }, delay);
 }
 
 function bindAdapterEvents(kit, adapter) {
-  if (!adapter || typeof adapter.on !== 'function') {
-    return;
-  }
+  if (!adapter || typeof adapter.on !== 'function') return;
 
   try {
     adapter.on('readyStateChanged', () => {
@@ -270,6 +107,7 @@ function bindAdapterEvents(kit, adapter) {
   try {
     adapter.on('connect', () => {
       const state = getWalletState();
+
       kit.connectedAdapter =
         normalizeConnectedAdapters(kit.adapters, state.activeWalletId) || adapter;
 
@@ -279,7 +117,7 @@ function bindAdapterEvents(kit, adapter) {
       });
 
       kit.updateAvailableWallets();
-      scheduleRestore(kit, 120);
+      scheduleRestore(kit, 150);
     });
   } catch (_) {}
 
@@ -288,15 +126,7 @@ function bindAdapterEvents(kit, adapter) {
       const state = getWalletState();
 
       if (state.activeWalletId === adapter.name) {
-        setWalletState({
-          activeWalletId: null
-        });
-      }
-
-      if (state.selectedWalletId === adapter.name) {
-        setWalletState({
-          selectedWalletId: null
-        });
+        setWalletState({ activeWalletId: null });
       }
 
       if (kit.connectedAdapter?.name === adapter.name) {
@@ -304,26 +134,29 @@ function bindAdapterEvents(kit, adapter) {
       }
 
       kit.updateAvailableWallets();
-      scheduleRestore(kit, 120);
+      scheduleRestore(kit, 150);
     });
   } catch (_) {}
 
   try {
     adapter.on('accountsChanged', () => {
-      const state = getWalletState();
-      kit.connectedAdapter =
-        normalizeConnectedAdapters(kit.adapters, state.activeWalletId) || null;
-
-      if (!kit.connectedAdapter) {
-        setWalletState({
-          activeWalletId: null
-        });
-      }
-
       kit.updateAvailableWallets();
-      scheduleRestore(kit, 180);
+      scheduleRestore(kit, 200);
     });
   } catch (_) {}
+}
+
+async function waitAdaptersReady(adapters) {
+  for (let i = 0; i < 10; i++) {
+    const anyReady = adapters.some((a) => {
+      const state = String(a?.readyState || '');
+      return state === 'Found' || state === 'Installed';
+    });
+
+    if (anyReady) return;
+
+    await sleep(200);
+  }
 }
 
 function createWalletKit({ projectId }) {
@@ -336,22 +169,19 @@ function createWalletKit({ projectId }) {
 
     updateAvailableWallets() {
       const state = getWalletState();
+
       const normalized =
         normalizeConnectedAdapters(this.adapters, state.activeWalletId);
 
       if (normalized) {
         this.connectedAdapter = normalized;
-      } else if (
-        this.connectedAdapter &&
-        !readAddressFromAnyProvider(this.connectedAdapter) &&
-        !this.connectedAdapter?.connected
-      ) {
+      } else {
         this.connectedAdapter = null;
       }
 
       const availableWallets = mapAdaptersToWallets(
         this.adapters,
-        getWalletState().activeWalletId
+        state.activeWalletId
       );
 
       setWalletState({ availableWallets });
@@ -359,40 +189,20 @@ function createWalletKit({ projectId }) {
     },
 
     getAdapterByName(name) {
-      return this.adapters.find((adapter) => adapter?.name === name) || null;
+      return this.adapters.find((a) => a?.name === name) || null;
     },
 
     getConnectedAdapter() {
       const state = getWalletState();
-      const normalized = normalizeConnectedAdapters(this.adapters, state.activeWalletId);
+
+      const normalized =
+        normalizeConnectedAdapters(this.adapters, state.activeWalletId);
 
       if (normalized) {
         this.connectedAdapter = normalized;
       }
 
       return this.connectedAdapter || null;
-    },
-
-    selectAdapter(name) {
-      const adapter = name ? this.getAdapterByName(name) : null;
-
-      this.connectedAdapter = adapter || null;
-
-      setWalletState({
-        selectedWalletId: adapter?.name || null,
-        activeWalletId: adapter?.name || null
-      });
-
-      return adapter;
-    },
-
-    getAccount() {
-      const adapter = this.getConnectedAdapter();
-      const address = readAddressFromAnyProvider(adapter);
-
-      if (!address) return null;
-
-      return { address };
     },
 
     getWalletProvider() {
@@ -403,15 +213,11 @@ function createWalletKit({ projectId }) {
     },
 
     openWalletPicker() {
-      setWalletState({
-        walletPickerOpen: true
-      });
+      setWalletState({ walletPickerOpen: true });
     },
 
     closeWalletPicker() {
-      setWalletState({
-        walletPickerOpen: false
-      });
+      setWalletState({ walletPickerOpen: false });
     }
   };
 
@@ -419,14 +225,10 @@ function createWalletKit({ projectId }) {
     bindAdapterEvents(kit, adapter);
   });
 
-  const state = getWalletState();
-  kit.connectedAdapter = normalizeConnectedAdapters(kit.adapters, state.activeWalletId);
-  kit.updateAvailableWallets();
-
   return kit;
 }
 
-export function initWalletKit({ projectId }) {
+export async function initWalletKit({ projectId }) {
   if (initialized && walletKit) {
     walletKit.updateAvailableWallets();
 
@@ -438,6 +240,9 @@ export function initWalletKit({ projectId }) {
 
   try {
     walletKit = createWalletKit({ projectId });
+
+    await waitAdaptersReady(walletKit.adapters);
+
     initialized = true;
 
     setWalletState({
@@ -445,13 +250,11 @@ export function initWalletKit({ projectId }) {
       error: null
     });
 
-    const state = getWalletState();
+    walletKit.updateAvailableWallets();
 
-    console.log('[4TEEN] initWalletKit result', {
-      hasAppkit: !!walletKit,
-      hasTronAdapter: false,
-      availableWallets: state.availableWallets
-    });
+    scheduleRestore(walletKit, 300);
+
+    console.log('[4TEEN] wallet kit initialized');
 
     return {
       appkit: walletKit,
