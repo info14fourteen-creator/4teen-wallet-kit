@@ -62,7 +62,6 @@ function createDropdown({ onRefresh, onDisconnect }) {
 
     try {
       await onDisconnect?.();
-      showNeutralNotice('Wallet disconnected');
     } catch (error) {
       showErrorNotice(error?.message || 'Failed to disconnect wallet');
     }
@@ -129,7 +128,6 @@ export function mountWalletButton(target, options = {}) {
 
   let isDropdownOpen = false;
   let unsubscribe = null;
-  let lastShownError = null;
 
   function closeDropdown() {
     const existing = root.querySelector('.fw-wallet-dropdown');
@@ -162,12 +160,7 @@ export function mountWalletButton(target, options = {}) {
 
     button?.addEventListener('click', async () => {
       closeDropdown();
-
-      try {
-        await options.onConnectClick?.();
-      } catch (error) {
-        showErrorNotice(error?.message || 'Wallet connection failed');
-      }
+      await options.onConnectClick?.();
     });
   }
 
@@ -182,11 +175,6 @@ export function mountWalletButton(target, options = {}) {
 
   function render(state) {
     closeDropdown();
-
-    if (state.error && state.error !== lastShownError) {
-      lastShownError = state.error;
-      showErrorNotice(state.error);
-    }
 
     if (state.connecting) {
       renderConnecting(root, variant);
