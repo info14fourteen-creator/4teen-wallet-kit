@@ -90,22 +90,6 @@ function isWalletConnect(adapter) {
   return adapter?.name === 'WalletConnect';
 }
 
-async function waitForUsableAdapter(appkit, walletId, attempts = 12, delay = 250) {
-  for (let i = 0; i < attempts; i += 1) {
-    const adapter = appkit.getAdapterByName(walletId);
-
-    if (adapter) {
-      if (isWalletConnect(adapter) || adapter.readyState === 'Found' || adapter.connected) {
-        return adapter;
-      }
-    }
-
-    await sleep(delay);
-  }
-
-  return appkit.getAdapterByName(walletId) || null;
-}
-
 export async function connectWallet(appkit, walletId = null) {
   if (!appkit) {
     const error = new Error('Wallet module is not ready');
@@ -125,13 +109,13 @@ export async function connectWallet(appkit, walletId = null) {
   }
 
   try {
-    const adapter = await waitForUsableAdapter(appkit, walletId);
+    const adapter = appkit.getAdapterByName(walletId);
 
     if (!adapter) {
       throw new Error('Selected wallet is not available');
     }
 
-    if (!isWalletConnect(adapter) && adapter.readyState !== 'Found' && !adapter.connected) {
+    if (!isWalletConnect(adapter) && adapter.readyState === 'NotFound') {
       throw new Error(`${adapter.name} is not available in this browser`);
     }
 
