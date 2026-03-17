@@ -7,6 +7,8 @@ import { restoreSession } from './services/wallet/restoreSession.js';
 import { mountWalletButton } from './ui/walletButton.js';
 import { getWalletState, subscribeWalletState } from './core/store/walletStore.js';
 import { refreshAllBalances } from './services/balances/refreshAllBalances.js';
+import { getTokenContractData } from './services/readonly/getTokenContractData.js';
+import { printWalletDiagnostics } from './diagnostics/walletDiagnostics.js';
 
 let appkit = null;
 
@@ -17,6 +19,15 @@ export function initFourteenConnect({ projectId, buttonTarget }) {
     mountWalletButton(buttonTarget, {
       onConnectClick: async () => {
         await connectWallet(appkit);
+      },
+      onRefresh: async () => {
+        await refreshAllBalances();
+      },
+      onDisconnect: async () => {
+        await disconnectWallet(appkit);
+      },
+      onDiagnostics: () => {
+        printWalletDiagnostics();
       }
     });
   }
@@ -28,6 +39,8 @@ export function initFourteenConnect({ projectId, buttonTarget }) {
     disconnect: () => disconnectWallet(appkit),
     refreshBalances: () => refreshAllBalances(),
     getState: () => getWalletState(),
-    subscribe: (listener) => subscribeWalletState(listener)
+    subscribe: (listener) => subscribeWalletState(listener),
+    getTokenContractData: () => getTokenContractData(),
+    diagnostics: () => printWalletDiagnostics()
   };
 }
