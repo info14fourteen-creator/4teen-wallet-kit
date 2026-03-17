@@ -1,0 +1,145 @@
+:root {
+  --fw-orange: rgb(255, 105, 0);
+  --fw-graphite: rgb(26, 26, 26);
+  --fw-steel: rgb(77, 77, 77);
+  --fw-light: rgb(242, 242, 242);
+  --fw-white: rgb(255, 255, 255);
+  --fw-green: rgb(26, 224, 58);
+  --fw-red: rgb(255, 48, 73);
+}
+
+.fw-notice-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2147483000;
+}
+
+.fw-notice {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 420px);
+  min-height: 92px;
+  padding: 18px 18px 16px;
+  border-radius: 14px;
+  background: rgba(26, 26, 26, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: auto;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    visibility 0.18s ease;
+}
+
+.fw-notice--visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%);
+}
+
+.fw-notice__content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 44px;
+}
+
+.fw-notice__message {
+  font-family: Inter, Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 700;
+  color: var(--fw-light);
+  word-break: break-word;
+}
+
+.fw-notice--success .fw-notice__message {
+  color: var(--fw-green);
+}
+
+.fw-notice--error .fw-notice__message {
+  color: var(--fw-red);
+}
+
+.fw-notice--neutral .fw-notice__message {
+  color: var(--fw-light);
+}
+
+.fw-notice__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(0, 0, 0);
+  color: rgb(255, 255, 255);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.fw-notice__close:hover {
+  transform: scale(1.04);
+}
+
+.fw-notice__close svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+
+.fw-notice__ring {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  transform: rotate(-90deg);
+}
+
+.fw-notice__ring-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 3;
+}
+
+.fw-notice__ring-progress {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.12s linear;
+}
+
+.fw-notice--success .fw-notice__ring-progress {
+  stroke: var(--fw-green);
+}
+
+.fw-notice--error .fw-notice__ring-progress {
+  stroke: var(--fw-red);
+}
+
+.fw-notice--neutral .fw-notice__ring-progress {
+  stroke: var(--fw-light);
+}
+
+@media (max-width: 640px) {
+  .fw-notice {
+    width: min(94vw, 380px);
+    min-height: 84px;
+    padding: 16px 16px 14px;
+    border-radius: 12px;
+  }
+
+  .fw-notice__message {
+    font-size: 14px;
+  }
+}
