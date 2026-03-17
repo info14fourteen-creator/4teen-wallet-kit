@@ -8,8 +8,8 @@
   --fw-red: rgb(255, 48, 73);
 
   --fw-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
-  --fw-radius: 14px;
-  --fw-radius-sm: 10px;
+  --fw-radius: 10px;
+  --fw-radius-sm: 8px;
   --fw-border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -23,8 +23,8 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  min-height: 46px;
-  padding: 10px 14px;
+  min-height: 44px;
+  padding: 9px 13px;
   border-radius: var(--fw-radius);
   border: 1px solid rgba(255, 105, 0, 0.22);
   background: linear-gradient(
@@ -61,15 +61,15 @@
 }
 
 .fw-wallet-button--idle .fw-wallet-button__label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--fw-white);
 }
 
 .fw-wallet-button--idle .fw-wallet-button__wallet-dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--fw-orange);
   box-shadow: 0 0 14px rgba(255, 105, 0, 0.75);
@@ -81,9 +81,9 @@
 }
 
 .fw-wallet-button--connecting .fw-wallet-button__label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--fw-light);
 }
 
@@ -134,7 +134,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--fw-light);
 }
@@ -144,8 +144,8 @@
 }
 
 .fw-wallet-button__icon {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   object-fit: contain;
   display: block;
   flex: 0 0 auto;
@@ -153,16 +153,8 @@
 
 .fw-wallet-button__caret {
   margin-left: 2px;
-  font-size: 12px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.68);
-}
-
-.fw-wallet-button--error {
-  border-color: rgba(255, 48, 73, 0.45);
-}
-
-.fw-wallet-button--error .fw-wallet-button__label {
-  color: var(--fw-red);
 }
 
 .fw-wallet-dropdown {
@@ -171,7 +163,7 @@
   right: 0;
   min-width: 210px;
   padding: 8px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(26, 26, 26, 0.98);
   border: var(--fw-border);
   box-shadow: var(--fw-shadow);
@@ -184,13 +176,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 9px 11px;
   border: 0;
   outline: 0;
   border-radius: var(--fw-radius-sm);
   background: transparent;
   color: var(--fw-white);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   text-align: left;
   cursor: pointer;
@@ -218,40 +210,15 @@
   background: var(--fw-red);
 }
 
-.fw-wallet-message {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
-  padding: 9px 11px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 700;
-  box-shadow: var(--fw-shadow);
-  z-index: 9998;
-}
-
-.fw-wallet-message--error {
-  color: var(--fw-white);
-  background: rgba(255, 48, 73, 0.16);
-  border: 1px solid rgba(255, 48, 73, 0.3);
-}
-
-.fw-wallet-message--success {
-  color: var(--fw-white);
-  background: rgba(26, 224, 58, 0.12);
-  border: 1px solid rgba(26, 224, 58, 0.28);
-}
-
 @media (max-width: 640px) {
   .fw-wallet-button {
     gap: 8px;
-    padding: 10px 12px;
-    min-height: 44px;
+    padding: 9px 11px;
+    min-height: 42px;
   }
 
   .fw-wallet-button__balance {
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .fw-wallet-button__address {
@@ -261,44 +228,45 @@
   .fw-wallet-dropdown {
     right: auto;
     left: 0;
-    min-width: 190px;
+    min-width: 185px;
   }
 }
+
 .fw-wallet-button--compact {
-  min-height: 40px;
-  padding: 8px 12px;
+  min-height: 38px;
+  padding: 7px 11px;
   gap: 8px;
 }
 
 .fw-wallet-button--compact .fw-wallet-button__label,
 .fw-wallet-button--compact .fw-wallet-button__address,
 .fw-wallet-button--compact .fw-wallet-button__balance {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .fw-wallet-button--compact .fw-wallet-button__icon {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
 .fw-wallet-button--standard {
-  min-height: 46px;
+  min-height: 44px;
 }
 
 .fw-wallet-button--hero {
-  min-height: 56px;
-  padding: 14px 18px;
+  min-height: 52px;
+  padding: 12px 16px;
   gap: 12px;
-  border-radius: 16px;
+  border-radius: 12px;
 }
 
 .fw-wallet-button--hero .fw-wallet-button__label,
 .fw-wallet-button--hero .fw-wallet-button__address,
 .fw-wallet-button--hero .fw-wallet-button__balance {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .fw-wallet-button--hero .fw-wallet-button__icon {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
 }
