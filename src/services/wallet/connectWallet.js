@@ -3,8 +3,20 @@ import { shortenAddress } from '../../core/utils/address.js';
 import { refreshAllBalances } from '../balances/refreshAllBalances.js';
 import { isTrustWalletBrowser, connectTrustFallback } from '../../adapters/trustFallback.js';
 
+function getWindowSafe() {
+  return typeof window !== 'undefined' ? window : null;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function isUsableAddress(value) {
   return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
+}
+
+function isHexAddress(value) {
+  return typeof value === 'string' && /^41[0-9a-fA-F]{40}$/.test(value);
 }
 
 function resolveAdapters(appkit) {
@@ -37,69 +49,157 @@ function resolveAdapterId(adapter) {
   );
 }
 
-function resolveProvider(appkit, adapter) {
+function normalizeWalletId(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isOkxBrowser() {
+  const win = getWindowSafe();
+  const ua = String(win?.navigator?.userAgent || '').toLowerCase();
+  const href = String(win?.location?.href || '').toLowerCase();
+
   return (
-    adapter?.provider ||
-    adapter?.tronWeb ||
-    appkit?.getWalletProvider?.() ||
-    (typeof window !== 'undefined' ? window.tronWeb : null) ||
-    null
+    href.includes('utm_source=okx') ||
+    ua.includes('okex/') ||
+    ua.includes('okapp/') ||
+    ua.includes('okx') ||
+    !!win?.okxwallet ||
+    !!win?.okxWallet
   );
 }
 
-function resolveAddress(adapter, provider) {
-  const candidates = [
-    adapter?.address,
-    adapter?.publicKey,
-    adapter?.account?.address,
-    adapter?.provider?.address,
-    adapter?.provider?.selectedAddress,
-    adapter?.provider?.defaultAddress?.base58,
-    adapter?.provider?.tronWeb?.defaultAddress?.base58,
-    adapter?.tronWeb?.defaultAddress?.base58,
-    provider?.address,
-    provider?.selectedAddress,
-    provider?.defaultAddress?.base58,
-    provider?.tronWeb?.defaultAddress?.base58
-  ];
+function isBinanceBrowser() {
+  const win = getWindowSafe();
+  const ua = String(win?.navigator?.userAgent || '').toLowerCase();
+  const href = String(win?.location?.href || '').toLowerCase();
 
-  return candidates.find(isUsableAddress) || null;
+  return (
+    href.includes('utm_source=binance') ||
+    ua.includes('bnc/') ||
+    ua.includes('binance')
+  );
 }
 
-async function tryRequestAccounts(provider) {
-  if (!provider || typeof provider.request !== 'function') return null;
+function isTronLinkBrowser() {
+  const win = getWindowSafe();
+  const ua = String(win?.navigator?.userAgent || '').toLowerCase();
+  const href = String(win?.location?.href || '').toLowerCase();
 
-  const methods = ['tron_requestAccounts', 'requestAccounts'];
+  return (
+    href.includes('utm_source=tronlink') ||
+    ua.includes('tronlink') ||
+    !!win?.tronLink ||
+    !!win?.tronWeb?.isTronLink
+  );
+}
 
-  for (const method of methods) {
-    try {
-      const res = await provider.request({ method });
+function isMetaMaskBrowser() {
+  const win = getWindowSafe();
+  const ua = String(win?.navigator?.userAgent || '').toLowerCase();
+  const href = String(win?.location?.href || '').toLowerCase();
 
-      if (Array.isArray(res) && isUsableAddress(res[0])) return res[0];
-      if (typeof res === 'string' && isUsableAddress(res)) return res;
-      if (res?.address && isUsableAddress(res.address)) return res.address;
-      if (res?.data?.address && isUsableAddress(res.data.address)) return res.data.address;
-    } catch (_) {}
-  }
+  return href.includes('utm_source=metamask') || ua.includes('metamask');
+}
 
+function isTokenPocketBrowser() {
+  const win = getWindowSafe();
+  const ua = String(win?.navigator?.userAgent || '').toLowerCase();
+  const href = String(win?.location?.href || '').toLowerCase();
+
+  return (
+    href.includes('utm_source=tokenpocket') ||
+    ua.includes('tokenpocket') ||
+    ua.includes('tp/') ||
+    !!win?.tp ||
+    !!win?.tokenPocket
+  );
+}
+
+function isBitgetBrowser() {
+  const win = getWindowSafe();
+  const ua = String(win?.navigator?.userAgent || '').toLowerCase();
+  const href = String(win?.location?.href || '').toLowerCase();
+
+  return (
+    href.includes('utm_source=bitget') ||
+    href.includes('utm_source=bitkeep') ||
+    ua.includes('bitkeep') ||
+    ua.includes('bitget') ||
+    !!win?.bitkeep ||
+    !!win?.bitget
+  );
+}
+
+function detectBrowserWalletName() {
+  if (isOkxBrowser()) return 'OKX Wallet';
+  if (isBinanceBrowser()) return 'Binance Wallet';
+  if (isTronLinkBrowser()) return 'TronLink';
+  if (isTrustWalletBrowser()) return 'Trust';
+  if (isMetaMaskBrowser()) return 'MetaMask';
+  if (isTokenPocketBrowser()) return 'TokenPocket';
+  if (isBitgetBrowser()) return 'Bitget Wallet';
   return null;
 }
 
-async function waitForAddress(adapter, provider) {
-  for (let i = 0; i < 12; i++) {
-    const addr =
-      resolveAddress(adapter, provider) ||
-      (i === 0 ? await tryRequestAccounts(provider) : null);
+function isWalletConnectAdapter(adapter) {
+  const id = normalizeWalletId(resolveAdapterId(adapter));
+  const name = normalizeWalletId(resolveAdapterName(adapter));
 
-    if (isUsableAddress(addr)) {
-      console.log('[4TEEN] address resolved', addr);
-      return addr;
+  return id === 'walletconnect' || name === 'walletconnect';
+}
+
+function isAdapterMatch(adapter, walletId) {
+  const target = normalizeWalletId(walletId);
+  const adapterId = normalizeWalletId(resolveAdapterId(adapter));
+  const adapterName = normalizeWalletId(resolveAdapterName(adapter));
+
+  return adapterId === target || adapterName === target;
+}
+
+function isAdapterAllowedForBrowser(adapter, browserWalletName) {
+  if (!browserWalletName) return true;
+
+  const adapterName = resolveAdapterName(adapter);
+
+  if (isWalletConnectAdapter(adapter)) {
+    return true;
+  }
+
+  return adapterName === browserWalletName;
+}
+
+function scoreAdapter(adapter, walletId = null) {
+  const browserWalletName = detectBrowserWalletName();
+  const adapterName = resolveAdapterName(adapter);
+  const adapterId = resolveAdapterId(adapter);
+  const readyState = String(adapter?.readyState || '');
+  const connected = !!adapter?.connected;
+
+  let score = 0;
+
+  if (walletId && isAdapterMatch(adapter, walletId)) score += 10000;
+  if (browserWalletName && adapterName === browserWalletName) score += 6000;
+  if (connected) score += 1200;
+  if (readyState === 'Found') score += 500;
+  if (readyState === 'Installed') score += 450;
+  if (readyState === 'Loadable') score += 250;
+  if (readyState === 'Loading') score += 50;
+
+  if (!isAdapterAllowedForBrowser(adapter, browserWalletName)) {
+    score -= 20000;
+  }
+
+  if (browserWalletName && browserWalletName !== 'TronLink') {
+    if (adapterName === 'TronLink' || adapterId === 'TronLink') {
+      score -= 4000;
     }
-
-    await new Promise((r) => setTimeout(r, 250));
   }
 
-  return null;
+  if (isWalletConnectAdapter(adapter)) {
+    score += 100;
+  }
+
+  return score;
 }
 
 function pickAdapter(appkit, walletId) {
@@ -108,14 +208,333 @@ function pickAdapter(appkit, walletId) {
   if (!adapters.length) return null;
 
   if (walletId) {
-    return adapters.find(
-      (a) =>
-        resolveAdapterId(a) === walletId ||
-        resolveAdapterName(a) === walletId
-    ) || null;
+    const ranked = adapters
+      .map((adapter) => ({
+        adapter,
+        score: scoreAdapter(adapter, walletId)
+      }))
+      .sort((a, b) => b.score - a.score);
+
+    return ranked[0]?.adapter || null;
   }
 
-  return adapters.find((a) => a?.connected) || null;
+  const connected = adapters
+    .filter((adapter) => !!adapter?.connected)
+    .sort((a, b) => scoreAdapter(b) - scoreAdapter(a));
+
+  if (connected.length) {
+    return connected[0];
+  }
+
+  const ranked = adapters
+    .map((adapter) => ({
+      adapter,
+      score: scoreAdapter(adapter)
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  return ranked[0]?.adapter || null;
+}
+
+function getProviderCandidates(appkit, adapter) {
+  const win = getWindowSafe();
+
+  return [
+    adapter?.provider,
+    adapter?.tronWeb,
+    adapter?.wallet,
+    adapter?.walletProvider,
+    adapter?.connector?.provider,
+    adapter?.connector?.wallet,
+    appkit?.getWalletProvider?.(),
+    win?.tronLink,
+    win?.tronLink?.tronWeb,
+    win?.okxwallet,
+    win?.okxwallet?.tronWeb,
+    win?.okxWallet,
+    win?.okxWallet?.tronWeb,
+    win?.BinanceChain,
+    win?.tp,
+    win?.tp?.tronWeb,
+    win?.tokenPocket,
+    win?.tokenPocket?.tronWeb,
+    win?.bitkeep,
+    win?.bitkeep?.tronWeb,
+    win?.bitget,
+    win?.bitget?.tronWeb,
+    win?.trustwallet,
+    win?.trustwallet?.tronWeb,
+    win?.trustWallet,
+    win?.trustWallet?.tronWeb,
+    win?.ethereum,
+    win?.tronWeb
+  ].filter(Boolean);
+}
+
+function pickBestProvider(appkit, adapter) {
+  const candidates = getProviderCandidates(appkit, adapter);
+
+  for (const provider of candidates) {
+    if (provider?.tronWeb?.defaultAddress?.base58) return provider;
+    if (provider?.defaultAddress?.base58) return provider;
+    if (provider?.selectedAddress) return provider;
+    if (provider?.address) return provider;
+  }
+
+  return candidates[0] || null;
+}
+
+function normalizeAddress(value, provider = null) {
+  if (isUsableAddress(value)) {
+    return value;
+  }
+
+  if (isHexAddress(value) && provider?.address?.fromHex) {
+    try {
+      const converted = provider.address.fromHex(value);
+      if (isUsableAddress(converted)) return converted;
+    } catch (_) {}
+  }
+
+  if (isHexAddress(value) && provider?.tronWeb?.address?.fromHex) {
+    try {
+      const converted = provider.tronWeb.address.fromHex(value);
+      if (isUsableAddress(converted)) return converted;
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+function resolveAddress(adapter, provider) {
+  const candidates = [
+    adapter?.address,
+    adapter?.publicKey,
+    adapter?.account?.address,
+    adapter?.account?.publicKey,
+    adapter?.provider?.address,
+    adapter?.provider?.selectedAddress,
+    adapter?.provider?.defaultAddress?.base58,
+    adapter?.provider?.tronWeb?.defaultAddress?.base58,
+    adapter?.tronWeb?.defaultAddress?.base58,
+    adapter?.wallet?.defaultAddress?.base58,
+    provider?.address,
+    provider?.selectedAddress,
+    provider?.defaultAddress?.base58,
+    provider?.tronWeb?.defaultAddress?.base58
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeAddress(candidate, provider);
+    if (normalized) return normalized;
+  }
+
+  return null;
+}
+
+async function tryProviderRequest(provider, method, params = []) {
+  if (!provider) return null;
+
+  if (typeof provider.request === 'function') {
+    try {
+      return await provider.request({ method, params });
+    } catch (_) {}
+  }
+
+  if (typeof provider.send === 'function') {
+    try {
+      return await provider.send(method, params);
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+function extractAddressFromPayload(payload, provider) {
+  if (!payload) return null;
+
+  if (typeof payload === 'string') {
+    return normalizeAddress(payload, provider);
+  }
+
+  if (Array.isArray(payload)) {
+    return normalizeAddress(payload[0], provider);
+  }
+
+  if (typeof payload === 'object') {
+    return (
+      normalizeAddress(payload.address, provider) ||
+      normalizeAddress(payload.selectedAddress, provider) ||
+      normalizeAddress(payload.publicKey, provider) ||
+      normalizeAddress(payload.result?.[0], provider) ||
+      normalizeAddress(payload.accounts?.[0], provider) ||
+      normalizeAddress(payload.data?.address, provider) ||
+      null
+    );
+  }
+
+  return null;
+}
+
+async function tryRequestAccounts(provider) {
+  const methods = [
+    ['tron_requestAccounts', []],
+    ['requestAccounts', []],
+    ['eth_requestAccounts', []],
+    ['tron_requestAccounts', null],
+    ['requestAccounts', null]
+  ];
+
+  for (const [method, params] of methods) {
+    const res = await tryProviderRequest(provider, method, params || []);
+    const address = extractAddressFromPayload(res, provider);
+
+    if (address) {
+      return address;
+    }
+  }
+
+  return null;
+}
+
+async function syncProviderAddress(provider, address) {
+  if (!provider || !address) return;
+
+  if (typeof provider.setAddress === 'function') {
+    try {
+      provider.setAddress(address);
+    } catch (_) {}
+  }
+
+  if (provider?.tronWeb && typeof provider.tronWeb.setAddress === 'function') {
+    try {
+      provider.tronWeb.setAddress(address);
+    } catch (_) {}
+  }
+}
+
+async function waitForAddress(adapter, provider) {
+  for (let i = 0; i < 16; i++) {
+    const directAddress = resolveAddress(adapter, provider);
+    if (directAddress) {
+      await syncProviderAddress(provider, directAddress);
+      console.log('[4TEEN] address resolved', directAddress);
+      return directAddress;
+    }
+
+    if (i === 0 || i === 4 || i === 8) {
+      const requestedAddress = await tryRequestAccounts(provider);
+      if (requestedAddress) {
+        await syncProviderAddress(provider, requestedAddress);
+        console.log('[4TEEN] address resolved', requestedAddress);
+        return requestedAddress;
+      }
+    }
+
+    await sleep(250);
+  }
+
+  return null;
+}
+
+async function connectAdapter(adapter) {
+  if (!adapter || typeof adapter.connect !== 'function') {
+    throw new Error(`Adapter ${resolveAdapterName(adapter)} has no connect()`);
+  }
+
+  try {
+    await adapter.connect();
+    return;
+  } catch (error) {
+    const msg = String(error?.message || '').toLowerCase();
+
+    if (
+      msg.includes('already connected') ||
+      msg.includes('connection already open') ||
+      msg.includes('session currently connected')
+    ) {
+      return;
+    }
+
+    throw error;
+  }
+}
+
+function buildConnectedState({
+  walletId,
+  walletName,
+  address,
+  provider
+}) {
+  return {
+    connecting: false,
+    connected: true,
+
+    walletId,
+    walletName,
+    activeWalletId: walletId,
+    activeWalletName: walletName,
+    selectedWalletId: walletId,
+
+    address,
+    shortAddress: shortenAddress(address),
+
+    provider,
+    tronWeb: provider?.tronWeb || provider || null,
+
+    walletPickerOpen: false,
+    error: null
+  };
+}
+
+function buildDisconnectedState(errorMessage = 'Wallet connection failed') {
+  return {
+    connecting: false,
+    connected: false,
+
+    walletId: null,
+    walletName: null,
+    activeWalletId: null,
+    activeWalletName: null,
+    selectedWalletId: null,
+
+    address: null,
+    shortAddress: null,
+
+    provider: null,
+    tronWeb: null,
+
+    trxBalance: null,
+    fourteenBalance: null,
+
+    walletPickerOpen: true,
+    error: errorMessage
+  };
+}
+
+async function finalizeConnection({ walletId, walletName, address, provider }) {
+  setWalletState(
+    buildConnectedState({
+      walletId,
+      walletName,
+      address,
+      provider
+    })
+  );
+
+  const state = getWalletState();
+
+  await refreshAllBalances({
+    address: state.address,
+    walletId: state.activeWalletId,
+    provider: state.provider
+  });
+
+  return {
+    ok: true,
+    address,
+    walletId
+  };
 }
 
 export async function connectWallet(appkit, walletId = null) {
@@ -147,40 +566,12 @@ export async function connectWallet(appkit, walletId = null) {
     if (walletId === 'Trust' && isTrustWalletBrowser()) {
       const result = await connectTrustFallback();
 
-      const address = result.address;
-
-      setWalletState({
-        connecting: false,
-        connected: true,
-
+      return await finalizeConnection({
         walletId: result.walletId,
         walletName: result.walletName,
-        activeWalletId: result.walletId,
-        activeWalletName: result.walletName,
-
-        address,
-        shortAddress: shortenAddress(address),
-
-        provider: result.provider,
-        tronWeb: result.tronWeb || result.provider || null,
-
-        walletPickerOpen: false,
-        error: null
+        address: result.address,
+        provider: result.tronWeb || result.provider || null
       });
-
-      const state = getWalletState();
-
-      await refreshAllBalances({
-        address: state.address,
-        walletId: state.activeWalletId,
-        provider: state.provider
-      });
-
-      return {
-        ok: true,
-        address,
-        walletId: result.walletId
-      };
     }
 
     const adapter = pickAdapter(appkit, walletId);
@@ -189,14 +580,27 @@ export async function connectWallet(appkit, walletId = null) {
       throw new Error(`Adapter not found: ${walletId}`);
     }
 
-    if (typeof adapter.connect !== 'function') {
-      throw new Error(`Adapter ${walletId} has no connect()`);
+    await connectAdapter(adapter);
+
+    let provider = pickBestProvider(appkit, adapter);
+    let address = await waitForAddress(adapter, provider);
+
+    if (!isUsableAddress(address)) {
+      await sleep(400);
+      provider = pickBestProvider(appkit, adapter);
+      address = await waitForAddress(adapter, provider);
     }
 
-    await adapter.connect();
+    if (!isUsableAddress(address) && walletId === 'Trust' && isTrustWalletBrowser()) {
+      const result = await connectTrustFallback();
 
-    const provider = resolveProvider(appkit, adapter);
-    const address = await waitForAddress(adapter, provider);
+      return await finalizeConnection({
+        walletId: result.walletId,
+        walletName: result.walletName,
+        address: result.address,
+        provider: result.tronWeb || result.provider || null
+      });
+    }
 
     if (!isUsableAddress(address)) {
       throw new Error('Address not resolved');
@@ -205,57 +609,18 @@ export async function connectWallet(appkit, walletId = null) {
     const walletName = resolveAdapterName(adapter);
     const walletIdResolved = resolveAdapterId(adapter) || walletName;
 
-    setWalletState({
-      connecting: false,
-      connected: true,
-
+    return await finalizeConnection({
       walletId: walletIdResolved,
       walletName,
-      activeWalletId: walletIdResolved,
-      activeWalletName: walletName,
-
       address,
-      shortAddress: shortenAddress(address),
-
-      provider,
-      tronWeb: provider?.tronWeb || provider || null,
-
-      walletPickerOpen: false,
-      error: null
+      provider
     });
-
-    const state = getWalletState();
-
-    await refreshAllBalances({
-      address: state.address,
-      walletId: state.activeWalletId,
-      provider: state.provider
-    });
-
-    return {
-      ok: true,
-      address,
-      walletId: walletIdResolved
-    };
   } catch (error) {
     console.error('[4TEEN] connectWallet failed', error);
 
-    setWalletState({
-      connecting: false,
-      connected: false,
-      walletId: null,
-      walletName: null,
-      activeWalletId: null,
-      activeWalletName: null,
-      address: null,
-      shortAddress: null,
-      provider: null,
-      tronWeb: null,
-      trxBalance: null,
-      fourteenBalance: null,
-      walletPickerOpen: true,
-      error: error?.message || 'Wallet connection failed'
-    });
+    setWalletState(
+      buildDisconnectedState(error?.message || 'Wallet connection failed')
+    );
 
     return { ok: false, error };
   }
