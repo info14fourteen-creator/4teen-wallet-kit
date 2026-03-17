@@ -13,6 +13,14 @@ const APP_METADATA = {
   icons: ['https://4teen.me/logo.png']
 };
 
+export function getAppKit() {
+  return appkitInstance;
+}
+
+export function getTronAdapter() {
+  return tronAdapterInstance;
+}
+
 export function createWalletModal({ projectId }) {
   if (appkitInstance) {
     return {
@@ -21,13 +29,17 @@ export function createWalletModal({ projectId }) {
     };
   }
 
+  if (!projectId) {
+    throw new Error('createWalletModal: projectId is required');
+  }
+
   const walletAdapters = createWalletAdapters(projectId);
 
   tronAdapterInstance = new TronAdapter({
     walletAdapters
   });
 
-  appkitInstance = createAppKit({
+  const created = createAppKit({
     projectId,
     metadata: APP_METADATA,
     networks: [tronMainnet],
@@ -36,6 +48,8 @@ export function createWalletModal({ projectId }) {
       analytics: false
     }
   });
+
+  appkitInstance = created || null;
 
   return {
     appkit: appkitInstance,
