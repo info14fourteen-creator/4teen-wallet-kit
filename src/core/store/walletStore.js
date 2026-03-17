@@ -15,7 +15,8 @@ const state = {
   fourteenBalance: null,
   error: null,
   availableWallets: [],
-  selectedWalletId: null
+  selectedWalletId: null,
+  walletPickerOpen: false
 };
 
 export function getWalletState() {
@@ -44,7 +45,8 @@ export function resetWalletState() {
     trxBalance: null,
     fourteenBalance: null,
     error: null,
-    selectedWalletId: null
+    selectedWalletId: null,
+    walletPickerOpen: false
   });
 }
 
