@@ -4,8 +4,13 @@ import { resolve } from 'path';
 export default defineConfig({
   resolve: {
     alias: {
-      buffer: resolve('node_modules/buffer')
+      buffer: 'buffer/',
+      crypto: resolve('node_modules/crypto-browserify'),
+      stream: resolve('node_modules/readable-stream')
     }
+  },
+  define: {
+    global: 'globalThis'
   },
   build: {
     outDir: 'dist',
