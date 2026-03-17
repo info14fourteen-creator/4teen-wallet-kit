@@ -1,7 +1,9 @@
 import { TronWeb } from 'tronweb';
-import { setWalletState } from '../../core/store/walletStore.js';
+import { setWalletState, getWalletState } from '../../core/store/walletStore.js';
 import { shortenAddress } from '../../core/utils/address.js';
 import { refreshAllBalances } from '../balances/refreshAllBalances.js';
+
+let lastRestoreKey = null;
 
 function normalizeAddress(value) {
   if (!value) return null;
@@ -25,10 +27,11 @@ function getBrowserHint() {
   const ua = String(window.navigator?.userAgent || '').toLowerCase();
 
   if (href.includes('utm_source=tronlink') || ua.includes('tronlink')) return 'TronLink';
-  if (href.includes('utm_source=trust') || href.includes('utm_source=trust_ios_browser') || ua.includes('trust')) return 'Trust';
-  if (href.includes('utm_source=okx') || ua.includes('okx')) return 'OKX Wallet';
-  if (href.includes('utm_source=binance') || ua.includes('binance')) return 'Binance Wallet';
+  if (href.includes('utm_source=trust') || href.includes('trust_ios_browser') || ua.includes('trustwallet') || ua.includes('trust')) return 'Trust';
+  if (href.includes('utm_source=okx') || ua.includes('okex/') || ua.includes('okapp/') || ua.includes('okx')) return 'OKX Wallet';
+  if (href.includes('utm_source=binance') || ua.includes('bnc/') || ua.includes('binance')) return 'Binance Wallet';
   if (href.includes('utm_source=metamask') || ua.includes('metamask')) return 'MetaMask';
+  if (ua.includes('tokenpocket') || ua.includes('tp/')) return 'TokenPocket';
 
   return '';
 }
@@ -70,20 +73,23 @@ function resolveAddressFromAdapter(adapter) {
   );
 }
 
-function pickActiveAdapter(adapters) {
+function pickActiveAdapter(adapters, activeWalletId = null) {
   const connectedAdapters = adapters.filter((adapter) => !!adapter?.connected);
 
   if (connectedAdapters.length === 0) {
     return null;
   }
 
-  if (connectedAdapters.length === 1) {
-    return connectedAdapters[0];
+  if (activeWalletId) {
+    const active = connectedAdapters.find((adapter) => adapter?.name === activeWalletId);
+    if (active) return active;
   }
 
   const browserHint = getBrowserHint();
-  const hinted = connectedAdapters.find((adapter) => adapter?.name === browserHint);
-  if (hinted) return hinted;
+  if (browserHint) {
+    const hinted = connectedAdapters.find((adapter) => adapter?.name === browserHint);
+    if (hinted) return hinted;
+  }
 
   return connectedAdapters[0];
 }
@@ -94,8 +100,9 @@ export async function restoreSession(appkit) {
     return false;
   }
 
+  const state = getWalletState();
   const adapters = Array.isArray(appkit.adapters) ? appkit.adapters : [];
-  const activeAdapter = pickActiveAdapter(adapters);
+  const activeAdapter = pickActiveAdapter(adapters, state.activeWalletId);
 
   const address =
     resolveAddressFromAdapter(activeAdapter) ||
@@ -112,8 +119,18 @@ export async function restoreSession(appkit) {
   });
 
   if (!address) {
+    lastRestoreKey = null;
     return false;
   }
+
+  const walletId = activeAdapter?.name || state.activeWalletId || 'Wallet';
+  const restoreKey = `${walletId}:${address}`;
+
+  if (lastRestoreKey === restoreKey && state.connected && state.address === address) {
+    return true;
+  }
+
+  lastRestoreKey = restoreKey;
 
   appkit.connectedAdapter = activeAdapter || null;
 
@@ -122,8 +139,9 @@ export async function restoreSession(appkit) {
   setWalletState({
     connected: true,
     connecting: false,
-    walletId: activeAdapter?.name || 'TronLink',
-    walletName: activeAdapter?.name || 'Wallet',
+    walletId,
+    walletName: walletId,
+    activeWalletId: walletId,
     address,
     shortAddress: shortenAddress(address),
     provider: activeAdapter || null,
