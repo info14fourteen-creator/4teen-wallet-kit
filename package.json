@@ -1,5 +1,5 @@
 {
-  "name": "4teen-connect-kit",
+  "name": "4teen-wallet-kit",
   "version": "0.1.0",
   "private": false,
   "type": "module",
@@ -11,23 +11,27 @@
       "require": "./dist/fourteen-connect.umd.js"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@reown/appkit": "^1.0.0",
-    "@reown/appkit-adapter-tron": "^1.0.0",
-    "@tronweb3/tronwallet-adapter-tronlink": "^1.0.0",
-    "@tronweb3/tronwallet-adapter-okxwallet": "^1.0.0",
-    "@tronweb3/tronwallet-adapter-binancewallet": "^1.0.0",
-    "@tronweb3/tronwallet-adapter-trust": "^1.0.0",
-    "@tronweb3/tronwallet-adapter-bitkeep": "^1.0.0",
-    "@tronweb3/tronwallet-adapter-tokenpocket": "^1.0.0",
-    "@tronweb3/tronwallet-adapter-metamask-evm": "^1.0.0",
-    "tronweb": "^4.4.0"
+    "@reown/appkit": "latest",
+    "@reown/appkit-adapter-tron": "latest",
+    "@tronweb3/tronwallet-adapter-tronlink": "latest",
+    "@tronweb3/tronwallet-adapter-okxwallet": "latest",
+    "@tronweb3/tronwallet-adapter-binance": "latest",
+    "@tronweb3/tronwallet-adapter-trust": "latest",
+    "@tronweb3/tronwallet-adapter-bitkeep": "latest",
+    "@tronweb3/tronwallet-adapter-tokenpocket": "latest",
+    "@tronweb3/tronwallet-adapter-walletconnect": "latest",
+    "tronweb": "latest"
   },
   "devDependencies": {
-    "vite": "^5.0.0"
+    "vite": "latest"
   }
 }
