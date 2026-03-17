@@ -5,30 +5,12 @@ import {
   showNeutralNotice,
   showSuccessNotice
 } from './noticeCenter.js';
+import { trxIcon, fourteenIcon } from './icons.js';
 
 function formatNumber(value, digits = 2) {
   const num = Number(value || 0);
   if (!Number.isFinite(num)) return '0.00';
   return num.toFixed(digits);
-}
-
-function createTRXIcon() {
-  return `
-    <svg class="fw-wallet-button__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M6.2 4.4L18.7 6.9L12.7 18.5L6.2 4.4Z" fill="rgb(255,105,0)"/>
-      <path d="M6.2 4.4L11.3 10.6L18.7 6.9L6.2 4.4Z" fill="rgba(255,255,255,0.18)"/>
-      <path d="M11.3 10.6L12.7 18.5L18.7 6.9L11.3 10.6Z" fill="rgba(255,255,255,0.28)"/>
-    </svg>
-  `;
-}
-
-function createFourteenIcon() {
-  return `
-    <svg class="fw-wallet-button__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="5" fill="rgb(255,105,0)"/>
-      <path d="M8 15V9.8L6.8 10.6V8.9L8.8 7.7H10.1V15H8ZM14 15V13.3H11.1V11.9L14.3 7.7H16.1V11.8H17.2V13.3H16.1V15H14ZM12.8 11.8H14V10.2L12.8 11.8Z" fill="rgb(255,255,255)"/>
-    </svg>
-  `;
 }
 
 function createDropdown({ onRefresh, onDisconnect }) {
@@ -104,11 +86,11 @@ function renderConnected(root, state, variant) {
       ${compact ? '' : '<span class="fw-wallet-button__divider"></span>'}
       <span class="fw-wallet-button__balance">
         <span class="fw-wallet-button__balance-value">${formatNumber(state.trxBalance)}</span>
-        ${createTRXIcon()}
+        <img class="fw-wallet-button__icon" src="${trxIcon}" alt="TRX" />
       </span>
       <span class="fw-wallet-button__balance">
         <span class="fw-wallet-button__balance-value">${formatNumber(state.fourteenBalance)}</span>
-        ${createFourteenIcon()}
+        <img class="fw-wallet-button__icon" src="${fourteenIcon}" alt="4TEEN" />
       </span>
       <span class="fw-wallet-button__caret">▾</span>
     </button>
