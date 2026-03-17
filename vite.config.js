@@ -5,22 +5,21 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     sourcemap: false,
+    cssCodeSplit: false,
+    target: 'es2020',
     lib: {
       entry: 'src/index.js',
       name: 'FourteenConnect',
       fileName: (format) => `fourteen-connect.${format}.js`,
       formats: ['es', 'umd']
     },
-    rollupOptions: {
-      external: [
-        '@reown/appkit',
-        '@reown/appkit-adapter-tron',
-        'tronweb'
-      ],
+    rolldownOptions: {
       output: {
-        globals: {
-          '@reown/appkit': 'AppKit',
-          'tronweb': 'TronWeb'
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.names && assetInfo.names.some((name) => name.endsWith('.css'))) {
+            return '4teen-wallet-kit.css';
+          }
+          return 'assets/[name]-[hash][extname]';
         }
       }
     }
