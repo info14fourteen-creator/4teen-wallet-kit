@@ -4,17 +4,6 @@ import { setWalletState, getWalletState } from '../../core/store/walletStore.js'
 let initialized = false;
 let walletKit = null;
 
-const WALLET_PRIORITY = [
-  'TronLink',
-  'OKX Wallet',
-  'Binance Wallet',
-  'Trust',
-  'Bitget Wallet',
-  'TokenPocket',
-  'MetaMask',
-  'WalletConnect'
-];
-
 function mapAdaptersToWallets(adapters) {
   return adapters.map((adapter) => ({
     id: adapter.name,
@@ -22,17 +11,6 @@ function mapAdaptersToWallets(adapters) {
     readyState: adapter.readyState || 'Unknown',
     connected: !!adapter.connected
   }));
-}
-
-function rankAdapter(adapter) {
-  const idx = WALLET_PRIORITY.indexOf(adapter?.name);
-  return idx === -1 ? 999 : idx;
-}
-
-function getReadyAdapters(adapters) {
-  return adapters
-    .filter((adapter) => adapter && adapter.readyState === 'Found')
-    .sort((a, b) => rankAdapter(a) - rankAdapter(b));
 }
 
 function createWalletKit({ projectId }) {
@@ -53,23 +31,13 @@ function createWalletKit({ projectId }) {
       console.log('[4TEEN] available wallets', availableWallets);
     },
 
-    getPreferredAdapter() {
-      const readyAdapters = getReadyAdapters(this.adapters);
-
-      if (readyAdapters.length > 0) {
-        return readyAdapters[0];
-      }
-
-      const walletConnect = this.adapters.find((adapter) => adapter?.name === 'WalletConnect');
-      return walletConnect || null;
-    },
-
     getAdapterByName(name) {
       return this.adapters.find((adapter) => adapter?.name === name) || null;
     },
 
     selectAdapter(name) {
-      const adapter = name ? this.getAdapterByName(name) : this.getPreferredAdapter();
+      const adapter = name ? this.getAdapterByName(name) : null;
+
       this.connectedAdapter = adapter || null;
 
       setWalletState({
@@ -95,6 +63,18 @@ function createWalletKit({ projectId }) {
       if (!adapter) return null;
 
       return adapter.tronWeb || adapter.provider || adapter;
+    },
+
+    openWalletPicker() {
+      setWalletState({
+        walletPickerOpen: true
+      });
+    },
+
+    closeWalletPicker() {
+      setWalletState({
+        walletPickerOpen: false
+      });
     }
   };
 
@@ -107,7 +87,7 @@ function createWalletKit({ projectId }) {
           kit.updateAvailableWallets();
         });
       } catch (_) {
-        // ignore adapter event binding issues
+        // ignore
       }
     }
   });
