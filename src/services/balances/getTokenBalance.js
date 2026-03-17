@@ -1,6 +1,6 @@
-import TronWeb from 'tronweb';
-import { TRC20_ABI } from '../contracts/trc20.js';
+import { TronWeb } from 'tronweb';
 import { getWalletState } from '../../core/store/walletStore.js';
+import { TRC20_ABI } from '../contracts/trc20.js';
 
 export async function getTokenBalance(tokenAddress, decimals, addressOverride = null) {
   const state = getWalletState();
