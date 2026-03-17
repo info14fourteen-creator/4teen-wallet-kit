@@ -1,3 +1,4 @@
+import './polyfills/node.js';
 import { initWalletKit } from './services/wallet/initWalletKit.js';
 import { connectWallet } from './services/wallet/connectWallet.js';
 import { disconnectWallet } from './services/wallet/disconnectWallet.js';
