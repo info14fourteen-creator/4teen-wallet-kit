@@ -4,10 +4,10 @@ import { BinanceWalletAdapter } from '@tronweb3/tronwallet-adapter-binance';
 import { TrustAdapter } from '@tronweb3/tronwallet-adapter-trust';
 import { BitKeepAdapter } from '@tronweb3/tronwallet-adapter-bitkeep';
 import { TokenPocketAdapter } from '@tronweb3/tronwallet-adapter-tokenpocket';
-import { MetaMaskAdapter } from '@tronweb3/tronwallet-adapter-metamask';
+import { MetaMaskEVMAdapter } from '@tronweb3/tronwallet-adapter-metamask-evm';
 import { WalletConnectAdapter } from '@tronweb3/tronwallet-adapter-walletconnect';
 
-export function createWalletAdapters() {
+export function createWalletAdapters(projectId) {
   return [
     new TronLinkAdapter(),
     new OkxWalletAdapter(),
@@ -15,13 +15,13 @@ export function createWalletAdapters() {
     new TrustAdapter(),
     new BitKeepAdapter(),
     new TokenPocketAdapter(),
-    new MetaMaskAdapter({
+    new MetaMaskEVMAdapter({
       useDeeplink: true
     }),
     new WalletConnectAdapter({
       network: 'Mainnet',
       options: {
-        projectId: import.meta.env.VITE_REOWN_PROJECT_ID
+        projectId
       }
     })
   ];
