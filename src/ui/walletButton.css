@@ -264,3 +264,41 @@
     min-width: 190px;
   }
 }
+.fw-wallet-button--compact {
+  min-height: 40px;
+  padding: 8px 12px;
+  gap: 8px;
+}
+
+.fw-wallet-button--compact .fw-wallet-button__label,
+.fw-wallet-button--compact .fw-wallet-button__address,
+.fw-wallet-button--compact .fw-wallet-button__balance {
+  font-size: 12px;
+}
+
+.fw-wallet-button--compact .fw-wallet-button__icon {
+  width: 14px;
+  height: 14px;
+}
+
+.fw-wallet-button--standard {
+  min-height: 46px;
+}
+
+.fw-wallet-button--hero {
+  min-height: 56px;
+  padding: 14px 18px;
+  gap: 12px;
+  border-radius: 16px;
+}
+
+.fw-wallet-button--hero .fw-wallet-button__label,
+.fw-wallet-button--hero .fw-wallet-button__address,
+.fw-wallet-button--hero .fw-wallet-button__balance {
+  font-size: 14px;
+}
+
+.fw-wallet-button--hero .fw-wallet-button__icon {
+  width: 18px;
+  height: 18px;
+}
