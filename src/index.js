@@ -29,7 +29,7 @@ export function initFourteenConnect({ projectId }) {
   }
 
   return {
-    connect: () => connectWallet(appkit),
+    connect: (walletId = null) => connectWallet(appkit, walletId),
     disconnect: () => disconnectWallet(appkit),
     restore: () => restoreSession(appkit),
     refreshBalances: () => refreshAllBalances(),
