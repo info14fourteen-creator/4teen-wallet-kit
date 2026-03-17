@@ -1,5 +1,10 @@
 import './walletButton.css';
 import { subscribeWalletState } from '../core/store/walletStore.js';
+import {
+  showErrorNotice,
+  showNeutralNotice,
+  showSuccessNotice
+} from './noticeCenter.js';
 
 function formatNumber(value, digits = 2) {
   const num = Number(value || 0);
@@ -20,7 +25,7 @@ function createTRXIcon() {
 function createFourteenIcon() {
   return `
     <svg class="fw-wallet-button__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="6" fill="rgb(255,105,0)"/>
+      <rect x="3" y="3" width="18" height="18" rx="5" fill="rgb(255,105,0)"/>
       <path d="M8 15V9.8L6.8 10.6V8.9L8.8 7.7H10.1V15H8ZM14 15V13.3H11.1V11.9L14.3 7.7H16.1V11.8H17.2V13.3H16.1V15H14ZM12.8 11.8H14V10.2L12.8 11.8Z" fill="rgb(255,255,255)"/>
     </svg>
   `;
@@ -42,12 +47,25 @@ function createDropdown({ onRefresh, onDisconnect }) {
 
   dropdown.querySelector('[data-action="refresh"]')?.addEventListener('click', async (e) => {
     e.stopPropagation();
-    await onRefresh?.();
+
+    try {
+      showNeutralNotice('Refreshing balances...');
+      await onRefresh?.();
+      showSuccessNotice('Balances refreshed');
+    } catch (error) {
+      showErrorNotice(error?.message || 'Failed to refresh balances');
+    }
   });
 
   dropdown.querySelector('[data-action="disconnect"]')?.addEventListener('click', async (e) => {
     e.stopPropagation();
-    await onDisconnect?.();
+
+    try {
+      await onDisconnect?.();
+      showNeutralNotice('Wallet disconnected');
+    } catch (error) {
+      showErrorNotice(error?.message || 'Failed to disconnect wallet');
+    }
   });
 
   return dropdown;
@@ -63,7 +81,7 @@ function renderIdle(root, variant) {
   root.innerHTML = `
     <button type="button" class="fw-wallet-button fw-wallet-button--idle ${getVariantClass(variant)}">
       <span class="fw-wallet-button__wallet-dot"></span>
-      <span class="fw-wallet-button__label">CONNECT WALLET</span>
+      <span class="fw-wallet-button__label">WALLET NOT CONNECTED</span>
     </button>
   `;
 }
@@ -74,16 +92,6 @@ function renderConnecting(root, variant) {
       <span class="fw-wallet-spinner"></span>
       <span class="fw-wallet-button__label">CONNECTING...</span>
     </button>
-  `;
-}
-
-function renderError(root, variant, message) {
-  root.innerHTML = `
-    <button type="button" class="fw-wallet-button fw-wallet-button--error ${getVariantClass(variant)}">
-      <span class="fw-wallet-button__wallet-dot"></span>
-      <span class="fw-wallet-button__label">CONNECT WALLET</span>
-    </button>
-    <div class="fw-wallet-message fw-wallet-message--error">${message || 'Connection failed'}</div>
   `;
 }
 
@@ -121,6 +129,7 @@ export function mountWalletButton(target, options = {}) {
 
   let isDropdownOpen = false;
   let unsubscribe = null;
+  let lastShownError = null;
 
   function closeDropdown() {
     const existing = root.querySelector('.fw-wallet-dropdown');
@@ -150,14 +159,21 @@ export function mountWalletButton(target, options = {}) {
 
   function bindDisconnected() {
     const button = root.querySelector('.fw-wallet-button');
+
     button?.addEventListener('click', async () => {
       closeDropdown();
-      await options.onConnectClick?.();
+
+      try {
+        await options.onConnectClick?.();
+      } catch (error) {
+        showErrorNotice(error?.message || 'Wallet connection failed');
+      }
     });
   }
 
   function bindConnected() {
     const button = root.querySelector('.fw-wallet-button');
+
     button?.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleDropdown();
@@ -167,6 +183,11 @@ export function mountWalletButton(target, options = {}) {
   function render(state) {
     closeDropdown();
 
+    if (state.error && state.error !== lastShownError) {
+      lastShownError = state.error;
+      showErrorNotice(state.error);
+    }
+
     if (state.connecting) {
       renderConnecting(root, variant);
       return;
@@ -175,12 +196,6 @@ export function mountWalletButton(target, options = {}) {
     if (state.connected) {
       renderConnected(root, state, variant);
       bindConnected();
-      return;
-    }
-
-    if (state.error) {
-      renderError(root, variant, state.error);
-      bindDisconnected();
       return;
     }
 
