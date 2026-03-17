@@ -4,7 +4,7 @@ import { BinanceWalletAdapter } from '@tronweb3/tronwallet-adapter-binance';
 import { TrustAdapter } from '@tronweb3/tronwallet-adapter-trust';
 import { BitKeepAdapter } from '@tronweb3/tronwallet-adapter-bitkeep';
 import { TokenPocketAdapter } from '@tronweb3/tronwallet-adapter-tokenpocket';
-import { MetaMaskEVMAdapter } from '@tronweb3/tronwallet-adapter-metamask-evm';
+import { MetaMaskAdapter } from '@tronweb3/tronwallet-adapter-metamask-evm';
 import { WalletConnectAdapter } from '@tronweb3/tronwallet-adapter-walletconnect';
 
 export function createWalletAdapters(projectId) {
@@ -15,7 +15,7 @@ export function createWalletAdapters(projectId) {
     new TrustAdapter(),
     new BitKeepAdapter(),
     new TokenPocketAdapter(),
-    new MetaMaskEVMAdapter({
+    new MetaMaskAdapter({
       useDeeplink: true
     }),
     new WalletConnectAdapter({
