@@ -20,36 +20,82 @@ function normalizeAddress(value) {
   return null;
 }
 
+function getWindowSafe() {
+  return typeof window !== 'undefined' ? window : null;
+}
+
+function getUserAgent() {
+  const win = getWindowSafe();
+  return String(win?.navigator?.userAgent || '').toLowerCase();
+}
+
+function getLocationHref() {
+  const win = getWindowSafe();
+  return String(win?.location?.href || '').toLowerCase();
+}
+
+function isOkxBrowser() {
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=okx') ||
+    ua.includes('okex/') ||
+    ua.includes('okapp/') ||
+    ua.includes('okx')
+  );
+}
+
+function isBinanceBrowser() {
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=binance') ||
+    ua.includes('bnc/') ||
+    ua.includes('binance')
+  );
+}
+
+function isTronLinkBrowser() {
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return href.includes('utm_source=tronlink') || ua.includes('tronlink');
+}
+
+function isTrustBrowser() {
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=trust') ||
+    href.includes('trust_ios_browser') ||
+    ua.includes('trustwallet') ||
+    ua.includes('trust')
+  );
+}
+
+function isMetaMaskBrowser() {
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return href.includes('utm_source=metamask') || ua.includes('metamask');
+}
+
+function isTokenPocketBrowser() {
+  const ua = getUserAgent();
+
+  return ua.includes('tokenpocket') || ua.includes('tp/');
+}
+
 function getBrowserHint() {
-  if (typeof window === 'undefined') return '';
-
-  const href = String(window.location.href || '').toLowerCase();
-  const ua = String(window.navigator?.userAgent || '').toLowerCase();
-
-  if (href.includes('utm_source=okx') || ua.includes('okex/') || ua.includes('okapp/') || ua.includes('okx')) {
-    return 'OKX Wallet';
-  }
-
-  if (href.includes('utm_source=binance') || ua.includes('bnc/') || ua.includes('binance')) {
-    return 'Binance Wallet';
-  }
-
-  if (href.includes('utm_source=tronlink') || ua.includes('tronlink')) {
-    return 'TronLink';
-  }
-
-  if (href.includes('utm_source=trust') || href.includes('trust_ios_browser') || ua.includes('trustwallet') || ua.includes('trust')) {
-    return 'Trust';
-  }
-
-  if (href.includes('utm_source=metamask') || ua.includes('metamask')) {
-    return 'MetaMask';
-  }
-
-  if (ua.includes('tokenpocket') || ua.includes('tp/')) {
-    return 'TokenPocket';
-  }
-
+  if (isOkxBrowser()) return 'OKX Wallet';
+  if (isBinanceBrowser()) return 'Binance Wallet';
+  if (isTronLinkBrowser()) return 'TronLink';
+  if (isTrustBrowser()) return 'Trust';
+  if (isMetaMaskBrowser()) return 'MetaMask';
+  if (isTokenPocketBrowser()) return 'TokenPocket';
   return '';
 }
 
@@ -64,11 +110,37 @@ function getWalletPriority(name, browserHint, activeWalletId) {
     'Trust': 770,
     'TokenPocket': 760,
     'MetaMask': 750,
-    'WalletConnect': 100,
-    'Bitget Wallet': 740
+    'Bitget Wallet': 740,
+    'WalletConnect': 100
   };
 
   return base[name] || 1;
+}
+
+function isAdapterAllowedInCurrentBrowser(adapterName, browserHint) {
+  if (!browserHint) return true;
+
+  if (browserHint === 'OKX Wallet') {
+    return adapterName === 'OKX Wallet' || adapterName === 'WalletConnect';
+  }
+
+  if (browserHint === 'Binance Wallet') {
+    return adapterName === 'Binance Wallet' || adapterName === 'WalletConnect';
+  }
+
+  if (browserHint === 'TronLink') {
+    return adapterName === 'TronLink' || adapterName === 'WalletConnect';
+  }
+
+  if (browserHint === 'MetaMask') {
+    return adapterName === 'MetaMask' || adapterName === 'WalletConnect';
+  }
+
+  if (browserHint === 'TokenPocket') {
+    return adapterName === 'TokenPocket' || adapterName === 'WalletConnect';
+  }
+
+  return true;
 }
 
 function buildTronWeb(address, adapter) {
@@ -109,17 +181,22 @@ function resolveAddressFromAdapter(adapter) {
 }
 
 function pickActiveAdapter(adapters, activeWalletId = null) {
-  const connectedAdapters = adapters.filter((adapter) => !!adapter?.connected);
+  const browserHint = getBrowserHint();
+
+  const connectedAdapters = adapters.filter((adapter) => {
+    if (!adapter?.connected) return false;
+    return isAdapterAllowedInCurrentBrowser(adapter?.name, browserHint);
+  });
 
   if (connectedAdapters.length === 0) {
     return null;
   }
 
-  const browserHint = getBrowserHint();
-
   const sorted = [...connectedAdapters].sort((a, b) => {
-    return getWalletPriority(b?.name, browserHint, activeWalletId) -
-      getWalletPriority(a?.name, browserHint, activeWalletId);
+    return (
+      getWalletPriority(b?.name, browserHint, activeWalletId) -
+      getWalletPriority(a?.name, browserHint, activeWalletId)
+    );
   });
 
   return sorted[0] || null;
@@ -162,7 +239,6 @@ export async function restoreSession(appkit) {
   }
 
   lastRestoreKey = restoreKey;
-
   appkit.connectedAdapter = activeAdapter || null;
 
   const tronWeb = buildTronWeb(address, activeAdapter);
