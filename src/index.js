@@ -9,6 +9,13 @@ import { getWalletState, subscribeWalletState } from './core/store/walletStore.j
 let appkit = null;
 let tronAdapter = null;
 
+function getAppkitSafe() {
+  if (!appkit) {
+    throw new Error('Wallet kit not initialized');
+  }
+  return appkit;
+}
+
 export function initFourteenConnect({ projectId }) {
   const init = initWalletKit({ projectId }) || {};
 
@@ -29,14 +36,37 @@ export function initFourteenConnect({ projectId }) {
   }
 
   return {
-    connect: (walletId = null) => connectWallet(appkit, walletId),
-    disconnect: () => disconnectWallet(appkit),
-    restore: () => restoreSession(appkit),
-    refreshBalances: () => refreshAllBalances(),
-    getState: () => getWalletState(),
-    subscribe: (listener) => subscribeWalletState(listener),
-    getAppkit: () => appkit,
-    getTronAdapter: () => tronAdapter
+    connect(walletId = null) {
+      return connectWallet(getAppkitSafe(), walletId);
+    },
+
+    disconnect() {
+      return disconnectWallet(getAppkitSafe());
+    },
+
+    restore() {
+      return restoreSession(getAppkitSafe());
+    },
+
+    refreshBalances() {
+      return refreshAllBalances();
+    },
+
+    getState() {
+      return getWalletState();
+    },
+
+    subscribe(listener) {
+      return subscribeWalletState(listener);
+    },
+
+    getAppkit() {
+      return appkit;
+    },
+
+    getTronAdapter() {
+      return tronAdapter;
+    }
   };
 }
 
