@@ -2,20 +2,39 @@ import { setWalletState } from '../../core/store/walletStore.js';
 import { shortenAddress } from '../../core/utils/address.js';
 import { refreshAllBalances } from '../balances/refreshAllBalances.js';
 
+function hasMethod(obj, methodName) {
+  return !!obj && typeof obj[methodName] === 'function';
+}
+
+function resolveAccount(appkit) {
+  if (!hasMethod(appkit, 'getAccount')) return null;
+
+  try {
+    return appkit.getAccount() || null;
+  } catch (error) {
+    console.error('[4TEEN] restoreSession getAccount failed', error);
+    return null;
+  }
+}
+
 function resolveAddress(appkit) {
-  if (!appkit || typeof appkit.getAccount !== 'function') return null;
-  const account = appkit.getAccount();
+  const account = resolveAccount(appkit);
   return account?.address || null;
 }
 
 function resolveProvider(appkit) {
-  if (!appkit || typeof appkit.getWalletProvider !== 'function') return null;
-  return appkit.getWalletProvider() || null;
+  if (!hasMethod(appkit, 'getWalletProvider')) return null;
+
+  try {
+    return appkit.getWalletProvider() || null;
+  } catch (error) {
+    console.error('[4TEEN] restoreSession getWalletProvider failed', error);
+    return null;
+  }
 }
 
 function resolveWalletName(appkit) {
-  if (!appkit || typeof appkit.getAccount !== 'function') return 'Wallet';
-  const account = appkit.getAccount();
+  const account = resolveAccount(appkit);
 
   return (
     account?.embeddedWalletInfo?.name ||
@@ -26,8 +45,7 @@ function resolveWalletName(appkit) {
 }
 
 function resolveWalletId(appkit) {
-  if (!appkit || typeof appkit.getAccount !== 'function') return null;
-  const account = appkit.getAccount();
+  const account = resolveAccount(appkit);
 
   return (
     account?.embeddedWalletInfo?.type ||
@@ -40,11 +58,19 @@ function resolveWalletId(appkit) {
 
 export async function restoreSession(appkit) {
   if (!appkit) {
+    console.warn('[4TEEN] restoreSession skipped: appkit is missing');
     return false;
   }
 
   const address = resolveAddress(appkit);
   const provider = resolveProvider(appkit);
+
+  console.log('[4TEEN] restoreSession check', {
+    hasAppkit: !!appkit,
+    hasGetAccount: hasMethod(appkit, 'getAccount'),
+    hasGetWalletProvider: hasMethod(appkit, 'getWalletProvider'),
+    address
+  });
 
   if (!address) {
     return false;
@@ -62,6 +88,11 @@ export async function restoreSession(appkit) {
     error: null
   });
 
-  await refreshAllBalances();
+  try {
+    await refreshAllBalances();
+  } catch (error) {
+    console.error('[4TEEN] restoreSession refreshAllBalances failed', error);
+  }
+
   return true;
 }
