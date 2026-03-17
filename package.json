@@ -1,0 +1,27 @@
+{
+  "name": "4teen-connect-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@reown/appkit": "latest",
+    "@reown/appkit-adapter-tron": "latest",
+    "@reown/appkit/networks": "latest",
+    "@tronweb3/tronwallet-adapter-tronlink": "latest",
+    "@tronweb3/tronwallet-adapter-okxwallet": "latest",
+    "@tronweb3/tronwallet-adapter-binancewallet": "latest",
+    "@tronweb3/tronwallet-adapter-trust": "latest",
+    "@tronweb3/tronwallet-adapter-bitkeep": "latest",
+    "@tronweb3/tronwallet-adapter-tokenpocket": "latest",
+    "@tronweb3/tronwallet-adapter-metamask-evm": "latest",
+    "tronweb": "latest"
+  },
+  "devDependencies": {
+    "vite": "latest"
+  }
+}
