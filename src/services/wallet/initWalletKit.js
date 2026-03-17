@@ -4,6 +4,7 @@ import { restoreSession } from './restoreSession.js';
 
 let initialized = false;
 let walletKit = null;
+let restoreTimer = null;
 
 function mapAdaptersToWallets(adapters) {
   return adapters.map((adapter) => ({
@@ -43,12 +44,16 @@ function normalizeConnectedAdapters(adapters) {
   return connectedAdapters[0];
 }
 
-function scheduleRestore(kit) {
-  Promise.resolve().then(() => {
+function scheduleRestore(kit, delay = 300) {
+  if (restoreTimer) {
+    clearTimeout(restoreTimer);
+  }
+
+  restoreTimer = setTimeout(() => {
     restoreSession(kit).catch((error) => {
       console.error('[4TEEN] scheduled restoreSession failed', error);
     });
-  });
+  }, delay);
 }
 
 function bindAdapterEvents(kit, adapter) {
@@ -59,7 +64,6 @@ function bindAdapterEvents(kit, adapter) {
   try {
     adapter.on('readyStateChanged', () => {
       kit.updateAvailableWallets();
-      scheduleRestore(kit);
     });
   } catch (_) {}
 
@@ -67,7 +71,7 @@ function bindAdapterEvents(kit, adapter) {
     adapter.on('connect', () => {
       kit.connectedAdapter = normalizeConnectedAdapters(kit.adapters) || adapter;
       kit.updateAvailableWallets();
-      scheduleRestore(kit);
+      scheduleRestore(kit, 200);
     });
   } catch (_) {}
 
@@ -77,14 +81,14 @@ function bindAdapterEvents(kit, adapter) {
         kit.connectedAdapter = null;
       }
       kit.updateAvailableWallets();
-      scheduleRestore(kit);
+      scheduleRestore(kit, 200);
     });
   } catch (_) {}
 
   try {
     adapter.on('accountsChanged', () => {
       kit.updateAvailableWallets();
-      scheduleRestore(kit);
+      scheduleRestore(kit, 250);
     });
   } catch (_) {}
 }
