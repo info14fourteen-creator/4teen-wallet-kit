@@ -1,6 +1,9 @@
-import TronWeb from 'tronweb';
+import { TronWeb } from 'tronweb';
 import { getWalletState } from '../../core/store/walletStore.js';
-import { normalizeTronBalance } from '../../core/utils/tron.js';
+
+function fromSun(value) {
+  return Number(value || 0) / 1_000_000;
+}
 
 export async function getTrxBalance(addressOverride = null) {
   const state = getWalletState();
@@ -15,5 +18,5 @@ export async function getTrxBalance(addressOverride = null) {
     });
 
   const raw = await tronWeb.trx.getBalance(address);
-  return normalizeTronBalance(raw);
+  return Number(fromSun(raw).toFixed(6));
 }
