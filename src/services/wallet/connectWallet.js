@@ -1,6 +1,7 @@
 import { setWalletState, getWalletState } from '../../core/store/walletStore.js';
 import { shortenAddress } from '../../core/utils/address.js';
 import { refreshAllBalances } from '../balances/refreshAllBalances.js';
+import { isTrustWalletBrowser, connectTrustFallback } from '../../adapters/trustFallback.js';
 
 function isUsableAddress(value) {
   return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
@@ -117,8 +118,6 @@ function pickAdapter(appkit, walletId) {
   return adapters.find((a) => a?.connected) || null;
 }
 
-// ===== MAIN =====
-
 export async function connectWallet(appkit, walletId = null) {
   try {
     setWalletState({
@@ -143,6 +142,45 @@ export async function connectWallet(appkit, walletId = null) {
       }
 
       throw new Error('Wallet picker not available');
+    }
+
+    if (walletId === 'Trust' && isTrustWalletBrowser()) {
+      const result = await connectTrustFallback();
+
+      const address = result.address;
+
+      setWalletState({
+        connecting: false,
+        connected: true,
+
+        walletId: result.walletId,
+        walletName: result.walletName,
+        activeWalletId: result.walletId,
+        activeWalletName: result.walletName,
+
+        address,
+        shortAddress: shortenAddress(address),
+
+        provider: result.provider,
+        tronWeb: result.tronWeb || result.provider || null,
+
+        walletPickerOpen: false,
+        error: null
+      });
+
+      const state = getWalletState();
+
+      await refreshAllBalances({
+        address: state.address,
+        walletId: state.activeWalletId,
+        provider: state.provider
+      });
+
+      return {
+        ok: true,
+        address,
+        walletId: result.walletId
+      };
     }
 
     const adapter = pickAdapter(appkit, walletId);
