@@ -47,3 +47,11 @@ export {
   showDebugOverlay,
   hideDebugOverlay
 } from './debug/debugOverlay.js';
+
+export {
+  showNotice,
+  hideNotice,
+  showSuccessNotice,
+  showErrorNotice,
+  showNeutralNotice
+} from './ui/noticeCenter.js';
