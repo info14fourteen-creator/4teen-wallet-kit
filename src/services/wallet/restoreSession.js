@@ -18,20 +18,33 @@ function normalizeAddress(value) {
   return null;
 }
 
+function getBrowserHint() {
+  if (typeof window === 'undefined') return '';
+
+  const href = String(window.location.href || '').toLowerCase();
+  const ua = String(window.navigator?.userAgent || '').toLowerCase();
+
+  if (href.includes('utm_source=tronlink') || ua.includes('tronlink')) return 'TronLink';
+  if (href.includes('utm_source=trust') || href.includes('utm_source=trust_ios_browser') || ua.includes('trust')) return 'Trust';
+  if (href.includes('utm_source=okx') || ua.includes('okx')) return 'OKX Wallet';
+  if (href.includes('utm_source=binance') || ua.includes('binance')) return 'Binance Wallet';
+  if (href.includes('utm_source=metamask') || ua.includes('metamask')) return 'MetaMask';
+
+  return '';
+}
+
 function buildTronWeb(address, adapter) {
   const existing =
     adapter?.tronWeb ||
     adapter?.provider?.tronWeb ||
-    null;
+    (typeof window !== 'undefined' ? window?.tronWeb || null : null);
 
   if (existing) {
     try {
       if (typeof existing.setAddress === 'function' && address) {
         existing.setAddress(address);
       }
-    } catch (_) {
-      // ignore
-    }
+    } catch (_) {}
 
     return existing;
   }
@@ -57,6 +70,24 @@ function resolveAddressFromAdapter(adapter) {
   );
 }
 
+function pickActiveAdapter(adapters) {
+  const connectedAdapters = adapters.filter((adapter) => !!adapter?.connected);
+
+  if (connectedAdapters.length === 0) {
+    return null;
+  }
+
+  if (connectedAdapters.length === 1) {
+    return connectedAdapters[0];
+  }
+
+  const browserHint = getBrowserHint();
+  const hinted = connectedAdapters.find((adapter) => adapter?.name === browserHint);
+  if (hinted) return hinted;
+
+  return connectedAdapters[0];
+}
+
 export async function restoreSession(appkit) {
   if (!appkit) {
     console.warn('[4TEEN] restoreSession skipped: wallet kit is missing');
@@ -64,12 +95,7 @@ export async function restoreSession(appkit) {
   }
 
   const adapters = Array.isArray(appkit.adapters) ? appkit.adapters : [];
-
-  let activeAdapter = adapters.find((adapter) => adapter?.connected && resolveAddressFromAdapter(adapter));
-
-  if (!activeAdapter && typeof window !== 'undefined' && window?.tronWeb?.defaultAddress?.base58) {
-    activeAdapter = adapters.find((adapter) => adapter?.name === 'TronLink') || null;
-  }
+  const activeAdapter = pickActiveAdapter(adapters);
 
   const address =
     resolveAddressFromAdapter(activeAdapter) ||
