@@ -8,47 +8,74 @@ import { getWalletState, subscribeWalletState } from './core/store/walletStore.j
 
 let appkit = null;
 let tronAdapter = null;
+let readyPromise = null;
 
-function getAppkitSafe() {
-  if (!appkit) {
-    throw new Error('Wallet kit not initialized');
+async function ensureWalletKit(projectId) {
+  if (appkit) {
+    return { appkit, tronAdapter };
   }
-  return appkit;
+
+  if (readyPromise) {
+    return readyPromise;
+  }
+
+  readyPromise = (async () => {
+    const init = await Promise.resolve(initWalletKit({ projectId })) || {};
+
+    appkit = init.appkit || null;
+    tronAdapter = init.tronAdapter || null;
+
+    console.log('[4TEEN] initFourteenConnect', {
+      hasAppkit: !!appkit,
+      hasTronAdapter: !!tronAdapter
+    });
+
+    if (!appkit) {
+      throw new Error('initWalletKit did not return appkit');
+    }
+
+    return { appkit, tronAdapter };
+  })();
+
+  try {
+    return await readyPromise;
+  } catch (error) {
+    readyPromise = null;
+    console.error('[4TEEN] wallet kit initialization failed', error);
+    throw error;
+  }
 }
 
 export function initFourteenConnect({ projectId }) {
-  const init = initWalletKit({ projectId }) || {};
+  ensureWalletKit(projectId)
+    .then(({ appkit }) => {
+      console.log('[4TEEN] Wallet kit ready');
 
-  appkit = init.appkit || null;
-  tronAdapter = init.tronAdapter || null;
-
-  console.log('[4TEEN] initFourteenConnect', {
-    hasAppkit: !!appkit,
-    hasTronAdapter: !!tronAdapter
-  });
-
-  if (appkit) {
-    restoreSession(appkit).catch((error) => {
-      console.error('[4TEEN] restoreSession failed', error);
+      restoreSession(appkit).catch((error) => {
+        console.error('[4TEEN] restoreSession failed', error);
+      });
+    })
+    .catch((error) => {
+      console.error('[4TEEN] initWalletKit did not return appkit', error);
     });
-  } else {
-    console.error('[4TEEN] initWalletKit did not return appkit');
-  }
 
   return {
-    connect(walletId = null) {
-      return connectWallet(getAppkitSafe(), walletId);
+    async connect(walletId = null) {
+      const { appkit } = await ensureWalletKit(projectId);
+      return connectWallet(appkit, walletId);
     },
 
-    disconnect() {
-      return disconnectWallet(getAppkitSafe());
+    async disconnect() {
+      const { appkit } = await ensureWalletKit(projectId);
+      return disconnectWallet(appkit);
     },
 
-    restore() {
-      return restoreSession(getAppkitSafe());
+    async restore() {
+      const { appkit } = await ensureWalletKit(projectId);
+      return restoreSession(appkit);
     },
 
-    refreshBalances() {
+    async refreshBalances() {
       return refreshAllBalances();
     },
 
@@ -66,6 +93,10 @@ export function initFourteenConnect({ projectId }) {
 
     getTronAdapter() {
       return tronAdapter;
+    },
+
+    whenReady() {
+      return ensureWalletKit(projectId);
     }
   };
 }
