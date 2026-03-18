@@ -1,4 +1,4 @@
-import { isTrustWalletBrowser, connectTrustFallback } from '../../trustFallback.js';
+import { connectTrustFallback, isTrustWalletBrowser } from '../../trustFallback.js';
 import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
 import {
   forceBindTronWeb,
@@ -85,6 +85,7 @@ function getInjectedTrustProvider() {
     win.trustWallet ||
     win.trustwallet?.ethereum ||
     win.trustWallet?.ethereum ||
+    win.tronWeb ||
     null
   );
 }
@@ -211,15 +212,15 @@ async function ensureTrustSession(adapter, provider) {
 
 async function waitForTrustProvider(appkit, adapter, options = {}) {
   const {
-    attempts = 12,
-    intervalMs = 120
+    attempts = 14,
+    intervalMs = 140
   } = options;
 
   for (let i = 0; i < attempts; i++) {
     const provider = getResolvedProvider(appkit, adapter);
     const address = resolveAddress(adapter, provider);
 
-    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign)) {
+    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign || provider?.request || provider?.send)) {
       return provider;
     }
 
@@ -259,17 +260,15 @@ export const trustDriver = {
     if (isTrustWalletBrowser()) {
       const fallbackResult = await connectTrustFallback();
 
-      if (fallbackResult?.address) {
-        return {
-          ok: true,
-          walletId: 'Trust',
-          walletName: DRIVER_NAME,
-          address: fallbackResult.address,
-          provider: fallbackResult.tronWeb || fallbackResult.provider || null,
-          tronWeb: fallbackResult.tronWeb || fallbackResult.provider || null,
-          adapter: null
-        };
-      }
+      return {
+        ok: true,
+        walletId: 'Trust',
+        walletName: DRIVER_NAME,
+        address: fallbackResult.address,
+        provider: fallbackResult.provider || fallbackResult.tronWeb || null,
+        tronWeb: fallbackResult.tronWeb || fallbackResult.provider || null,
+        adapter: null
+      };
     }
 
     const adapter = this.getAdapter(appkit);
@@ -285,7 +284,7 @@ export const trustDriver = {
 
     if (!isUsableAddress(address)) {
       address = await waitForAddress(adapter, provider, {
-        attempts: 16,
+        attempts: 18,
         intervalMs: 180,
         requestAccountAt: [0, 2, 4, 8, 12]
       });
