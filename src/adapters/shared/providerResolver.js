@@ -44,6 +44,41 @@ function isAddressLikeProvider(provider) {
   );
 }
 
+function isSignCapableProvider(provider) {
+  const tronWeb = provider?.tronWeb || provider || null;
+
+  return !!(
+    typeof provider?.request === 'function' ||
+    typeof provider?.send === 'function' ||
+    typeof provider?.sign === 'function' ||
+    typeof tronWeb?.trx?.sign === 'function'
+  );
+}
+
+function getProviderScore(provider, walletName) {
+  let score = 0;
+
+  if (providerMatchesWallet(provider, walletName)) score += 50000;
+  if (isAddressLikeProvider(provider)) score += 12000;
+  if (isSignCapableProvider(provider)) score += 8000;
+
+  if (walletName === 'TronLink') {
+    const win = getWindowSafe();
+
+    if (
+      provider === win?.tronLink ||
+      provider === win?.tronLink?.tronWeb ||
+      provider === win?.tronWeb ||
+      provider?.isTronLink ||
+      provider?.tronWeb?.isTronLink
+    ) {
+      score += 40000;
+    }
+  }
+
+  return score;
+}
+
 export function getProviderCandidates(appkit, adapter) {
   const win = getWindowSafe();
 
@@ -192,16 +227,15 @@ export function pickBestProvider(appkit, adapter, walletId = null) {
     return null;
   }
 
-  for (const provider of candidates) {
-    if (providerMatchesWallet(provider, targetWalletName) && isAddressLikeProvider(provider)) {
-      return provider;
-    }
-  }
+  const ranked = [...candidates]
+    .map((provider) => ({
+      provider,
+      score: getProviderScore(provider, targetWalletName)
+    }))
+    .sort((a, b) => b.score - a.score);
 
-  for (const provider of candidates) {
-    if (providerMatchesWallet(provider, targetWalletName)) {
-      return provider;
-    }
+  if (ranked[0]?.provider) {
+    return ranked[0].provider;
   }
 
   if (
@@ -214,12 +248,6 @@ export function pickBestProvider(appkit, adapter, walletId = null) {
       if (provider !== getWindowSafe()?.tronWeb && provider !== getWindowSafe()?.tronLink) {
         return provider;
       }
-    }
-  }
-
-  for (const provider of candidates) {
-    if (isAddressLikeProvider(provider)) {
-      return provider;
     }
   }
 
