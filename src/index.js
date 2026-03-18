@@ -62,6 +62,8 @@ import {
   isMetaMaskBrowser,
   isTokenPocketBrowser,
   isBitgetBrowser,
+  isImTokenBrowser,
+  isFoxWalletBrowser,
   detectBrowserWalletName,
   isWalletBrowser,
   getBrowserDetectionSnapshot
@@ -172,6 +174,16 @@ import {
   createMetaMaskDriver,
   metaMaskDriver
 } from './adapters/drivers/metamask/index.js';
+
+import {
+  createImTokenDriver,
+  imTokenDriver
+} from './adapters/drivers/imtoken/index.js';
+
+import {
+  createFoxWalletDriver,
+  foxWalletDriver
+} from './adapters/drivers/foxwallet/index.js';
 
 import {
   createWalletConnectDriver,
@@ -409,6 +421,8 @@ export {
   isMetaMaskBrowser,
   isTokenPocketBrowser,
   isBitgetBrowser,
+  isImTokenBrowser,
+  isFoxWalletBrowser,
   detectBrowserWalletName,
   isWalletBrowser,
   getBrowserDetectionSnapshot
@@ -518,6 +532,16 @@ export {
 export {
   createMetaMaskDriver,
   metaMaskDriver
+};
+
+export {
+  createImTokenDriver,
+  imTokenDriver
+};
+
+export {
+  createFoxWalletDriver,
+  foxWalletDriver
 };
 
 export {
