@@ -8,9 +8,27 @@ export { refreshWalletBalances } from './wallet/actions/refreshWalletBalances.js
 export {
   getWalletState,
   setWalletState,
+  patchWalletState,
   resetWalletState,
-  subscribeWalletState
+  subscribeWalletState,
+  setWalletLifecycle,
+  setWalletIdentity,
+  setWalletAccount,
+  setWalletRuntime,
+  setWalletBalances,
+  setWalletUi,
+  setWalletError,
+  clearWalletError
 } from './core/store/walletStore.js';
+
+export {
+  shortenAddress,
+  isHexAddress as isHexWalletAddress,
+  isTronAddress,
+  isUsableAddress as isUsableWalletAddress,
+  normalizeAddress as normalizeWalletAddress,
+  extractAddressFromPayload as extractWalletAddressFromPayload
+} from './core/utils/address.js';
 
 export { openWalletPicker } from './ui/wallet/openWalletPicker.js';
 
@@ -70,3 +88,5 @@ export { createWalletManager } from './wallet/core/walletManager.js';
 
 export { finalizeWalletConnection } from './wallet/session/finalizeWalletConnection.js';
 export { failWalletConnection } from './wallet/session/failWalletConnection.js';
+
+export { refreshAllBalances } from './services/balances/refreshAllBalances.js';
