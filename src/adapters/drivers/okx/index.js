@@ -1,6 +1,10 @@
 import { isOkxBrowser } from '../../shared/browserDetection.js';
 import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
-import { forceBindTronWeb, waitForAddress } from '../../shared/accountRequests.js';
+import {
+  forceBindTronWeb,
+  waitForAddress,
+  tryRequestAccounts
+} from '../../shared/accountRequests.js';
 import { pickBestProvider } from '../../shared/providerResolver.js';
 import { readTrxBalance } from '../../shared/trxBalanceReader.js';
 import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
@@ -11,6 +15,10 @@ const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
 
 function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getAdapterName(adapter) {
@@ -37,7 +45,14 @@ function isMatchingAdapter(adapter) {
   const id = String(getAdapterId(adapter) || '').trim().toLowerCase();
   const name = String(getAdapterName(adapter) || '').trim().toLowerCase();
 
-  return id === 'okx wallet' || id === 'okx' || name === 'okx wallet' || name === 'okx';
+  return (
+    id === 'okx' ||
+    id === 'okx wallet' ||
+    id === 'okxwallet' ||
+    name === 'okx wallet' ||
+    name === 'okx' ||
+    name === 'okxwallet'
+  );
 }
 
 function resolveAdapters(appkit) {
@@ -63,13 +78,12 @@ function getInjectedOkxProvider() {
   const win = getWindowSafe();
   if (!win) return null;
 
-  return (
-    win.okxwallet?.tronWeb ||
-    win.okxwallet ||
-    win.okxWallet?.tronWeb ||
-    win.okxWallet ||
-    null
-  );
+  if (win.okxwallet?.tronWeb) return win.okxwallet.tronWeb;
+  if (win.okxwallet) return win.okxwallet;
+  if (win.okxWallet?.tronWeb) return win.okxWallet.tronWeb;
+  if (win.okxWallet) return win.okxWallet;
+
+  return null;
 }
 
 function getCandidateAdapter(appkit) {
@@ -138,6 +152,8 @@ function getSigningCapabilities(provider) {
     hasProviderRequest: typeof provider?.request === 'function',
     hasProviderSend: typeof provider?.send === 'function',
     hasTronWebSign: typeof tronWeb?.trx?.sign === 'function',
+    hasTransactionBuilder: typeof tronWeb?.transactionBuilder?.sendTrx === 'function',
+    hasAddressToHex: typeof tronWeb?.address?.toHex === 'function',
     canSign: !!(
       typeof provider?.request === 'function' ||
       typeof provider?.send === 'function' ||
@@ -170,6 +186,42 @@ function subscribe(target, eventName, handler) {
       }
     } catch (_) {}
   };
+}
+
+async function ensureOkxSession(adapter, provider) {
+  const directAddress = resolveAddress(adapter, provider);
+
+  if (isUsableAddress(directAddress)) {
+    return directAddress;
+  }
+
+  const requestedAddress = await tryRequestAccounts(provider);
+
+  if (isUsableAddress(requestedAddress)) {
+    return requestedAddress;
+  }
+
+  return null;
+}
+
+async function waitForOkxProvider(appkit, adapter, options = {}) {
+  const {
+    attempts = 12,
+    intervalMs = 120
+  } = options;
+
+  for (let i = 0; i < attempts; i++) {
+    const provider = getResolvedProvider(appkit, adapter);
+    const address = resolveAddress(adapter, provider);
+
+    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign)) {
+      return provider;
+    }
+
+    await sleep(intervalMs);
+  }
+
+  return getResolvedProvider(appkit, adapter);
 }
 
 export const okxDriver = {
@@ -205,31 +257,47 @@ export const okxDriver = {
       await connectAdapter(adapter);
     }
 
-    let provider = this.getProvider(appkit);
-    let address = null;
+    let provider = await waitForOkxProvider(appkit, adapter);
+    let address = await ensureOkxSession(adapter, provider);
 
-    if (adapter || provider) {
-      provider = getResolvedProvider(appkit, adapter);
+    provider = await waitForOkxProvider(appkit, adapter);
+
+    if (!isUsableAddress(address)) {
       address = await waitForAddress(adapter, provider, {
         attempts: 16,
-        intervalMs: 250,
-        requestAccountAt: [0, 4, 8, 12]
+        intervalMs: 180,
+        requestAccountAt: [0, 2, 4, 8, 12]
       });
     }
 
     if (!isUsableAddress(address)) {
-      throw new Error('OKX address not resolved');
+      throw new Error('OKX Wallet address not resolved');
     }
 
     await forceBindTronWeb(provider, address);
+
+    const finalProvider = await waitForOkxProvider(appkit, adapter);
+    const signing = getSigningCapabilities(finalProvider || provider);
+
+    if (!signing.canSign) {
+      throw new Error('OKX Wallet signing capability is not available');
+    }
+
+    if (!signing.hasTransactionBuilder) {
+      throw new Error('OKX Wallet transaction builder is not available');
+    }
+
+    if (!signing.hasAddressToHex) {
+      throw new Error('OKX Wallet address codec is not available');
+    }
 
     return {
       ok: true,
       walletId: DRIVER_NAME,
       walletName: DRIVER_NAME,
       address,
-      provider,
-      tronWeb: provider?.tronWeb || provider || null,
+      provider: finalProvider || provider,
+      tronWeb: finalProvider?.tronWeb || finalProvider || provider?.tronWeb || provider || null,
       adapter: adapter || null
     };
   },
@@ -247,7 +315,7 @@ export const okxDriver = {
     const address = options.address || this.getAddress(appkit);
 
     if (!isUsableAddress(address)) {
-      throw new Error('OKX balances: invalid address');
+      throw new Error('OKX Wallet balances: invalid address');
     }
 
     const trxBalance = await readTrxBalance(address);
@@ -276,7 +344,15 @@ export const okxDriver = {
     const signing = this.getSigningState(appkit);
 
     if (!signing.canSign) {
-      throw new Error('OKX signing not available');
+      throw new Error('OKX Wallet signing not available');
+    }
+
+    if (!signing.hasTransactionBuilder) {
+      throw new Error('OKX Wallet transaction builder is not available');
+    }
+
+    if (!signing.hasAddressToHex) {
+      throw new Error('OKX Wallet address codec is not available');
     }
 
     return {
@@ -288,6 +364,7 @@ export const okxDriver = {
   subscribe(appkit, handlers = {}) {
     const adapter = this.getAdapter(appkit);
     const provider = this.getProvider(appkit);
+    const win = getWindowSafe();
 
     const unsubs = [
       subscribe(adapter, 'connect', handlers.onConnect),
@@ -296,7 +373,13 @@ export const okxDriver = {
       subscribe(adapter, 'readyStateChanged', handlers.onReadyStateChanged),
       subscribe(provider, 'accountsChanged', handlers.onAccountsChanged),
       subscribe(provider, 'disconnect', handlers.onDisconnect),
-      subscribe(provider, 'connect', handlers.onConnect)
+      subscribe(provider, 'connect', handlers.onConnect),
+      subscribe(win?.okxwallet, 'accountsChanged', handlers.onAccountsChanged),
+      subscribe(win?.okxwallet, 'disconnect', handlers.onDisconnect),
+      subscribe(win?.okxwallet, 'connect', handlers.onConnect),
+      subscribe(win?.okxWallet, 'accountsChanged', handlers.onAccountsChanged),
+      subscribe(win?.okxWallet, 'disconnect', handlers.onDisconnect),
+      subscribe(win?.okxWallet, 'connect', handlers.onConnect)
     ];
 
     return () => {
