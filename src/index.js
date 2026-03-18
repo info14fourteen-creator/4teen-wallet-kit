@@ -1,6 +1,6 @@
-import './ui/wallet/walletButton.css';
-import './ui/wallet/walletPicker.css';
-import './ui/wallet/noticeCenter.css';
+import './ui/walletButton.css';
+import './ui/walletPicker.css';
+import './ui/noticeCenter.css';
 
 export { initWalletKit } from './wallet/services/initWalletKit.js';
 
