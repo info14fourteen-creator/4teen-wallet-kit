@@ -46,11 +46,11 @@ function isMatchingAdapter(adapter) {
 
   return (
     id === 'trust' ||
-    id === 'trust wallet' ||
     id === 'trustwallet' ||
+    id === 'trust wallet' ||
     name === 'trust' ||
-    name === 'trust wallet' ||
-    name === 'trustwallet'
+    name === 'trustwallet' ||
+    name === 'trust wallet'
   );
 }
 
@@ -73,7 +73,7 @@ function resolveAdapters(appkit) {
   return [];
 }
 
-function getStrictTrustProvider() {
+function getStrictTrustWindowProvider() {
   const win = getWindowSafe();
   if (!win) return null;
 
@@ -88,7 +88,7 @@ function getStrictTrustProvider() {
   );
 }
 
-function isTrustScopedProvider(provider) {
+function isTrustProvider(provider) {
   const win = getWindowSafe();
   if (!win || !provider) return false;
 
@@ -109,8 +109,42 @@ function getCandidateAdapter(appkit) {
   return adapters.find(isMatchingAdapter) || null;
 }
 
-function getResolvedProvider() {
-  return getStrictTrustProvider();
+function getResolvedDesktopProvider(appkit, adapter = null) {
+  const strictWindowProvider = getStrictTrustWindowProvider();
+
+  if (strictWindowProvider && isTrustProvider(strictWindowProvider)) {
+    return strictWindowProvider;
+  }
+
+  if (!adapter) {
+    return null;
+  }
+
+  const candidates = [
+    adapter?.provider,
+    adapter?.tronWeb,
+    adapter?.wallet,
+    adapter?.walletProvider,
+    adapter?.connector?.provider,
+    adapter?.connector?.wallet
+  ].filter(Boolean);
+
+  for (const provider of candidates) {
+    if (isTrustProvider(provider)) {
+      return provider;
+    }
+  }
+
+  const appkitProvider =
+    typeof appkit?.getWalletProvider === 'function'
+      ? appkit.getWalletProvider()
+      : null;
+
+  if (appkitProvider && isTrustProvider(appkitProvider)) {
+    return appkitProvider;
+  }
+
+  return null;
 }
 
 async function connectAdapter(adapter) {
@@ -200,7 +234,7 @@ function subscribe(target, eventName, handler) {
   };
 }
 
-async function ensureTrustSession(adapter, provider) {
+async function ensureDesktopTrustSession(adapter, provider) {
   const directAddress = resolveAddress(adapter, provider);
 
   if (isUsableAddress(directAddress)) {
@@ -216,39 +250,23 @@ async function ensureTrustSession(adapter, provider) {
   return null;
 }
 
-async function waitForTrustProvider(appkit, adapter, options = {}) {
+async function waitForDesktopTrustProvider(appkit, adapter, options = {}) {
   const {
-    attempts = 14,
-    intervalMs = 140
+    attempts = 16,
+    intervalMs = 160
   } = options;
 
   for (let i = 0; i < attempts; i++) {
-    const strictProvider = getResolvedProvider();
+    const provider = getResolvedDesktopProvider(appkit, adapter);
 
-    if (strictProvider && isTrustScopedProvider(strictProvider)) {
-      return strictProvider;
-    }
-
-    const address = resolveAddress(adapter, strictProvider);
-
-    if (
-      strictProvider &&
-      isTrustScopedProvider(strictProvider) &&
-      (
-        address ||
-        strictProvider?.trx?.sign ||
-        strictProvider?.tronWeb?.trx?.sign ||
-        strictProvider?.request ||
-        strictProvider?.send
-      )
-    ) {
-      return strictProvider;
+    if (provider && isTrustProvider(provider)) {
+      return provider;
     }
 
     await sleep(intervalMs);
   }
 
-  return getResolvedProvider();
+  return getResolvedDesktopProvider(appkit, adapter);
 }
 
 export const trustDriver = {
@@ -257,16 +275,17 @@ export const trustDriver = {
   name: DRIVER_NAME,
   type: 'injected',
 
-  canHandle() {
-    return isTrustWalletBrowser() || !!getStrictTrustProvider();
+  canHandle(appkit) {
+    return isTrustWalletBrowser() || !!getResolvedDesktopProvider(appkit, this.getAdapter(appkit));
   },
 
   getAdapter(appkit) {
     return getCandidateAdapter(appkit);
   },
 
-  getProvider() {
-    return getResolvedProvider();
+  getProvider(appkit) {
+    const adapter = this.getAdapter(appkit);
+    return getResolvedDesktopProvider(appkit, adapter);
   },
 
   getAddress(appkit) {
@@ -278,36 +297,38 @@ export const trustDriver = {
 
   async connect(appkit) {
     if (isTrustWalletBrowser()) {
-      const result = await connectTrustFallback();
+      const fallbackResult = await connectTrustFallback();
 
       return {
         ok: true,
         walletId: 'Trust',
         walletName: DRIVER_NAME,
-        address: result.address,
-        provider: result.provider || result.tronWeb || null,
-        tronWeb: result.tronWeb || result.provider || null,
+        address: fallbackResult.address,
+        provider: fallbackResult.provider || fallbackResult.tronWeb || null,
+        tronWeb: fallbackResult.tronWeb || fallbackResult.provider || null,
         adapter: null
       };
     }
 
     const adapter = this.getAdapter(appkit);
 
-    if (adapter) {
-      await connectAdapter(adapter);
+    if (!adapter) {
+      throw new Error('Trust Wallet adapter not found');
     }
 
-    let provider = await waitForTrustProvider(appkit, adapter);
+    await connectAdapter(adapter);
 
-    if (!isTrustScopedProvider(provider)) {
+    let provider = await waitForDesktopTrustProvider(appkit, adapter);
+
+    if (!provider || !isTrustProvider(provider)) {
       throw new Error('Trust Wallet provider not found');
     }
 
-    let address = await ensureTrustSession(adapter, provider);
+    let address = await ensureDesktopTrustSession(adapter, provider);
 
-    provider = await waitForTrustProvider(appkit, adapter);
+    provider = await waitForDesktopTrustProvider(appkit, adapter);
 
-    if (!isTrustScopedProvider(provider)) {
+    if (!provider || !isTrustProvider(provider)) {
       throw new Error('Wrong provider resolved (not Trust Wallet)');
     }
 
@@ -325,25 +346,14 @@ export const trustDriver = {
 
     await forceBindTronWeb(provider, address);
 
-    const finalProvider = await waitForTrustProvider(appkit, adapter);
-
-    if (!isTrustScopedProvider(finalProvider || provider)) {
-      throw new Error('Wrong provider resolved (not Trust Wallet)');
-    }
-
     return {
       ok: true,
       walletId: 'Trust',
       walletName: DRIVER_NAME,
       address,
-      provider: finalProvider || provider,
-      tronWeb:
-        finalProvider?.tronWeb ||
-        finalProvider ||
-        provider?.tronWeb ||
-        provider ||
-        null,
-      adapter: adapter || null
+      provider,
+      tronWeb: provider?.tronWeb || provider || null,
+      adapter
     };
   },
 
