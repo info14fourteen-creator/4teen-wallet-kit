@@ -35,13 +35,14 @@ import {
 } from './core/utils/address.js';
 
 import { openWalletPicker } from './ui/wallet/openWalletPicker.js';
+import { mountWalletButton } from './ui/walletButton.js';
+
 import {
-  mountWalletButton,
   initDebugOverlay,
   debugOverlayLog,
   showDebugOverlay,
   hideDebugOverlay
-} from './ui/walletButton.js';
+} from './debug/debugOverlay.js';
 
 import {
   showNotice,
