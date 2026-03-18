@@ -1,27 +1,50 @@
 const DEFAULT_STATE = {
-  initialized: false,
-  connecting: false,
-  connected: false,
+  lifecycle: {
+    initialized: false,
+    connecting: false,
+    connected: false
+  },
 
-  walletId: null,
-  walletName: null,
-  activeWalletId: null,
-  activeWalletName: null,
+  wallet: {
+    id: null,
+    name: null,
+    activeId: null,
+    activeName: null
+  },
 
-  address: null,
-  shortAddress: null,
+  account: {
+    address: null,
+    shortAddress: null
+  },
 
-  tronWeb: null,
-  provider: null,
+  runtime: {
+    tronWeb: null,
+    provider: null
+  },
 
-  trxBalance: null,
-  fourteenBalance: null,
+  balances: {
+    trx: null,
+    fourteen: null
+  },
 
-  error: null
+  status: {
+    error: null
+  }
 };
 
-let walletState = { ...DEFAULT_STATE };
+let walletState = createInitialState();
 const listeners = new Set();
+
+function createInitialState() {
+  return {
+    lifecycle: { ...DEFAULT_STATE.lifecycle },
+    wallet: { ...DEFAULT_STATE.wallet },
+    account: { ...DEFAULT_STATE.account },
+    runtime: { ...DEFAULT_STATE.runtime },
+    balances: { ...DEFAULT_STATE.balances },
+    status: { ...DEFAULT_STATE.status }
+  };
+}
 
 function emitWalletState() {
   const snapshot = getWalletState();
@@ -36,21 +59,18 @@ function emitWalletState() {
 }
 
 export function getWalletState() {
-  return { ...walletState };
-}
-
-export function setWalletState(patch = {}) {
-  walletState = {
-    ...walletState,
-    ...patch
+  return {
+    lifecycle: { ...walletState.lifecycle },
+    wallet: { ...walletState.wallet },
+    account: { ...walletState.account },
+    runtime: { ...walletState.runtime },
+    balances: { ...walletState.balances },
+    status: { ...walletState.status }
   };
-
-  emitWalletState();
-  return getWalletState();
 }
 
 export function resetWalletState() {
-  walletState = { ...DEFAULT_STATE };
+  walletState = createInitialState();
   emitWalletState();
   return getWalletState();
 }
@@ -71,4 +91,72 @@ export function subscribeWalletState(listener) {
   return () => {
     listeners.delete(listener);
   };
+}
+
+export function patchWalletState(patch = {}) {
+  walletState = {
+    lifecycle: {
+      ...walletState.lifecycle,
+      ...(patch.lifecycle || {})
+    },
+    wallet: {
+      ...walletState.wallet,
+      ...(patch.wallet || {})
+    },
+    account: {
+      ...walletState.account,
+      ...(patch.account || {})
+    },
+    runtime: {
+      ...walletState.runtime,
+      ...(patch.runtime || {})
+    },
+    balances: {
+      ...walletState.balances,
+      ...(patch.balances || {})
+    },
+    status: {
+      ...walletState.status,
+      ...(patch.status || {})
+    }
+  };
+
+  emitWalletState();
+  return getWalletState();
+}
+
+export function setWalletLifecycle(patch = {}) {
+  return patchWalletState({ lifecycle: patch });
+}
+
+export function setWalletIdentity(patch = {}) {
+  return patchWalletState({ wallet: patch });
+}
+
+export function setWalletAccount(patch = {}) {
+  return patchWalletState({ account: patch });
+}
+
+export function setWalletRuntime(patch = {}) {
+  return patchWalletState({ runtime: patch });
+}
+
+export function setWalletBalances(patch = {}) {
+  return patchWalletState({ balances: patch });
+}
+
+export function setWalletError(error = null) {
+  return patchWalletState({
+    status: {
+      error
+    }
+  });
+}
+
+export function clearWalletError() {
+  return patchWalletState({
+    status: {
+      error: null
+    }
+  });
 }
