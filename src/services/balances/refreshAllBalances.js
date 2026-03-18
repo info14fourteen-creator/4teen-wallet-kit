@@ -271,15 +271,37 @@ async function readTokenBalanceViaTrigger(address) {
 export async function refreshAllBalances({ address, walletId, provider } = {}) {
   const state = getWalletState();
 
-  const finalAddress = address || state.address || null;
-  const finalWalletId = walletId || state.activeWalletId || state.walletId || null;
-  const finalProvider = provider || state.provider || state.tronWeb || null;
+  const finalAddress =
+    address ||
+    state.address ||
+    state.account?.address ||
+    null;
+
+  const finalWalletId =
+    walletId ||
+    state.activeWalletId ||
+    state.walletId ||
+    state.wallet?.activeId ||
+    state.wallet?.id ||
+    null;
+
+  const finalProvider =
+    provider ||
+    state.provider ||
+    state.tronWeb ||
+    state.runtime?.provider ||
+    state.runtime?.tronWeb ||
+    null;
 
   if (!isUsableAddress(finalAddress)) {
     throw new Error('refreshAllBalances: invalid address');
   }
 
-  const injectedTronWeb = pickBestInjectedTronWeb(finalProvider, finalAddress, finalWalletId);
+  const injectedTronWeb = pickBestInjectedTronWeb(
+    finalProvider,
+    finalAddress,
+    finalWalletId
+  );
 
   setWalletState({
     address: finalAddress,
