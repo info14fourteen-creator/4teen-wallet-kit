@@ -1,6 +1,4 @@
 import { getDriverById } from '../../adapters/registry/getDriverById.js';
-import { isTrustWalletBrowser } from '../../adapters/shared/browserDetection.js';
-import { connectTrustFallback } from '../../adapters/trustFallback.js';
 import { setWalletState } from '../../core/store/walletStore.js';
 import { openWalletPicker } from '../../ui/wallet/openWalletPicker.js';
 import { failWalletConnection } from '../session/failWalletConnection.js';
@@ -29,17 +27,6 @@ export async function connectWallet(appkit, walletId = null) {
 
     if (typeof appkit.selectWallet === 'function') {
       appkit.selectWallet(walletId);
-    }
-
-    if (walletId === 'Trust' && isTrustWalletBrowser()) {
-      const result = await connectTrustFallback();
-
-      return await finalizeWalletConnection({
-        walletId: result.walletId,
-        walletName: result.walletName,
-        address: result.address,
-        provider: result.tronWeb || result.provider || null
-      });
     }
 
     const driver = getDriverById(walletId);
