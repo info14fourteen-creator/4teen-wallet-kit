@@ -87,7 +87,8 @@ import {
   tryProviderRequest,
   tryRequestAccounts,
   forceBindTronWeb,
-  waitForAddress
+  waitForAddress,
+  requestTronLinkAccounts
 } from './adapters/shared/accountRequests.js';
 
 import {
@@ -105,6 +106,14 @@ import {
   readTokenBalanceViaTrigger,
   safeReadTokenBalance
 } from './adapters/shared/tokenBalanceReader.js';
+
+import {
+  getSigningReadiness,
+  assertSigningCapability,
+  getResolvedSigningProvider,
+  getResolvedSigningTronWeb,
+  getSigningCapabilities
+} from './adapters/shared/signingReadiness.js';
 
 import {
   pickWalletAdapter,
@@ -356,7 +365,8 @@ export {
   tryProviderRequest,
   tryRequestAccounts,
   forceBindTronWeb,
-  waitForAddress
+  waitForAddress,
+  requestTronLinkAccounts
 };
 
 export {
@@ -373,6 +383,14 @@ export {
   readTokenBalance,
   readTokenBalanceViaTrigger,
   safeReadTokenBalance
+};
+
+export {
+  getSigningReadiness,
+  assertSigningCapability,
+  getResolvedSigningProvider,
+  getResolvedSigningTronWeb,
+  getSigningCapabilities
 };
 
 export {
