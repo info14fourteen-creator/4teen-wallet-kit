@@ -1,5 +1,6 @@
 import { getWalletState } from '../core/store/walletStore.js';
 import { refreshAllBalances } from '../services/balances/refreshAllBalances.js';
+import { assertWalletSigning } from './assertWalletSigning.js';
 
 function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
@@ -7,31 +8,6 @@ function getWindowSafe() {
 
 function isUsableAddress(value) {
   return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
-}
-
-function getSigningCapabilities(provider, tronWeb) {
-  const resolvedTronWeb = tronWeb || provider?.tronWeb || null;
-
-  return {
-    hasProviderSign:
-      typeof provider?.sign === 'function' ||
-      typeof provider?.request === 'function' ||
-      typeof provider?.send === 'function',
-
-    hasTronWebSign:
-      typeof resolvedTronWeb?.trx?.sign === 'function',
-
-    hasTronWebTransactionBuilder:
-      typeof resolvedTronWeb?.transactionBuilder?.sendTrx === 'function',
-
-    hasAnySigningCapability:
-      !!(
-        typeof provider?.sign === 'function' ||
-        typeof provider?.request === 'function' ||
-        typeof provider?.send === 'function' ||
-        typeof resolvedTronWeb?.trx?.sign === 'function'
-      )
-  };
 }
 
 function collectInjectedWallets() {
@@ -109,13 +85,32 @@ function evaluateBalances(state) {
   };
 }
 
-function evaluateSigning(state) {
-  const capabilities = getSigningCapabilities(state.provider, state.tronWeb);
-  const ok = capabilities.hasAnySigningCapability;
+function evaluateSigningSnapshot(state) {
+  const provider = state.provider || state.runtime?.provider || null;
+  const tronWeb =
+    state.tronWeb ||
+    state.runtime?.tronWeb ||
+    provider?.tronWeb ||
+    null;
+
+  const hasProviderSign =
+    typeof provider?.sign === 'function' ||
+    typeof provider?.request === 'function' ||
+    typeof provider?.send === 'function';
+
+  const hasTronWebSign =
+    typeof tronWeb?.trx?.sign === 'function';
+
+  const hasTronWebTransactionBuilder =
+    typeof tronWeb?.transactionBuilder?.sendTrx === 'function';
+
+  const ok = !!(hasProviderSign || hasTronWebSign);
 
   return {
     ok,
-    ...capabilities,
+    hasProviderSign,
+    hasTronWebSign,
+    hasTronWebTransactionBuilder,
     reason: ok ? null : 'No signing capability detected on provider/tronWeb'
   };
 }
@@ -126,7 +121,7 @@ export function collectWalletDiagnostics() {
 
   const connection = evaluateConnection(state);
   const balances = evaluateBalances(state);
-  const signing = evaluateSigning(state);
+  const signing = evaluateSigningSnapshot(state);
 
   return {
     timestamp: new Date().toISOString(),
@@ -172,13 +167,26 @@ export async function runWalletDiagnostics() {
     }
   }
 
+  let signingCheck = null;
+
+  try {
+    signingCheck = await assertWalletSigning();
+  } catch (error) {
+    signingCheck = {
+      ok: false,
+      stage: 'sign',
+      error: error?.message || 'assertWalletSigning failed'
+    };
+  }
+
   const after = collectWalletDiagnostics();
 
   return {
-    ok: after.overallOk,
+    ok: after.checks.connection.ok && after.checks.balances.ok && !!signingCheck?.ok,
     before,
     after,
-    balanceRefresh
+    balanceRefresh,
+    signingCheck
   };
 }
 
@@ -189,7 +197,7 @@ export function printWalletDiagnostics() {
   console.log('Overall OK:', data.overallOk);
   console.log('Connection:', data.checks.connection);
   console.log('Balances:', data.checks.balances);
-  console.log('Signing:', data.checks.signing);
+  console.log('Signing Snapshot:', data.checks.signing);
   console.log('Wallet State:', data.walletState);
   console.log('Injected:', data.injected);
   console.groupEnd();
@@ -203,6 +211,7 @@ export async function printAndRunWalletDiagnostics() {
   console.group('4TEEN WALLET DIAGNOSTICS RUN');
   console.log('Overall OK:', data.ok);
   console.log('Balance Refresh:', data.balanceRefresh);
+  console.log('Signing Check:', data.signingCheck);
   console.log('Before:', data.before);
   console.log('After:', data.after);
   console.groupEnd();
