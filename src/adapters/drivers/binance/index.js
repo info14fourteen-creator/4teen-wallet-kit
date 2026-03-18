@@ -278,19 +278,6 @@ export const binanceDriver = {
     await forceBindTronWeb(provider, address);
 
     const finalProvider = await waitForBinanceProvider(appkit, adapter);
-    const signing = getSigningCapabilities(finalProvider || provider);
-
-    if (!signing.canSign) {
-      throw new Error('Binance Wallet signing capability is not available');
-    }
-
-    if (!signing.hasTransactionBuilder) {
-      throw new Error('Binance Wallet transaction builder is not available');
-    }
-
-    if (!signing.hasAddressToHex) {
-      throw new Error('Binance Wallet address codec is not available');
-    }
 
     return {
       ok: true,
