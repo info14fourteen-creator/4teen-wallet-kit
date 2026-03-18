@@ -1,23 +1,13 @@
-import { connectTrustFallback, isTrustWalletBrowser } from '../../trustFallback.js';
-import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
-import {
-  forceBindTronWeb,
-  waitForAddress,
-  tryRequestAccounts
-} from '../../shared/accountRequests.js';
-import { readTrxBalance } from '../../shared/trxBalanceReader.js';
-import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
-
-const DRIVER_ID = 'trust';
-const DRIVER_NAME = 'Trust Wallet';
-const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
-
 function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
 }
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isUsableAddress(value) {
+  return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
 }
 
 function getAdapterName(adapter) {
@@ -73,7 +63,7 @@ function resolveAdapters(appkit) {
   return [];
 }
 
-function getStrictTrustWindowProvider() {
+function getTrustWindowProvider() {
   const win = getWindowSafe();
   if (!win) return null;
 
@@ -85,6 +75,22 @@ function getStrictTrustWindowProvider() {
     win.trustwallet?.ethereum ||
     win.trustWallet?.ethereum ||
     null
+  );
+}
+
+function isTrustWalletBrowser() {
+  const win = getWindowSafe();
+  if (!win) return false;
+
+  const href = String(win.location?.href || '').toLowerCase();
+  const ua = String(win.navigator?.userAgent || '').toLowerCase();
+
+  return !!(
+    getTrustWindowProvider() ||
+    href.includes('utm_source=trust') ||
+    href.includes('trust_ios_browser') ||
+    ua.includes('trustwallet') ||
+    ua.includes('trust wallet')
   );
 }
 
@@ -109,15 +115,11 @@ function getCandidateAdapter(appkit) {
   return adapters.find(isMatchingAdapter) || null;
 }
 
-function getResolvedDesktopProvider(appkit, adapter = null) {
-  const strictWindowProvider = getStrictTrustWindowProvider();
+function getAdapterScopedTrustProvider(appkit, adapter = null) {
+  const strictWindowProvider = getTrustWindowProvider();
 
   if (strictWindowProvider && isTrustProvider(strictWindowProvider)) {
     return strictWindowProvider;
-  }
-
-  if (!adapter) {
-    return null;
   }
 
   const candidates = [
@@ -126,22 +128,14 @@ function getResolvedDesktopProvider(appkit, adapter = null) {
     adapter?.wallet,
     adapter?.walletProvider,
     adapter?.connector?.provider,
-    adapter?.connector?.wallet
+    adapter?.connector?.wallet,
+    typeof appkit?.getWalletProvider === 'function' ? appkit.getWalletProvider() : null
   ].filter(Boolean);
 
   for (const provider of candidates) {
     if (isTrustProvider(provider)) {
       return provider;
     }
-  }
-
-  const appkitProvider =
-    typeof appkit?.getWalletProvider === 'function'
-      ? appkit.getWalletProvider()
-      : null;
-
-  if (appkitProvider && isTrustProvider(appkitProvider)) {
-    return appkitProvider;
   }
 
   return null;
@@ -189,6 +183,136 @@ async function disconnectAdapter(adapter, provider = null) {
   }
 }
 
+async function tryProviderRequest(provider, method, params = []) {
+  if (!provider) {
+    return null;
+  }
+
+  if (typeof provider.request === 'function') {
+    try {
+      return await provider.request({ method, params });
+    } catch (_) {}
+  }
+
+  if (typeof provider.send === 'function') {
+    try {
+      return await provider.send(method, params);
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+function normalizeAccountsPayload(accounts) {
+  if (Array.isArray(accounts)) {
+    return accounts[0] || null;
+  }
+
+  if (typeof accounts === 'string') {
+    return accounts || null;
+  }
+
+  if (accounts && typeof accounts === 'object') {
+    if (Array.isArray(accounts.result)) return accounts.result[0] || null;
+    if (Array.isArray(accounts.accounts)) return accounts.accounts[0] || null;
+    if (typeof accounts.address === 'string') return accounts.address;
+    if (typeof accounts.selectedAddress === 'string') return accounts.selectedAddress;
+    if (typeof accounts.result?.address === 'string') return accounts.result.address;
+    if (typeof accounts.data?.address === 'string') return accounts.data.address;
+  }
+
+  return null;
+}
+
+async function tryRequestTrustAddress(provider) {
+  const methods = [
+    ['tron_requestAccounts', []],
+    ['requestAccounts', []],
+    ['eth_requestAccounts', []],
+    ['tron_requestAccounts', null],
+    ['requestAccounts', null],
+    ['eth_requestAccounts', null]
+  ];
+
+  for (const [method, params] of methods) {
+    const result = await tryProviderRequest(provider, method, params || []);
+    const address = normalizeAccountsPayload(result);
+
+    if (isUsableAddress(address)) {
+      return address;
+    }
+  }
+
+  return null;
+}
+
+async function forceBindTronWeb(provider, address) {
+  if (!provider || !address) {
+    return;
+  }
+
+  try {
+    if (typeof provider.setAddress === 'function') {
+      provider.setAddress(address);
+    }
+  } catch (_) {}
+
+  try {
+    if (provider?.tronWeb && typeof provider.tronWeb.setAddress === 'function') {
+      provider.tronWeb.setAddress(address);
+    }
+  } catch (_) {}
+
+  try {
+    if (provider?.defaultAddress && typeof provider.defaultAddress === 'object') {
+      provider.defaultAddress.base58 = address;
+    }
+  } catch (_) {}
+
+  try {
+    if (provider?.tronWeb?.defaultAddress && typeof provider.tronWeb.defaultAddress === 'object') {
+      provider.tronWeb.defaultAddress.base58 = address;
+    }
+  } catch (_) {}
+}
+
+async function waitForTrustAddress(adapter, provider, options = {}) {
+  const {
+    attempts = 20,
+    intervalMs = 180,
+    requestAt = [0, 1, 2, 4, 8, 12, 16]
+  } = options;
+
+  for (let i = 0; i < attempts; i++) {
+    const address =
+      provider?.address ||
+      provider?.selectedAddress ||
+      provider?.defaultAddress?.base58 ||
+      provider?.tronWeb?.defaultAddress?.base58 ||
+      adapter?.address ||
+      adapter?.publicKey ||
+      null;
+
+    if (isUsableAddress(address)) {
+      await forceBindTronWeb(provider, address);
+      return address;
+    }
+
+    if (requestAt.includes(i)) {
+      const requestedAddress = await tryRequestTrustAddress(provider);
+
+      if (isUsableAddress(requestedAddress)) {
+        await forceBindTronWeb(provider, requestedAddress);
+        return requestedAddress;
+      }
+    }
+
+    await sleep(intervalMs);
+  }
+
+  return null;
+}
+
 function getSigningCapabilities(provider) {
   const tronWeb = provider?.tronWeb || provider || null;
 
@@ -234,40 +358,9 @@ function subscribe(target, eventName, handler) {
   };
 }
 
-async function ensureDesktopTrustSession(adapter, provider) {
-  const directAddress = resolveAddress(adapter, provider);
-
-  if (isUsableAddress(directAddress)) {
-    return directAddress;
-  }
-
-  const requestedAddress = await tryRequestAccounts(provider);
-
-  if (isUsableAddress(requestedAddress)) {
-    return requestedAddress;
-  }
-
-  return null;
-}
-
-async function waitForDesktopTrustProvider(appkit, adapter, options = {}) {
-  const {
-    attempts = 16,
-    intervalMs = 160
-  } = options;
-
-  for (let i = 0; i < attempts; i++) {
-    const provider = getResolvedDesktopProvider(appkit, adapter);
-
-    if (provider && isTrustProvider(provider)) {
-      return provider;
-    }
-
-    await sleep(intervalMs);
-  }
-
-  return getResolvedDesktopProvider(appkit, adapter);
-}
+const DRIVER_ID = 'trust';
+const DRIVER_NAME = 'Trust Wallet';
+const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
 
 export const trustDriver = {
   id: DRIVER_ID,
@@ -276,7 +369,7 @@ export const trustDriver = {
   type: 'injected',
 
   canHandle(appkit) {
-    return isTrustWalletBrowser() || !!getResolvedDesktopProvider(appkit, this.getAdapter(appkit));
+    return isTrustWalletBrowser() || !!getAdapterScopedTrustProvider(appkit, this.getAdapter(appkit));
   },
 
   getAdapter(appkit) {
@@ -285,31 +378,24 @@ export const trustDriver = {
 
   getProvider(appkit) {
     const adapter = this.getAdapter(appkit);
-    return getResolvedDesktopProvider(appkit, adapter);
+    return getAdapterScopedTrustProvider(appkit, adapter);
   },
 
   getAddress(appkit) {
     const adapter = this.getAdapter(appkit);
     const provider = this.getProvider(appkit);
 
-    return resolveAddress(adapter, provider);
+    return (
+      resolveAddress(adapter, provider) ||
+      provider?.address ||
+      provider?.selectedAddress ||
+      provider?.defaultAddress?.base58 ||
+      provider?.tronWeb?.defaultAddress?.base58 ||
+      null
+    );
   },
 
   async connect(appkit) {
-    if (isTrustWalletBrowser()) {
-      const fallbackResult = await connectTrustFallback();
-
-      return {
-        ok: true,
-        walletId: 'Trust',
-        walletName: DRIVER_NAME,
-        address: fallbackResult.address,
-        provider: fallbackResult.provider || fallbackResult.tronWeb || null,
-        tronWeb: fallbackResult.tronWeb || fallbackResult.provider || null,
-        adapter: null
-      };
-    }
-
     const adapter = this.getAdapter(appkit);
 
     if (!adapter) {
@@ -318,27 +404,21 @@ export const trustDriver = {
 
     await connectAdapter(adapter);
 
-    let provider = await waitForDesktopTrustProvider(appkit, adapter);
+    let provider = this.getProvider(appkit);
+
+    if (!provider || !isTrustProvider(provider)) {
+      provider = getTrustWindowProvider();
+    }
 
     if (!provider || !isTrustProvider(provider)) {
       throw new Error('Trust Wallet provider not found');
     }
 
-    let address = await ensureDesktopTrustSession(adapter, provider);
-
-    provider = await waitForDesktopTrustProvider(appkit, adapter);
-
-    if (!provider || !isTrustProvider(provider)) {
-      throw new Error('Wrong provider resolved (not Trust Wallet)');
-    }
-
-    if (!isUsableAddress(address)) {
-      address = await waitForAddress(adapter, provider, {
-        attempts: 18,
-        intervalMs: 180,
-        requestAccountAt: [0, 2, 4, 8, 12]
-      });
-    }
+    const address = await waitForTrustAddress(adapter, provider, {
+      attempts: isTrustWalletBrowser() ? 24 : 18,
+      intervalMs: 180,
+      requestAt: isTrustWalletBrowser() ? [0, 1, 2, 4, 8, 12, 16, 20] : [0, 2, 4, 8, 12]
+    });
 
     if (!isUsableAddress(address)) {
       throw new Error('Trust Wallet address not resolved');
