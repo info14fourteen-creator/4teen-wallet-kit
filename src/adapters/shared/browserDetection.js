@@ -110,6 +110,32 @@ export function isBitgetBrowser() {
   );
 }
 
+export function isImTokenBrowser() {
+  const win = getWindowSafe();
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=imtoken') ||
+    ua.includes('imtoken') ||
+    !!win?.tronweb
+  );
+}
+
+export function isFoxWalletBrowser() {
+  const win = getWindowSafe();
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=foxwallet') ||
+    ua.includes('foxwallet') ||
+    ua.includes('fox wallet') ||
+    !!win?.foxwallet?.tronLink ||
+    !!win?.foxwallet
+  );
+}
+
 export function detectBrowserWalletName() {
   if (isOkxBrowser()) return 'OKX Wallet';
   if (isBinanceBrowser()) return 'Binance Wallet';
@@ -118,6 +144,8 @@ export function detectBrowserWalletName() {
   if (isMetaMaskBrowser()) return 'MetaMask';
   if (isTokenPocketBrowser()) return 'TokenPocket';
   if (isBitgetBrowser()) return 'Bitget Wallet';
+  if (isImTokenBrowser()) return 'imToken';
+  if (isFoxWalletBrowser()) return 'FoxWallet';
   return null;
 }
 
@@ -134,6 +162,8 @@ export function getBrowserDetectionSnapshot() {
     metaMask: isMetaMaskBrowser(),
     tokenPocket: isTokenPocketBrowser(),
     bitget: isBitgetBrowser(),
+    imToken: isImTokenBrowser(),
+    foxWallet: isFoxWalletBrowser(),
     detectedWalletName: detectBrowserWalletName()
   };
 }
