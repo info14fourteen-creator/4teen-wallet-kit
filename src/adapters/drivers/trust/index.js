@@ -5,7 +5,6 @@ import {
   waitForAddress,
   tryRequestAccounts
 } from '../../shared/accountRequests.js';
-import { pickBestProvider } from '../../shared/providerResolver.js';
 import { readTrxBalance } from '../../shared/trxBalanceReader.js';
 import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
 
@@ -74,19 +73,34 @@ function resolveAdapters(appkit) {
   return [];
 }
 
-function getInjectedTrustProvider() {
+function getStrictTrustProvider() {
   const win = getWindowSafe();
   if (!win) return null;
 
   return (
     win.trustwallet?.tronWeb ||
-    win.trustwallet ||
     win.trustWallet?.tronWeb ||
+    win.trustwallet ||
     win.trustWallet ||
     win.trustwallet?.ethereum ||
     win.trustWallet?.ethereum ||
-    win.tronWeb ||
     null
+  );
+}
+
+function isTrustScopedProvider(provider) {
+  const win = getWindowSafe();
+  if (!win || !provider) return false;
+
+  return !!(
+    provider === win.trustwallet ||
+    provider === win.trustWallet ||
+    provider === win.trustwallet?.tronWeb ||
+    provider === win.trustWallet?.tronWeb ||
+    provider === win.trustwallet?.ethereum ||
+    provider === win.trustWallet?.ethereum ||
+    provider?.isTrust ||
+    provider?.isTrustWallet
   );
 }
 
@@ -95,16 +109,8 @@ function getCandidateAdapter(appkit) {
   return adapters.find(isMatchingAdapter) || null;
 }
 
-function getResolvedProvider(appkit, adapter = null) {
-  const injected = getInjectedTrustProvider();
-  if (injected) return injected;
-
-  if (adapter) {
-    const picked = pickBestProvider(appkit, adapter, DRIVER_NAME);
-    if (picked) return picked;
-  }
-
-  return null;
+function getResolvedProvider() {
+  return getStrictTrustProvider();
 }
 
 async function connectAdapter(adapter) {
@@ -217,17 +223,32 @@ async function waitForTrustProvider(appkit, adapter, options = {}) {
   } = options;
 
   for (let i = 0; i < attempts; i++) {
-    const provider = getResolvedProvider(appkit, adapter);
-    const address = resolveAddress(adapter, provider);
+    const strictProvider = getResolvedProvider();
 
-    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign || provider?.request || provider?.send)) {
-      return provider;
+    if (strictProvider && isTrustScopedProvider(strictProvider)) {
+      return strictProvider;
+    }
+
+    const address = resolveAddress(adapter, strictProvider);
+
+    if (
+      strictProvider &&
+      isTrustScopedProvider(strictProvider) &&
+      (
+        address ||
+        strictProvider?.trx?.sign ||
+        strictProvider?.tronWeb?.trx?.sign ||
+        strictProvider?.request ||
+        strictProvider?.send
+      )
+    ) {
+      return strictProvider;
     }
 
     await sleep(intervalMs);
   }
 
-  return getResolvedProvider(appkit, adapter);
+  return getResolvedProvider();
 }
 
 export const trustDriver = {
@@ -237,16 +258,15 @@ export const trustDriver = {
   type: 'injected',
 
   canHandle() {
-    return isTrustWalletBrowser() || !!getInjectedTrustProvider();
+    return isTrustWalletBrowser() || !!getStrictTrustProvider();
   },
 
   getAdapter(appkit) {
     return getCandidateAdapter(appkit);
   },
 
-  getProvider(appkit) {
-    const adapter = this.getAdapter(appkit);
-    return getResolvedProvider(appkit, adapter);
+  getProvider() {
+    return getResolvedProvider();
   },
 
   getAddress(appkit) {
@@ -258,15 +278,15 @@ export const trustDriver = {
 
   async connect(appkit) {
     if (isTrustWalletBrowser()) {
-      const fallbackResult = await connectTrustFallback();
+      const result = await connectTrustFallback();
 
       return {
         ok: true,
         walletId: 'Trust',
         walletName: DRIVER_NAME,
-        address: fallbackResult.address,
-        provider: fallbackResult.provider || fallbackResult.tronWeb || null,
-        tronWeb: fallbackResult.tronWeb || fallbackResult.provider || null,
+        address: result.address,
+        provider: result.provider || result.tronWeb || null,
+        tronWeb: result.tronWeb || result.provider || null,
         adapter: null
       };
     }
@@ -278,9 +298,18 @@ export const trustDriver = {
     }
 
     let provider = await waitForTrustProvider(appkit, adapter);
+
+    if (!isTrustScopedProvider(provider)) {
+      throw new Error('Trust Wallet provider not found');
+    }
+
     let address = await ensureTrustSession(adapter, provider);
 
     provider = await waitForTrustProvider(appkit, adapter);
+
+    if (!isTrustScopedProvider(provider)) {
+      throw new Error('Wrong provider resolved (not Trust Wallet)');
+    }
 
     if (!isUsableAddress(address)) {
       address = await waitForAddress(adapter, provider, {
@@ -298,13 +327,22 @@ export const trustDriver = {
 
     const finalProvider = await waitForTrustProvider(appkit, adapter);
 
+    if (!isTrustScopedProvider(finalProvider || provider)) {
+      throw new Error('Wrong provider resolved (not Trust Wallet)');
+    }
+
     return {
       ok: true,
       walletId: 'Trust',
       walletName: DRIVER_NAME,
       address,
       provider: finalProvider || provider,
-      tronWeb: finalProvider?.tronWeb || finalProvider || provider?.tronWeb || provider || null,
+      tronWeb:
+        finalProvider?.tronWeb ||
+        finalProvider ||
+        provider?.tronWeb ||
+        provider ||
+        null,
       adapter: adapter || null
     };
   },
@@ -351,15 +389,12 @@ export const trustDriver = {
     const signing = this.getSigningState(appkit);
 
     if (!signing.canSign) {
-      throw new Error('Trust Wallet signing not available');
-    }
-
-    if (!signing.hasTransactionBuilder) {
-      throw new Error('Trust Wallet transaction builder is not available');
-    }
-
-    if (!signing.hasAddressToHex) {
-      throw new Error('Trust Wallet address codec is not available');
+      return {
+        ok: true,
+        degraded: true,
+        reason: 'signing_not_ready_yet',
+        ...signing
+      };
     }
 
     return {
