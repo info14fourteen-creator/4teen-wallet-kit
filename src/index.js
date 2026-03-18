@@ -1,3 +1,6 @@
+import './ui/wallet/walletButton.css';
+import './ui/wallet/walletPicker.css';
+import './ui/wallet/noticeCenter.css';
 export { initWalletKit } from './wallet/services/initWalletKit.js';
 
 export { connectWallet } from './wallet/actions/connectWallet.js';
