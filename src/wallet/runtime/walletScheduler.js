@@ -1,6 +1,7 @@
 import { getWalletState } from '../../core/store/walletStore.js';
-import { isWalletBrowser, detectBrowserWalletName } from '../../adapters/shared/browserDetection.js';
-import { restoreSession } from '../services/restoreSession.js';
+import { detectBrowserWalletName, isWalletBrowser } from '../../adapters/shared/browserDetection.js';
+import { readAddressFromAdapter } from '../../adapters/shared/addressResolver.js';
+import { restoreWalletSession } from '../actions/restoreWalletSession.js';
 
 function getAdapterName(adapter) {
   return (
@@ -27,38 +28,6 @@ function isWalletConnectAdapter(adapter) {
   const adapterName = String(getAdapterName(adapter) || '').trim().toLowerCase();
 
   return adapterId === 'walletconnect' || adapterName === 'walletconnect';
-}
-
-function isUsableAddress(value) {
-  return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
-}
-
-function readAddressFromAdapter(adapter) {
-  if (!adapter) return null;
-
-  const candidates = [
-    adapter?.address,
-    adapter?.publicKey,
-    adapter?.account?.address,
-    adapter?.account?.publicKey,
-    adapter?.tronWeb?.defaultAddress?.base58,
-    adapter?.provider?.defaultAddress?.base58,
-    adapter?.provider?.tronWeb?.defaultAddress?.base58,
-    adapter?.provider?.selectedAddress,
-    adapter?.provider?.address,
-    adapter?.wallet?.defaultAddress?.base58,
-    adapter?.walletProvider?.defaultAddress?.base58,
-    adapter?.connector?.provider?.defaultAddress?.base58,
-    adapter?.connector?.provider?.tronWeb?.defaultAddress?.base58
-  ];
-
-  for (const value of candidates) {
-    if (isUsableAddress(value)) {
-      return value;
-    }
-  }
-
-  return null;
 }
 
 function getAutoConnectPriority(adapter, browserWalletName) {
@@ -137,7 +106,10 @@ async function safeConnectAdapter(adapter) {
 
 function pickAutoConnectAdapter(adapters = []) {
   const browserWalletName = detectBrowserWalletName();
-  if (!browserWalletName) return null;
+
+  if (!browserWalletName) {
+    return null;
+  }
 
   const ranked = adapters
     .filter(Boolean)
@@ -199,8 +171,8 @@ export function createWalletScheduler() {
       }
 
       restoreTimer = setTimeout(() => {
-        restoreSession(manager).catch((error) => {
-          console.error('[4TEEN] restoreSession error', error);
+        restoreWalletSession(manager).catch((error) => {
+          console.error('[4TEEN] restoreWalletSession error', error);
         });
       }, delay);
     },
