@@ -1,6 +1,10 @@
 import { isTronLinkBrowser } from '../../shared/browserDetection.js';
 import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
-import { forceBindTronWeb, waitForAddress } from '../../shared/accountRequests.js';
+import {
+  forceBindTronWeb,
+  waitForAddress,
+  requestTronLinkAccounts
+} from '../../shared/accountRequests.js';
 import { pickBestProvider } from '../../shared/providerResolver.js';
 import { readTrxBalance } from '../../shared/trxBalanceReader.js';
 import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
@@ -11,6 +15,10 @@ const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
 
 function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getAdapterName(adapter) {
@@ -68,6 +76,11 @@ function getInjectedTronLinkProvider() {
   if (win.tronWeb?.isTronLink) return win.tronWeb;
 
   return null;
+}
+
+function getInjectedTronLinkContainer() {
+  const win = getWindowSafe();
+  return win?.tronLink || null;
 }
 
 function getCandidateAdapter(appkit) {
@@ -170,6 +183,46 @@ function subscribe(target, eventName, handler) {
   };
 }
 
+async function ensureTronLinkSession(provider) {
+  const container = getInjectedTronLinkContainer();
+  const requestTarget = container?.request ? container : provider;
+
+  const requestResult = await requestTronLinkAccounts(requestTarget, {
+    attempts: 5,
+    intervalMs: 180
+  });
+
+  if (requestResult.ok && requestResult.address) {
+    return requestResult.address;
+  }
+
+  if (requestResult.reason === 'rejected') {
+    throw new Error('TronLink connection rejected');
+  }
+
+  return null;
+}
+
+async function waitForTronLinkProvider(appkit, adapter, options = {}) {
+  const {
+    attempts = 12,
+    intervalMs = 120
+  } = options;
+
+  for (let i = 0; i < attempts; i++) {
+    const provider = getResolvedProvider(appkit, adapter);
+    const address = resolveAddress(adapter, provider);
+
+    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign)) {
+      return provider;
+    }
+
+    await sleep(intervalMs);
+  }
+
+  return getResolvedProvider(appkit, adapter);
+}
+
 export const tronLinkDriver = {
   id: DRIVER_ID,
   key: DRIVER_ID,
@@ -203,15 +256,16 @@ export const tronLinkDriver = {
       await connectAdapter(adapter);
     }
 
-    let provider = this.getProvider(appkit);
-    let address = null;
+    let provider = await waitForTronLinkProvider(appkit, adapter);
+    let address = await ensureTronLinkSession(provider);
 
-    if (adapter || provider) {
-      provider = getResolvedProvider(appkit, adapter);
+    provider = await waitForTronLinkProvider(appkit, adapter);
+
+    if (!isUsableAddress(address)) {
       address = await waitForAddress(adapter, provider, {
         attempts: 16,
-        intervalMs: 250,
-        requestAccountAt: [0, 4, 8, 12]
+        intervalMs: 180,
+        requestAccountAt: [0, 2, 4, 8, 12]
       });
     }
 
@@ -286,6 +340,7 @@ export const tronLinkDriver = {
   subscribe(appkit, handlers = {}) {
     const adapter = this.getAdapter(appkit);
     const provider = this.getProvider(appkit);
+    const container = getInjectedTronLinkContainer();
 
     const unsubs = [
       subscribe(adapter, 'connect', handlers.onConnect),
@@ -294,7 +349,10 @@ export const tronLinkDriver = {
       subscribe(adapter, 'readyStateChanged', handlers.onReadyStateChanged),
       subscribe(provider, 'accountsChanged', handlers.onAccountsChanged),
       subscribe(provider, 'disconnect', handlers.onDisconnect),
-      subscribe(provider, 'connect', handlers.onConnect)
+      subscribe(provider, 'connect', handlers.onConnect),
+      subscribe(container, 'accountsChanged', handlers.onAccountsChanged),
+      subscribe(container, 'disconnect', handlers.onDisconnect),
+      subscribe(container, 'connect', handlers.onConnect)
     ];
 
     return () => {
