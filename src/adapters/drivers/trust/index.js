@@ -1,13 +1,22 @@
+import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
+import {
+  forceBindTronWeb,
+  waitForAddress,
+  tryRequestAccounts
+} from '../../shared/accountRequests.js';
+import { readTrxBalance } from '../../shared/trxBalanceReader.js';
+import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
+
+const DRIVER_ID = 'trust';
+const DRIVER_NAME = 'Trust Wallet';
+const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
+
 function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
 }
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function isUsableAddress(value) {
-  return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
 }
 
 function getAdapterName(adapter) {
@@ -141,13 +150,49 @@ function getAdapterScopedTrustProvider(appkit, adapter = null) {
   return null;
 }
 
+function extractAddressFromAnything(...values) {
+  for (const value of values) {
+    if (!value) continue;
+
+    if (typeof value === 'string' && isUsableAddress(value)) {
+      return value;
+    }
+
+    if (Array.isArray(value)) {
+      const nested = extractAddressFromAnything(...value);
+      if (nested) return nested;
+    }
+
+    if (typeof value === 'object') {
+      const nested = extractAddressFromAnything(
+        value.address,
+        value.publicKey,
+        value.selectedAddress,
+        value.base58,
+        value.result,
+        value.data,
+        value.accounts,
+        value.account,
+        value.payload,
+        value.object,
+        value.defaultAddress?.base58,
+        value.tronWeb?.defaultAddress?.base58
+      );
+
+      if (nested) return nested;
+    }
+  }
+
+  return null;
+}
+
 async function connectAdapter(adapter) {
   if (!adapter || typeof adapter.connect !== 'function') {
-    return;
+    return null;
   }
 
   try {
-    await adapter.connect();
+    return await adapter.connect();
   } catch (error) {
     const message = String(error?.message || '').toLowerCase();
 
@@ -156,7 +201,7 @@ async function connectAdapter(adapter) {
       message.includes('session currently connected') ||
       message.includes('connection already open')
     ) {
-      return;
+      return null;
     }
 
     throw error;
@@ -183,123 +228,63 @@ async function disconnectAdapter(adapter, provider = null) {
   }
 }
 
-async function tryProviderRequest(provider, method, params = []) {
-  if (!provider) {
+async function tryAdapterRequestAccounts(adapter) {
+  if (!adapter) {
     return null;
   }
 
-  if (typeof provider.request === 'function') {
+  const methods = ['requestAccounts', 'connect'];
+
+  for (const methodName of methods) {
+    if (typeof adapter?.[methodName] !== 'function') {
+      continue;
+    }
+
     try {
-      return await provider.request({ method, params });
+      const result = await adapter[methodName]();
+      const address = extractAddressFromAnything(result);
+
+      if (isUsableAddress(address)) {
+        return address;
+      }
     } catch (_) {}
   }
 
-  if (typeof provider.send === 'function') {
-    try {
-      return await provider.send(method, params);
-    } catch (_) {}
-  }
-
   return null;
 }
 
-function normalizeAccountsPayload(accounts) {
-  if (Array.isArray(accounts)) {
-    return accounts[0] || null;
-  }
-
-  if (typeof accounts === 'string') {
-    return accounts || null;
-  }
-
-  if (accounts && typeof accounts === 'object') {
-    if (Array.isArray(accounts.result)) return accounts.result[0] || null;
-    if (Array.isArray(accounts.accounts)) return accounts.accounts[0] || null;
-    if (typeof accounts.address === 'string') return accounts.address;
-    if (typeof accounts.selectedAddress === 'string') return accounts.selectedAddress;
-    if (typeof accounts.result?.address === 'string') return accounts.result.address;
-    if (typeof accounts.data?.address === 'string') return accounts.data.address;
-  }
-
-  return null;
-}
-
-async function tryRequestTrustAddress(provider) {
-  const methods = [
-    ['tron_requestAccounts', []],
-    ['requestAccounts', []],
-    ['eth_requestAccounts', []],
-    ['tron_requestAccounts', null],
-    ['requestAccounts', null],
-    ['eth_requestAccounts', null]
-  ];
-
-  for (const [method, params] of methods) {
-    const result = await tryProviderRequest(provider, method, params || []);
-    const address = normalizeAccountsPayload(result);
-
-    if (isUsableAddress(address)) {
-      return address;
-    }
-  }
-
-  return null;
-}
-
-async function forceBindTronWeb(provider, address) {
-  if (!provider || !address) {
-    return;
-  }
-
-  try {
-    if (typeof provider.setAddress === 'function') {
-      provider.setAddress(address);
-    }
-  } catch (_) {}
-
-  try {
-    if (provider?.tronWeb && typeof provider.tronWeb.setAddress === 'function') {
-      provider.tronWeb.setAddress(address);
-    }
-  } catch (_) {}
-
-  try {
-    if (provider?.defaultAddress && typeof provider.defaultAddress === 'object') {
-      provider.defaultAddress.base58 = address;
-    }
-  } catch (_) {}
-
-  try {
-    if (provider?.tronWeb?.defaultAddress && typeof provider.tronWeb.defaultAddress === 'object') {
-      provider.tronWeb.defaultAddress.base58 = address;
-    }
-  } catch (_) {}
-}
-
-async function waitForTrustAddress(adapter, provider, options = {}) {
+async function waitForTrustAddress(adapter, provider, connectResult = null, options = {}) {
   const {
-    attempts = 20,
+    attempts = 22,
     intervalMs = 180,
-    requestAt = [0, 1, 2, 4, 8, 12, 16]
+    requestAt = [0, 1, 2, 4, 8, 12, 16, 20]
   } = options;
 
   for (let i = 0; i < attempts; i++) {
-    const address =
-      provider?.address ||
-      provider?.selectedAddress ||
-      provider?.defaultAddress?.base58 ||
-      provider?.tronWeb?.defaultAddress?.base58 ||
-      adapter?.address ||
-      adapter?.publicKey ||
-      null;
+    const directAddress = extractAddressFromAnything(
+      connectResult,
+      resolveAddress(adapter, provider),
+      adapter?.address,
+      adapter?.publicKey,
+      adapter?.account,
+      adapter?.connectedAddress,
+      adapter?.state,
+      provider?.address,
+      provider?.selectedAddress,
+      provider?.defaultAddress?.base58,
+      provider?.tronWeb?.defaultAddress?.base58
+    );
 
-    if (isUsableAddress(address)) {
-      await forceBindTronWeb(provider, address);
-      return address;
+    if (isUsableAddress(directAddress)) {
+      await forceBindTronWeb(provider, directAddress);
+      return directAddress;
     }
 
     if (requestAt.includes(i)) {
-      const requestedAddress = await tryRequestTrustAddress(provider);
+      const requestedAddress =
+        (await tryRequestAccounts(provider)) ||
+        (await tryAdapterRequestAccounts(adapter)) ||
+        null;
 
       if (isUsableAddress(requestedAddress)) {
         await forceBindTronWeb(provider, requestedAddress);
@@ -358,10 +343,6 @@ function subscribe(target, eventName, handler) {
   };
 }
 
-const DRIVER_ID = 'trust';
-const DRIVER_NAME = 'Trust Wallet';
-const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
-
 export const trustDriver = {
   id: DRIVER_ID,
   key: DRIVER_ID,
@@ -385,13 +366,15 @@ export const trustDriver = {
     const adapter = this.getAdapter(appkit);
     const provider = this.getProvider(appkit);
 
-    return (
-      resolveAddress(adapter, provider) ||
-      provider?.address ||
-      provider?.selectedAddress ||
-      provider?.defaultAddress?.base58 ||
-      provider?.tronWeb?.defaultAddress?.base58 ||
-      null
+    return extractAddressFromAnything(
+      resolveAddress(adapter, provider),
+      adapter?.address,
+      adapter?.publicKey,
+      adapter?.account,
+      provider?.address,
+      provider?.selectedAddress,
+      provider?.defaultAddress?.base58,
+      provider?.tronWeb?.defaultAddress?.base58
     );
   },
 
@@ -402,7 +385,7 @@ export const trustDriver = {
       throw new Error('Trust Wallet adapter not found');
     }
 
-    await connectAdapter(adapter);
+    const connectResult = await connectAdapter(adapter);
 
     let provider = this.getProvider(appkit);
 
@@ -414,10 +397,12 @@ export const trustDriver = {
       throw new Error('Trust Wallet provider not found');
     }
 
-    const address = await waitForTrustAddress(adapter, provider, {
-      attempts: isTrustWalletBrowser() ? 24 : 18,
+    const address = await waitForTrustAddress(adapter, provider, connectResult, {
+      attempts: isTrustWalletBrowser() ? 26 : 22,
       intervalMs: 180,
-      requestAt: isTrustWalletBrowser() ? [0, 1, 2, 4, 8, 12, 16, 20] : [0, 2, 4, 8, 12]
+      requestAt: isTrustWalletBrowser()
+        ? [0, 1, 2, 4, 8, 12, 16, 20, 24]
+        : [0, 1, 2, 4, 8, 12, 16, 20]
     });
 
     if (!isUsableAddress(address)) {
@@ -426,13 +411,15 @@ export const trustDriver = {
 
     await forceBindTronWeb(provider, address);
 
+    const reboundProvider = this.getProvider(appkit) || provider;
+
     return {
       ok: true,
       walletId: 'Trust',
       walletName: DRIVER_NAME,
       address,
-      provider,
-      tronWeb: provider?.tronWeb || provider || null,
+      provider: reboundProvider,
+      tronWeb: reboundProvider?.tronWeb || reboundProvider || null,
       adapter
     };
   },
