@@ -7,6 +7,8 @@ import trustIcon from '../assets/trust.svg';
 import bitgetIcon from '../assets/bitget.svg';
 import tokenpocketIcon from '../assets/tokenpocket.svg';
 import metamaskIcon from '../assets/metamask.svg';
+import imtokenIcon from '../assets/imtoken.svg';
+import foxwalletIcon from '../assets/foxwallet.svg';
 import walletconnectIcon from '../assets/walletconnect.svg';
 
 const WALLET_META = [
@@ -17,6 +19,8 @@ const WALLET_META = [
   { id: 'Bitget Wallet', name: 'Bitget Wallet', icon: bitgetIcon },
   { id: 'TokenPocket', name: 'TokenPocket', icon: tokenpocketIcon },
   { id: 'MetaMask', name: 'MetaMask', icon: metamaskIcon },
+  { id: 'imToken', name: 'imToken', icon: imtokenIcon },
+  { id: 'FoxWallet', name: 'FoxWallet', icon: foxwalletIcon },
   { id: 'WalletConnect', name: 'WalletConnect', icon: walletconnectIcon }
 ];
 
