@@ -7,6 +7,7 @@ import {
 } from './noticeCenter.js';
 import { trxIcon, fourteenIcon } from './icons.js';
 import { showWalletPicker, hideWalletPicker } from './walletPicker.js';
+import { resolveAutoWallet } from '../wallet/runtime/resolveAutoWallet.js';
 
 function formatNumber(value, digits = 2) {
   const num = Number(value || 0);
@@ -113,6 +114,7 @@ export function mountWalletButton(target, options = {}) {
   let unsubscribe = null;
   let latestState = null;
   let pickerOpen = false;
+  let connectInFlight = false;
 
   function closeDropdown() {
     const existing = root.querySelector('.fw-wallet-dropdown');
@@ -140,18 +142,44 @@ export function mountWalletButton(target, options = {}) {
     isDropdownOpen = true;
   }
 
+  async function tryDirectAutoConnect() {
+    const autoWallet = resolveAutoWallet();
+
+    if (!autoWallet.shouldAutoConnect || !autoWallet.walletId) {
+      return false;
+    }
+
+    if (connectInFlight) {
+      return true;
+    }
+
+    connectInFlight = true;
+
+    try {
+      await options.onConnectClick?.(autoWallet.walletId);
+      return true;
+    } finally {
+      connectInFlight = false;
+    }
+  }
+
   async function openPicker() {
     if (pickerOpen) return;
     pickerOpen = true;
 
-    const wallets = Array.isArray(latestState?.availableWallets) ? latestState.availableWallets : [];
+    const wallets = Array.isArray(latestState?.availableWallets)
+      ? latestState.availableWallets
+      : [];
 
     showWalletPicker({
       wallets,
       onSelect: async (wallet) => {
+        connectInFlight = true;
+
         try {
           await options.onConnectClick?.(wallet.id);
         } finally {
+          connectInFlight = false;
           pickerOpen = false;
         }
       },
@@ -162,12 +190,27 @@ export function mountWalletButton(target, options = {}) {
     });
   }
 
+  async function handleDisconnectedClick() {
+    if (connectInFlight) {
+      return;
+    }
+
+    closeDropdown();
+
+    const handledByAutoConnect = await tryDirectAutoConnect();
+
+    if (handledByAutoConnect) {
+      return;
+    }
+
+    await openPicker();
+  }
+
   function bindDisconnected() {
     const button = root.querySelector('.fw-wallet-button');
 
     button?.addEventListener('click', async () => {
-      closeDropdown();
-      await openPicker();
+      await handleDisconnectedClick();
     });
   }
 
@@ -211,6 +254,7 @@ export function mountWalletButton(target, options = {}) {
 
   return () => {
     pickerOpen = false;
+    connectInFlight = false;
     hideWalletPicker();
     closeDropdown();
     document.removeEventListener('click', handleOutsideClick);
