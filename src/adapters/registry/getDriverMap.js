@@ -4,6 +4,7 @@ import { createBinanceDriver } from '../drivers/binance/index.js';
 import { createTokenPocketDriver } from '../drivers/tokenpocket/index.js';
 import { createBitgetDriver } from '../drivers/bitget/index.js';
 import { createMetaMaskDriver } from '../drivers/metamask/index.js';
+import { createWalletConnectDriver } from '../drivers/walletconnect/index.js';
 
 let driverMap = null;
 
@@ -18,7 +19,9 @@ export function getDriverMap() {
     binance: createBinanceDriver(),
     tokenpocket: createTokenPocketDriver(),
     bitget: createBitgetDriver(),
-    metamask: createMetaMaskDriver()
+    trust: null,
+    metamask: createMetaMaskDriver(),
+    walletconnect: createWalletConnectDriver()
   };
 
   return driverMap;
