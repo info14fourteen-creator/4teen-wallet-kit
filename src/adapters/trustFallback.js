@@ -2,6 +2,10 @@ function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function isHexAddress(value) {
   return typeof value === 'string' && /^0x[0-9a-fA-F]{40}$/.test(value);
 }
@@ -10,14 +14,21 @@ function isTronAddress(value) {
   return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
 }
 
+function getTrustContainer() {
+  const win = getWindowSafe();
+  if (!win) return null;
+
+  return win.trustwallet || win.trustWallet || null;
+}
+
 function getTrustProvider() {
   const win = getWindowSafe();
   if (!win) return null;
 
   return (
     win.trustwallet?.tronWeb ||
-    win.trustwallet ||
     win.trustWallet?.tronWeb ||
+    win.trustwallet ||
     win.trustWallet ||
     win.trustwallet?.ethereum ||
     win.trustWallet?.ethereum ||
@@ -25,13 +36,14 @@ function getTrustProvider() {
   );
 }
 
-function getTrustContainer() {
+function getTrustTronWeb() {
   const win = getWindowSafe();
   if (!win) return null;
 
   return (
-    win.trustwallet ||
-    win.trustWallet ||
+    win.trustwallet?.tronWeb ||
+    win.trustWallet?.tronWeb ||
+    win.tronWeb ||
     null
   );
 }
@@ -58,26 +70,6 @@ function normalizeAccountsPayload(accounts) {
   return null;
 }
 
-function getAddressFromTronWeb(tronWeb) {
-  return (
-    tronWeb?.defaultAddress?.base58 ||
-    tronWeb?.tronWeb?.defaultAddress?.base58 ||
-    null
-  );
-}
-
-function getTronWebFromWindow() {
-  const win = getWindowSafe();
-  if (!win) return null;
-
-  return (
-    win.tronWeb ||
-    win.trustwallet?.tronWeb ||
-    win.trustWallet?.tronWeb ||
-    null
-  );
-}
-
 function normalizeTrustAddress(address, tronWeb = null) {
   if (!address) {
     return null;
@@ -100,8 +92,15 @@ function normalizeTrustAddress(address, tronWeb = null) {
   return null;
 }
 
-async function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function readDirectTrustAddress(provider, tronWeb) {
+  return (
+    normalizeTrustAddress(provider?.address, tronWeb) ||
+    normalizeTrustAddress(provider?.selectedAddress, tronWeb) ||
+    normalizeTrustAddress(provider?.defaultAddress?.base58, tronWeb) ||
+    normalizeTrustAddress(provider?.tronWeb?.defaultAddress?.base58, tronWeb) ||
+    normalizeTrustAddress(tronWeb?.defaultAddress?.base58, tronWeb) ||
+    null
+  );
 }
 
 async function tryProviderRequest(provider, method, params = []) {
@@ -169,28 +168,21 @@ async function forceBindTronWeb(tronWeb, address) {
   } catch (_) {}
 
   try {
-    if (tronWeb.defaultAddress && typeof tronWeb.defaultAddress === 'object' && typeof tronWeb.address?.toHex === 'function') {
+    if (
+      tronWeb.defaultAddress &&
+      typeof tronWeb.defaultAddress === 'object' &&
+      typeof tronWeb.address?.toHex === 'function'
+    ) {
       tronWeb.defaultAddress.hex = tronWeb.address.toHex(address);
     }
   } catch (_) {}
 }
 
-function readDirectTrustAddress(provider, tronWeb) {
-  return (
-    normalizeTrustAddress(provider?.address, tronWeb) ||
-    normalizeTrustAddress(provider?.selectedAddress, tronWeb) ||
-    normalizeTrustAddress(provider?.defaultAddress?.base58, tronWeb) ||
-    normalizeTrustAddress(provider?.tronWeb?.defaultAddress?.base58, tronWeb) ||
-    normalizeTrustAddress(getAddressFromTronWeb(tronWeb), tronWeb) ||
-    null
-  );
-}
-
 async function waitForTrustAddress(provider, tronWeb, options = {}) {
   const {
-    attempts = 18,
+    attempts = 20,
     intervalMs = 180,
-    requestAt = [0, 2, 4, 8, 12]
+    requestAt = [0, 1, 2, 4, 8, 12]
   } = options;
 
   for (let i = 0; i < attempts; i++) {
@@ -224,7 +216,7 @@ export function isTrustWalletBrowser() {
   const ua = String(win.navigator?.userAgent || '').toLowerCase();
 
   return !!(
-    getTrustProvider() ||
+    getTrustContainer() ||
     href.includes('utm_source=trust') ||
     href.includes('trust_ios_browser') ||
     ua.includes('trustwallet') ||
@@ -235,12 +227,13 @@ export function isTrustWalletBrowser() {
 export async function connectTrustFallback() {
   const container = getTrustContainer();
   const provider = getTrustProvider();
-  const tronWeb = getTronWebFromWindow();
+  const tronWeb = getTrustTronWeb();
+  const requestTarget = container || provider;
 
-  const address = await waitForTrustAddress(container || provider, tronWeb, {
-    attempts: 20,
+  const address = await waitForTrustAddress(requestTarget, tronWeb, {
+    attempts: 22,
     intervalMs: 180,
-    requestAt: [0, 1, 2, 4, 8, 12]
+    requestAt: [0, 1, 2, 4, 8, 12, 16]
   });
 
   if (!address) {
