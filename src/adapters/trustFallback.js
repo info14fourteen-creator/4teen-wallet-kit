@@ -19,6 +19,10 @@ function isHexAddress(value) {
   return typeof value === 'string' && /^0x[0-9a-fA-F]{40}$/.test(value);
 }
 
+function isTronAddress(value) {
+  return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
+}
+
 function normalizeAccountsPayload(accounts) {
   if (Array.isArray(accounts)) {
     return accounts[0] || null;
@@ -32,6 +36,8 @@ function normalizeAccountsPayload(accounts) {
     if (Array.isArray(accounts.result)) return accounts.result[0] || null;
     if (Array.isArray(accounts.accounts)) return accounts.accounts[0] || null;
     if (typeof accounts.address === 'string') return accounts.address;
+    if (typeof accounts.selectedAddress === 'string') return accounts.selectedAddress;
+    if (typeof accounts.publicKey === 'string') return accounts.publicKey;
   }
 
   return null;
@@ -62,44 +68,90 @@ function getTronWebFromWindow() {
   return null;
 }
 
-async function requestAccounts(provider) {
+function normalizeTrustAddress(address, tronWeb = null) {
+  if (!address) {
+    return null;
+  }
+
+  if (isTronAddress(address)) {
+    return address;
+  }
+
+  if (isHexAddress(address) && tronWeb?.address?.fromHex) {
+    try {
+      const converted = tronWeb.address.fromHex(address);
+      if (isTronAddress(converted)) {
+        return converted;
+      }
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+async function tryProviderRequest(provider, method, params = []) {
   if (!provider) {
-    throw new Error('Trust provider not found');
+    return null;
   }
 
   if (typeof provider.request === 'function') {
     try {
-      const tronAccounts = await provider.request({
-        method: 'tron_requestAccounts'
-      });
-      const tronAddress = normalizeAccountsPayload(tronAccounts);
-      if (tronAddress) return tronAddress;
-    } catch (_) {}
-
-    try {
-      const ethAccounts = await provider.request({
-        method: 'eth_requestAccounts'
-      });
-      const ethAddress = normalizeAccountsPayload(ethAccounts);
-      if (ethAddress) return ethAddress;
+      return await provider.request({ method, params });
     } catch (_) {}
   }
 
   if (typeof provider.send === 'function') {
     try {
-      const tronAccounts = await provider.send('tron_requestAccounts', []);
-      const tronAddress = normalizeAccountsPayload(tronAccounts);
-      if (tronAddress) return tronAddress;
-    } catch (_) {}
-
-    try {
-      const ethAccounts = await provider.send('eth_requestAccounts', []);
-      const ethAddress = normalizeAccountsPayload(ethAccounts);
-      if (ethAddress) return ethAddress;
+      return await provider.send(method, params);
     } catch (_) {}
   }
 
   return null;
+}
+
+async function requestAccounts(provider, tronWeb = null) {
+  if (!provider) {
+    throw new Error('Trust provider not found');
+  }
+
+  const methods = [
+    ['tron_requestAccounts', []],
+    ['eth_requestAccounts', []],
+    ['tron_requestAccounts', null],
+    ['eth_requestAccounts', null]
+  ];
+
+  for (const [method, params] of methods) {
+    const result = await tryProviderRequest(provider, method, params || []);
+    const address = normalizeAccountsPayload(result);
+    const normalized = normalizeTrustAddress(address, tronWeb);
+
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return null;
+}
+
+async function forceBindTronWeb(tronWeb, address) {
+  if (!tronWeb || !address) {
+    return;
+  }
+
+  try {
+    if (typeof tronWeb.setAddress === 'function') {
+      tronWeb.setAddress(address);
+      return;
+    }
+  } catch (_) {}
+
+  try {
+    tronWeb.defaultAddress = {
+      base58: address,
+      hex: tronWeb.address?.toHex?.(address) || ''
+    };
+  } catch (_) {}
 }
 
 export function isTrustWalletBrowser() {
@@ -114,7 +166,7 @@ export function isTrustWalletBrowser() {
     href.includes('utm_source=trust') ||
     href.includes('trust_ios_browser') ||
     ua.includes('trustwallet') ||
-    ua.includes('trust')
+    ua.includes('trust wallet')
   );
 }
 
@@ -122,27 +174,16 @@ export async function connectTrustFallback() {
   const provider = getTrustProvider();
   const tronWeb = getTronWebFromWindow();
 
-  const requestedAddress = await requestAccounts(provider);
+  const requestedAddress = await requestAccounts(provider, tronWeb);
+  const winAddress = normalizeTrustAddress(getAddressFromTronWeb(tronWeb), tronWeb);
 
-  const winAddress = getAddressFromTronWeb(tronWeb);
-
-  let address = winAddress || requestedAddress || null;
-
-  if (isHexAddress(address) && tronWeb?.address?.fromHex) {
-    try {
-      address = tronWeb.address.fromHex(address);
-    } catch (_) {}
-  }
+  const address = winAddress || requestedAddress || null;
 
   if (!address) {
     throw new Error('Trust Wallet did not provide a TRON address');
   }
 
-  if (tronWeb && typeof tronWeb.setAddress === 'function') {
-    try {
-      tronWeb.setAddress(address);
-    } catch (_) {}
-  }
+  await forceBindTronWeb(tronWeb, address);
 
   return {
     walletId: 'Trust',
