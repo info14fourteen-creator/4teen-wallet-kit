@@ -53,7 +53,6 @@ import {
 } from './ui/noticeCenter.js';
 
 import { createWalletAdapters } from './adapters/createAdapters.js';
-import { connectTrustFallback, isTrustWalletBrowser } from './adapters/trustFallback.js';
 
 import {
   isOkxBrowser,
