@@ -1,3 +1,4 @@
+import { TronWeb } from 'tronweb';
 import { isBinanceBrowser } from '../../shared/browserDetection.js';
 import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
 import {
@@ -12,6 +13,7 @@ import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
 const DRIVER_ID = 'binance';
 const DRIVER_NAME = 'Binance Wallet';
 const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
+const TRONGRID_FULL_HOST = 'https://api.trongrid.io';
 
 function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
@@ -146,19 +148,21 @@ async function disconnectAdapter(adapter, provider = null) {
   }
 }
 
-function getSigningCapabilities(provider) {
-  const tronWeb = provider?.tronWeb || provider || null;
+function getSigningCapabilities(provider, tronWeb = null) {
+  const resolvedTronWeb = tronWeb || provider?.tronWeb || provider || null;
 
   return {
     hasProviderRequest: typeof provider?.request === 'function',
     hasProviderSend: typeof provider?.send === 'function',
-    hasTronWebSign: typeof tronWeb?.trx?.sign === 'function',
-    hasTransactionBuilder: typeof tronWeb?.transactionBuilder?.sendTrx === 'function',
-    hasAddressToHex: typeof tronWeb?.address?.toHex === 'function',
+    hasProviderSignTransaction: typeof provider?.signTransaction === 'function',
+    hasTronWebSign: typeof resolvedTronWeb?.trx?.sign === 'function',
+    hasTransactionBuilder: typeof resolvedTronWeb?.transactionBuilder?.sendTrx === 'function',
+    hasAddressToHex: typeof resolvedTronWeb?.address?.toHex === 'function',
     canSign: !!(
       typeof provider?.request === 'function' ||
       typeof provider?.send === 'function' ||
-      typeof tronWeb?.trx?.sign === 'function'
+      typeof provider?.signTransaction === 'function' ||
+      typeof resolvedTronWeb?.trx?.sign === 'function'
     )
   };
 }
@@ -189,11 +193,89 @@ function subscribe(target, eventName, handler) {
   };
 }
 
+async function readAddressFromProvider(provider) {
+  if (!provider) {
+    return null;
+  }
+
+  try {
+    if (typeof provider.getAccount === 'function') {
+      const result = await provider.getAccount();
+
+      if (isUsableAddress(result)) {
+        return result;
+      }
+
+      if (isUsableAddress(result?.address)) {
+        return result.address;
+      }
+
+      if (isUsableAddress(result?.data?.address)) {
+        return result.data.address;
+      }
+
+      if (isUsableAddress(result?.result?.address)) {
+        return result.result.address;
+      }
+    }
+  } catch (_) {}
+
+  try {
+    const result = await tryRequestAccounts(provider);
+
+    if (isUsableAddress(result)) {
+      return result;
+    }
+  } catch (_) {}
+
+  return (
+    provider?.address ||
+    provider?.selectedAddress ||
+    provider?.defaultAddress?.base58 ||
+    provider?.tronWeb?.defaultAddress?.base58 ||
+    getWindowSafe()?.tronWeb?.defaultAddress?.base58 ||
+    null
+  );
+}
+
+function createBinanceTronWeb(provider, address) {
+  const tronWeb = new TronWeb({
+    fullHost: TRONGRID_FULL_HOST
+  });
+
+  if (isUsableAddress(address)) {
+    try {
+      tronWeb.setAddress(address);
+    } catch (_) {}
+
+    try {
+      tronWeb.defaultAddress = {
+        ...tronWeb.defaultAddress,
+        base58: address
+      };
+    } catch (_) {}
+  }
+
+  if (typeof provider?.signTransaction === 'function') {
+    tronWeb.trx.sign = async (transaction) => {
+      return provider.signTransaction(transaction);
+    };
+  }
+
+  return tronWeb;
+}
+
 async function ensureBinanceSession(adapter, provider) {
   const directAddress = resolveAddress(adapter, provider);
 
   if (isUsableAddress(directAddress)) {
     return directAddress;
+  }
+
+  const providerAddress = await readAddressFromProvider(provider);
+
+  if (isUsableAddress(providerAddress)) {
+    return providerAddress;
   }
 
   const requestedAddress = await tryRequestAccounts(provider);
@@ -215,7 +297,7 @@ async function waitForBinanceProvider(appkit, adapter, options = {}) {
     const provider = getResolvedProvider(appkit, adapter);
     const address = resolveAddress(adapter, provider);
 
-    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign)) {
+    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign || provider?.signTransaction)) {
       return provider;
     }
 
@@ -275,7 +357,22 @@ export const binanceDriver = {
       throw new Error('Binance Wallet address not resolved');
     }
 
+    let tronWeb =
+      provider?.tronWeb ||
+      (provider?.trx?.sign ? provider : null) ||
+      null;
+
+    if (!tronWeb) {
+      tronWeb = createBinanceTronWeb(provider, address);
+    }
+
     await forceBindTronWeb(provider, address);
+
+    if (tronWeb && typeof tronWeb.setAddress === 'function') {
+      try {
+        tronWeb.setAddress(address);
+      } catch (_) {}
+    }
 
     const finalProvider = await waitForBinanceProvider(appkit, adapter);
 
@@ -285,7 +382,13 @@ export const binanceDriver = {
       walletName: DRIVER_NAME,
       address,
       provider: finalProvider || provider,
-      tronWeb: finalProvider?.tronWeb || finalProvider || provider?.tronWeb || provider || null,
+      tronWeb:
+        finalProvider?.tronWeb ||
+        (finalProvider?.trx?.sign ? finalProvider : null) ||
+        tronWeb ||
+        provider?.tronWeb ||
+        provider ||
+        null,
       adapter: adapter || null
     };
   },
@@ -325,11 +428,24 @@ export const binanceDriver = {
 
   getSigningState(appkit) {
     const provider = this.getProvider(appkit);
-    return getSigningCapabilities(provider);
+    const address = this.getAddress(appkit);
+    const tronWeb =
+      provider?.tronWeb ||
+      (provider?.trx?.sign ? provider : null) ||
+      createBinanceTronWeb(provider, address);
+
+    return getSigningCapabilities(provider, tronWeb);
   },
 
   async assertSigningReady(appkit) {
-    const signing = this.getSigningState(appkit);
+    const provider = this.getProvider(appkit);
+    const address = this.getAddress(appkit);
+    const tronWeb =
+      provider?.tronWeb ||
+      (provider?.trx?.sign ? provider : null) ||
+      createBinanceTronWeb(provider, address);
+
+    const signing = getSigningCapabilities(provider, tronWeb);
 
     if (!signing.canSign) {
       throw new Error('Binance Wallet signing not available');
