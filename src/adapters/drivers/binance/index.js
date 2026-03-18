@@ -1,7 +1,10 @@
-import { TronWeb } from 'tronweb';
 import { isBinanceBrowser } from '../../shared/browserDetection.js';
 import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
-import { forceBindTronWeb, waitForAddress, tryRequestAccounts } from '../../shared/accountRequests.js';
+import {
+  forceBindTronWeb,
+  waitForAddress,
+  tryRequestAccounts
+} from '../../shared/accountRequests.js';
 import { pickBestProvider } from '../../shared/providerResolver.js';
 import { readTrxBalance } from '../../shared/trxBalanceReader.js';
 import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
@@ -9,10 +12,13 @@ import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
 const DRIVER_ID = 'binance';
 const DRIVER_NAME = 'Binance Wallet';
 const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
-const DEFAULT_FULL_HOST = 'https://api.trongrid.io';
 
 function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getAdapterName(adapter) {
@@ -40,10 +46,12 @@ function isMatchingAdapter(adapter) {
   const name = String(getAdapterName(adapter) || '').trim().toLowerCase();
 
   return (
-    id === 'binance wallet' ||
     id === 'binance' ||
+    id === 'binance wallet' ||
+    id === 'binancewallet' ||
     name === 'binance wallet' ||
-    name === 'binance'
+    name === 'binance' ||
+    name === 'binancewallet'
   );
 }
 
@@ -70,14 +78,13 @@ function getInjectedBinanceProvider() {
   const win = getWindowSafe();
   if (!win) return null;
 
-  return (
-    win.binancew3w?.tron ||
-    win.binancew3w ||
-    win.BinanceChain?.tronWeb ||
-    win.BinanceChain?.tron ||
-    win.BinanceChain ||
-    null
-  );
+  if (win.BinanceChain?.tronWeb) return win.BinanceChain.tronWeb;
+  if (win.BinanceChain?.tron) return win.BinanceChain.tron;
+  if (win.BinanceChain) return win.BinanceChain;
+  if (win.binancew3w?.tron) return win.binancew3w.tron;
+  if (win.binancew3w) return win.binancew3w;
+
+  return null;
 }
 
 function getCandidateAdapter(appkit) {
@@ -139,69 +146,6 @@ async function disconnectAdapter(adapter, provider = null) {
   }
 }
 
-async function resolveBinanceAddress(provider, adapter) {
-  let address = resolveAddress(adapter, provider);
-
-  if (isUsableAddress(address)) {
-    return address;
-  }
-
-  try {
-    if (typeof provider?.getAccount === 'function') {
-      const account = await provider.getAccount();
-      address = Array.isArray(account) ? account[0] : account;
-
-      if (isUsableAddress(address)) {
-        return address;
-      }
-    }
-  } catch (_) {}
-
-  try {
-    const requested = await tryRequestAccounts(provider);
-    if (isUsableAddress(requested)) {
-      return requested;
-    }
-  } catch (_) {}
-
-  address = await waitForAddress(adapter, provider, {
-    attempts: 16,
-    intervalMs: 250,
-    requestAccountAt: [0, 4, 8, 12]
-  });
-
-  if (isUsableAddress(address)) {
-    return address;
-  }
-
-  return null;
-}
-
-function ensureBinanceTronWeb(provider, address) {
-  let tronWeb = provider?.tronWeb || null;
-
-  if (!tronWeb) {
-    tronWeb = new TronWeb({
-      fullHost: DEFAULT_FULL_HOST
-    });
-  }
-
-  try {
-    if (typeof tronWeb.setAddress === 'function' && address) {
-      tronWeb.setAddress(address);
-    } else if (address) {
-      tronWeb.defaultAddress = {
-        base58: address,
-        hex: tronWeb.address?.toHex?.(address) || ''
-      };
-    }
-
-    tronWeb.ready = true;
-  } catch (_) {}
-
-  return tronWeb;
-}
-
 function getSigningCapabilities(provider) {
   const tronWeb = provider?.tronWeb || provider || null;
 
@@ -209,6 +153,8 @@ function getSigningCapabilities(provider) {
     hasProviderRequest: typeof provider?.request === 'function',
     hasProviderSend: typeof provider?.send === 'function',
     hasTronWebSign: typeof tronWeb?.trx?.sign === 'function',
+    hasTransactionBuilder: typeof tronWeb?.transactionBuilder?.sendTrx === 'function',
+    hasAddressToHex: typeof tronWeb?.address?.toHex === 'function',
     canSign: !!(
       typeof provider?.request === 'function' ||
       typeof provider?.send === 'function' ||
@@ -241,6 +187,42 @@ function subscribe(target, eventName, handler) {
       }
     } catch (_) {}
   };
+}
+
+async function ensureBinanceSession(adapter, provider) {
+  const directAddress = resolveAddress(adapter, provider);
+
+  if (isUsableAddress(directAddress)) {
+    return directAddress;
+  }
+
+  const requestedAddress = await tryRequestAccounts(provider);
+
+  if (isUsableAddress(requestedAddress)) {
+    return requestedAddress;
+  }
+
+  return null;
+}
+
+async function waitForBinanceProvider(appkit, adapter, options = {}) {
+  const {
+    attempts = 12,
+    intervalMs = 120
+  } = options;
+
+  for (let i = 0; i < attempts; i++) {
+    const provider = getResolvedProvider(appkit, adapter);
+    const address = resolveAddress(adapter, provider);
+
+    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign)) {
+      return provider;
+    }
+
+    await sleep(intervalMs);
+  }
+
+  return getResolvedProvider(appkit, adapter);
 }
 
 export const binanceDriver = {
@@ -276,29 +258,47 @@ export const binanceDriver = {
       await connectAdapter(adapter);
     }
 
-    let provider = this.getProvider(appkit);
-    let address = null;
+    let provider = await waitForBinanceProvider(appkit, adapter);
+    let address = await ensureBinanceSession(adapter, provider);
 
-    if (adapter || provider) {
-      provider = getResolvedProvider(appkit, adapter);
-      address = await resolveBinanceAddress(provider, adapter);
+    provider = await waitForBinanceProvider(appkit, adapter);
+
+    if (!isUsableAddress(address)) {
+      address = await waitForAddress(adapter, provider, {
+        attempts: 16,
+        intervalMs: 180,
+        requestAccountAt: [0, 2, 4, 8, 12]
+      });
     }
 
     if (!isUsableAddress(address)) {
-      throw new Error('Binance address not resolved');
+      throw new Error('Binance Wallet address not resolved');
     }
 
-    const tronWeb = ensureBinanceTronWeb(provider, address);
+    await forceBindTronWeb(provider, address);
 
-    await forceBindTronWeb(tronWeb, address);
+    const finalProvider = await waitForBinanceProvider(appkit, adapter);
+    const signing = getSigningCapabilities(finalProvider || provider);
+
+    if (!signing.canSign) {
+      throw new Error('Binance Wallet signing capability is not available');
+    }
+
+    if (!signing.hasTransactionBuilder) {
+      throw new Error('Binance Wallet transaction builder is not available');
+    }
+
+    if (!signing.hasAddressToHex) {
+      throw new Error('Binance Wallet address codec is not available');
+    }
 
     return {
       ok: true,
       walletId: DRIVER_NAME,
       walletName: DRIVER_NAME,
       address,
-      provider: tronWeb,
-      tronWeb,
+      provider: finalProvider || provider,
+      tronWeb: finalProvider?.tronWeb || finalProvider || provider?.tronWeb || provider || null,
       adapter: adapter || null
     };
   },
@@ -316,7 +316,7 @@ export const binanceDriver = {
     const address = options.address || this.getAddress(appkit);
 
     if (!isUsableAddress(address)) {
-      throw new Error('Binance balances: invalid address');
+      throw new Error('Binance Wallet balances: invalid address');
     }
 
     const trxBalance = await readTrxBalance(address);
@@ -338,16 +338,22 @@ export const binanceDriver = {
 
   getSigningState(appkit) {
     const provider = this.getProvider(appkit);
-    const tronWeb = provider?.tronWeb || provider || null;
-
-    return getSigningCapabilities(tronWeb);
+    return getSigningCapabilities(provider);
   },
 
   async assertSigningReady(appkit) {
     const signing = this.getSigningState(appkit);
 
     if (!signing.canSign) {
-      throw new Error('Binance signing not available');
+      throw new Error('Binance Wallet signing not available');
+    }
+
+    if (!signing.hasTransactionBuilder) {
+      throw new Error('Binance Wallet transaction builder is not available');
+    }
+
+    if (!signing.hasAddressToHex) {
+      throw new Error('Binance Wallet address codec is not available');
     }
 
     return {
@@ -359,6 +365,7 @@ export const binanceDriver = {
   subscribe(appkit, handlers = {}) {
     const adapter = this.getAdapter(appkit);
     const provider = this.getProvider(appkit);
+    const win = getWindowSafe();
 
     const unsubs = [
       subscribe(adapter, 'connect', handlers.onConnect),
@@ -367,7 +374,13 @@ export const binanceDriver = {
       subscribe(adapter, 'readyStateChanged', handlers.onReadyStateChanged),
       subscribe(provider, 'accountsChanged', handlers.onAccountsChanged),
       subscribe(provider, 'disconnect', handlers.onDisconnect),
-      subscribe(provider, 'connect', handlers.onConnect)
+      subscribe(provider, 'connect', handlers.onConnect),
+      subscribe(win?.BinanceChain, 'accountsChanged', handlers.onAccountsChanged),
+      subscribe(win?.BinanceChain, 'disconnect', handlers.onDisconnect),
+      subscribe(win?.BinanceChain, 'connect', handlers.onConnect),
+      subscribe(win?.binancew3w, 'accountsChanged', handlers.onAccountsChanged),
+      subscribe(win?.binancew3w, 'disconnect', handlers.onDisconnect),
+      subscribe(win?.binancew3w, 'connect', handlers.onConnect)
     ];
 
     return () => {
