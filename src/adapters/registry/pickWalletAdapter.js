@@ -1,4 +1,5 @@
 import { detectBrowserWalletName } from '../shared/browserDetection.js';
+import { readAddressFromAdapter } from '../shared/addressResolver.js';
 
 function getAdapterName(adapter) {
   return (
@@ -29,38 +30,6 @@ function isWalletConnectAdapter(adapter) {
   const adapterName = normalizeWalletId(getAdapterName(adapter));
 
   return adapterId === 'walletconnect' || adapterName === 'walletconnect';
-}
-
-function isUsableAddress(value) {
-  return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
-}
-
-function readAddressFromAdapter(adapter) {
-  if (!adapter) return null;
-
-  const candidates = [
-    adapter?.address,
-    adapter?.publicKey,
-    adapter?.account?.address,
-    adapter?.account?.publicKey,
-    adapter?.tronWeb?.defaultAddress?.base58,
-    adapter?.provider?.defaultAddress?.base58,
-    adapter?.provider?.tronWeb?.defaultAddress?.base58,
-    adapter?.provider?.selectedAddress,
-    adapter?.provider?.address,
-    adapter?.wallet?.defaultAddress?.base58,
-    adapter?.walletProvider?.defaultAddress?.base58,
-    adapter?.connector?.provider?.defaultAddress?.base58,
-    adapter?.connector?.provider?.tronWeb?.defaultAddress?.base58
-  ];
-
-  for (const candidate of candidates) {
-    if (isUsableAddress(candidate)) {
-      return candidate;
-    }
-  }
-
-  return null;
 }
 
 function resolveAdapters(appkit) {
