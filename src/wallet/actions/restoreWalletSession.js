@@ -272,7 +272,7 @@ export async function restoreWalletSession(appkit) {
           walletName,
           address,
           provider,
-          tronWeb: provider?.tronWeb || provider || null
+          tronWeb: state.tronWeb || provider?.tronWeb || provider || null
         },
         error: null
       };
@@ -296,11 +296,13 @@ export async function restoreWalletSession(appkit) {
       force: true
     });
 
+    const latestState = getWalletState();
+
     const signing = assertSigningCapability({
       connected: true,
-      address,
-      provider,
-      tronWeb: provider?.tronWeb || provider || null
+      address: latestState.address,
+      provider: latestState.provider,
+      tronWeb: latestState.tronWeb
     });
 
     return {
@@ -311,7 +313,7 @@ export async function restoreWalletSession(appkit) {
         walletName,
         address,
         provider,
-        tronWeb: provider?.tronWeb || provider || null,
+        tronWeb: latestState.tronWeb || provider?.tronWeb || provider || null,
         balances,
         signing
       },
