@@ -2,6 +2,7 @@ import { getWalletState, setWalletState } from '../../core/store/walletStore.js'
 import { shortenAddress } from '../../core/utils/address.js';
 import { resolveAddress } from '../../adapters/shared/addressResolver.js';
 import { forceBindTronWeb } from '../../adapters/shared/accountRequests.js';
+import { assertSigningCapability } from '../../adapters/shared/signingReadiness.js';
 import { refreshAllBalances } from '../../services/balances/refreshAllBalances.js';
 
 let restoreInFlight = false;
@@ -288,13 +289,19 @@ export async function restoreWalletSession(appkit) {
 
     lastRestoreSignature = restoreSignature;
 
-    try {
-      await refreshAllBalances({
-        address,
-        walletId,
-        provider
-      });
-    } catch (_) {}
+    const balances = await refreshAllBalances({
+      address,
+      walletId,
+      provider,
+      force: true
+    });
+
+    const signing = assertSigningCapability({
+      connected: true,
+      address,
+      provider,
+      tronWeb: provider?.tronWeb || provider || null
+    });
 
     return {
       ok: true,
@@ -304,7 +311,9 @@ export async function restoreWalletSession(appkit) {
         walletName,
         address,
         provider,
-        tronWeb: provider?.tronWeb || provider || null
+        tronWeb: provider?.tronWeb || provider || null,
+        balances,
+        signing
       },
       error: null
     };
