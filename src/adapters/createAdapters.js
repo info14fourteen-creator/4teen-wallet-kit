@@ -9,116 +9,15 @@ import {
   WalletConnectAdapter
 } from '@tronweb3/tronwallet-adapters';
 
-function getWindowSafe() {
-  return typeof window !== 'undefined' ? window : null;
-}
-
-function getUserAgent() {
-  const win = getWindowSafe();
-  return String(win?.navigator?.userAgent || '').toLowerCase();
-}
-
-function getLocationHref() {
-  const win = getWindowSafe();
-  return String(win?.location?.href || '').toLowerCase();
-}
-
-function isOkxBrowser() {
-  const win = getWindowSafe();
-  const ua = getUserAgent();
-  const href = getLocationHref();
-
-  return (
-    href.includes('utm_source=okx') ||
-    ua.includes('okex/') ||
-    ua.includes('okapp/') ||
-    ua.includes('okx') ||
-    !!win?.okxwallet ||
-    !!win?.okxWallet
-  );
-}
-
-function isBinanceBrowser() {
-  const win = getWindowSafe();
-  const ua = getUserAgent();
-  const href = getLocationHref();
-
-  return (
-    href.includes('utm_source=binance') ||
-    ua.includes('bnc/') ||
-    ua.includes('binance') ||
-    !!win?.BinanceChain
-  );
-}
-
-function isTronLinkBrowser() {
-  const win = getWindowSafe();
-  const ua = getUserAgent();
-  const href = getLocationHref();
-
-  return (
-    href.includes('utm_source=tronlink') ||
-    ua.includes('tronlink') ||
-    !!win?.tronLink ||
-    !!win?.tronWeb?.isTronLink
-  );
-}
-
-function isTrustBrowser() {
-  const win = getWindowSafe();
-  const ua = getUserAgent();
-  const href = getLocationHref();
-
-  return (
-    href.includes('utm_source=trust') ||
-    href.includes('trust_ios_browser') ||
-    ua.includes('trustwallet') ||
-    ua.includes('trust wallet') ||
-    !!win?.trustwallet ||
-    !!win?.trustWallet
-  );
-}
-
-function isMetaMaskBrowser() {
-  const win = getWindowSafe();
-  const ua = getUserAgent();
-  const href = getLocationHref();
-
-  return (
-    href.includes('utm_source=metamask') ||
-    ua.includes('metamask') ||
-    !!win?.ethereum?.isMetaMask
-  );
-}
-
-function isTokenPocketBrowser() {
-  const win = getWindowSafe();
-  const ua = getUserAgent();
-  const href = getLocationHref();
-
-  return (
-    href.includes('utm_source=tokenpocket') ||
-    ua.includes('tokenpocket') ||
-    ua.includes('tp/') ||
-    !!win?.tp ||
-    !!win?.tokenPocket
-  );
-}
-
-function isBitgetBrowser() {
-  const win = getWindowSafe();
-  const ua = getUserAgent();
-  const href = getLocationHref();
-
-  return (
-    href.includes('utm_source=bitget') ||
-    href.includes('utm_source=bitkeep') ||
-    ua.includes('bitkeep') ||
-    ua.includes('bitget') ||
-    !!win?.bitkeep ||
-    !!win?.bitget
-  );
-}
+import {
+  isOkxBrowser,
+  isBinanceBrowser,
+  isTronLinkBrowser,
+  isTrustWalletBrowser,
+  isMetaMaskBrowser,
+  isTokenPocketBrowser,
+  isBitgetBrowser
+} from './shared/browserDetection.js';
 
 function getPreferredInjectedOrder() {
   if (isOkxBrowser()) {
@@ -141,7 +40,7 @@ function getPreferredInjectedOrder() {
     return ['Bitget Wallet', 'WalletConnect'];
   }
 
-  if (isTrustBrowser()) {
+  if (isTrustWalletBrowser()) {
     return ['Trust', 'WalletConnect'];
   }
 
@@ -182,6 +81,7 @@ function createNamedAdapters(projectId) {
 
   try {
     entries.push({
+      id: 'TronLink',
       name: 'TronLink',
       adapter: new TronLinkAdapter()
     });
@@ -189,6 +89,7 @@ function createNamedAdapters(projectId) {
 
   try {
     entries.push({
+      id: 'OKX Wallet',
       name: 'OKX Wallet',
       adapter: new OkxWalletAdapter()
     });
@@ -196,6 +97,7 @@ function createNamedAdapters(projectId) {
 
   try {
     entries.push({
+      id: 'Binance Wallet',
       name: 'Binance Wallet',
       adapter: new BinanceWalletAdapter()
     });
@@ -203,6 +105,7 @@ function createNamedAdapters(projectId) {
 
   try {
     entries.push({
+      id: 'TokenPocket',
       name: 'TokenPocket',
       adapter: new TokenPocketAdapter()
     });
@@ -210,6 +113,7 @@ function createNamedAdapters(projectId) {
 
   try {
     entries.push({
+      id: 'Bitget Wallet',
       name: 'Bitget Wallet',
       adapter: new BitKeepAdapter()
     });
@@ -217,6 +121,7 @@ function createNamedAdapters(projectId) {
 
   try {
     entries.push({
+      id: 'Trust',
       name: 'Trust',
       adapter: new TrustAdapter()
     });
@@ -224,6 +129,7 @@ function createNamedAdapters(projectId) {
 
   try {
     entries.push({
+      id: 'MetaMask',
       name: 'MetaMask',
       adapter: new MetaMaskAdapter({
         useDeeplink: true
@@ -233,12 +139,35 @@ function createNamedAdapters(projectId) {
 
   try {
     entries.push({
+      id: 'WalletConnect',
       name: 'WalletConnect',
       adapter: createWalletConnect(projectId)
     });
   } catch (_) {}
 
   return entries;
+}
+
+function decorateAdapter(entry) {
+  const adapter = entry?.adapter;
+
+  if (!adapter) {
+    return null;
+  }
+
+  try {
+    if (!adapter.id) {
+      adapter.id = entry.id;
+    }
+  } catch (_) {}
+
+  try {
+    if (!adapter.name) {
+      adapter.name = entry.name;
+    }
+  } catch (_) {}
+
+  return adapter;
 }
 
 export function createWalletAdapters({ projectId }) {
@@ -255,5 +184,7 @@ export function createWalletAdapters({ projectId }) {
     return aRank - bRank;
   });
 
-  return sorted.map((item) => item.adapter).filter(Boolean);
+  return sorted
+    .map(decorateAdapter)
+    .filter(Boolean);
 }
