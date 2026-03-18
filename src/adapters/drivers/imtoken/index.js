@@ -1,9 +1,5 @@
-import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
-import {
-  forceBindTronWeb,
-  waitForAddress,
-  tryRequestAccounts
-} from '../../shared/accountRequests.js';
+import { isUsableAddress } from '../../shared/addressResolver.js';
+import { forceBindTronWeb } from '../../shared/accountRequests.js';
 import { readTrxBalance } from '../../shared/trxBalanceReader.js';
 import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
 
@@ -85,19 +81,9 @@ function isImTokenBrowser() {
   const href = String(win.location?.href || '').toLowerCase();
 
   return (
+    href.includes('utm_source=imtoken') ||
     ua.includes('imtoken') ||
-    href.includes('utm_source=imtoken')
-  );
-}
-
-function isImTokenProvider(provider) {
-  const win = getWindowSafe();
-  if (!provider || !win) return false;
-
-  return !!(
-    provider === win.tronweb ||
-    provider === win.tronWeb ||
-    provider?.isImToken
+    !!win.tronweb
   );
 }
 
@@ -106,107 +92,105 @@ function getCandidateAdapter(appkit) {
   return adapters.find(isMatchingAdapter) || null;
 }
 
-function getResolvedProvider(appkit, adapter = null) {
-  const windowProvider = getImTokenWindowProvider();
+function getResolvedProvider() {
+  return getImTokenWindowProvider();
+}
 
-  if (windowProvider && isImTokenProvider(windowProvider)) {
-    return windowProvider;
+async function tryImTokenRequest(provider, method, params = []) {
+  if (!provider) {
+    return null;
   }
 
+  if (typeof provider.request === 'function') {
+    try {
+      return await provider.request({ method, params });
+    } catch (_) {}
+  }
+
+  if (typeof provider.send === 'function') {
+    try {
+      return await provider.send(method, params);
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+function extractImTokenAddress(payload, provider = null) {
   const candidates = [
-    adapter?.provider,
-    adapter?.tronWeb,
-    adapter?.wallet,
-    adapter?.walletProvider,
-    adapter?.connector?.provider,
-    adapter?.connector?.wallet,
-    typeof appkit?.getWalletProvider === 'function' ? appkit.getWalletProvider() : null
-  ].filter(Boolean);
+    payload,
+    payload?.data,
+    payload?.result,
+    payload?.object,
+    provider?.defaultAddress?.base58,
+    provider?.address,
+    provider?.selectedAddress
+  ];
 
-  for (const provider of candidates) {
-    if (provider === windowProvider) {
-      return provider;
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      const first = candidate[0] || null;
+      if (isUsableAddress(first)) {
+        return first;
+      }
+    }
+
+    if (typeof candidate === 'string' && isUsableAddress(candidate)) {
+      return candidate;
     }
   }
 
-  return windowProvider || null;
+  return null;
 }
 
-async function connectAdapter(adapter) {
-  if (!adapter || typeof adapter.connect !== 'function') {
-    return;
-  }
+async function requestImTokenAddress(provider) {
+  const methods = [
+    ['tron_requestAccounts', []],
+    ['requestAccounts', []],
+    ['tron_requestAccounts', null],
+    ['requestAccounts', null]
+  ];
 
-  try {
-    await adapter.connect();
-  } catch (error) {
-    const message = String(error?.message || '').toLowerCase();
+  for (const [method, params] of methods) {
+    const result = await tryImTokenRequest(provider, method, params || []);
+    const address = extractImTokenAddress(result, provider);
 
-    if (
-      message.includes('already connected') ||
-      message.includes('session currently connected') ||
-      message.includes('connection already open')
-    ) {
-      return;
-    }
-
-    throw error;
-  }
-}
-
-async function disconnectAdapter(adapter, provider = null) {
-  const targets = [
-    adapter,
-    adapter?.connector,
-    adapter?.provider,
-    adapter?.walletProvider,
-    provider
-  ].filter(Boolean);
-
-  for (const target of targets) {
-    for (const methodName of ['disconnect', 'close', 'reset']) {
-      if (typeof target?.[methodName] !== 'function') continue;
-
-      try {
-        await target[methodName]();
-      } catch (_) {}
+    if (isUsableAddress(address)) {
+      return address;
     }
   }
+
+  return null;
 }
 
-async function waitForImTokenProvider(appkit, adapter, options = {}) {
+async function waitForImTokenProvider(options = {}) {
   const {
-    attempts = 18,
+    attempts = 20,
     intervalMs = 180
   } = options;
 
   for (let i = 0; i < attempts; i++) {
-    const provider = getResolvedProvider(appkit, adapter);
+    const provider = getResolvedProvider();
 
-    if (provider && isImTokenProvider(provider)) {
+    if (provider) {
       return provider;
     }
 
     await sleep(intervalMs);
   }
 
-  return getResolvedProvider(appkit, adapter);
+  return getResolvedProvider();
 }
 
-async function waitForImTokenAddress(adapter, provider, options = {}) {
+async function waitForImTokenAddress(provider, options = {}) {
   const {
-    attempts = 20,
+    attempts = 24,
     intervalMs = 180,
-    requestAccountAt = [0, 1, 2, 4, 8, 12, 16]
+    requestAccountAt = [0, 1, 2, 4, 8, 12, 16, 20]
   } = options;
 
   for (let i = 0; i < attempts; i++) {
-    const directAddress =
-      resolveAddress(adapter, provider) ||
-      provider?.defaultAddress?.base58 ||
-      provider?.address ||
-      provider?.selectedAddress ||
-      null;
+    const directAddress = extractImTokenAddress(null, provider);
 
     if (isUsableAddress(directAddress)) {
       await forceBindTronWeb(provider, directAddress);
@@ -214,7 +198,7 @@ async function waitForImTokenAddress(adapter, provider, options = {}) {
     }
 
     if (requestAccountAt.includes(i)) {
-      const requestedAddress = await tryRequestAccounts(provider);
+      const requestedAddress = await requestImTokenAddress(provider);
 
       if (isUsableAddress(requestedAddress)) {
         await forceBindTronWeb(provider, requestedAddress);
@@ -279,46 +263,34 @@ export const imTokenDriver = {
   name: DRIVER_NAME,
   type: 'injected',
 
-  canHandle(appkit) {
-    return isImTokenBrowser() || !!getResolvedProvider(appkit, this.getAdapter(appkit));
+  canHandle() {
+    return isImTokenBrowser() || !!getResolvedProvider();
   },
 
   getAdapter(appkit) {
     return getCandidateAdapter(appkit);
   },
 
-  getProvider(appkit) {
-    const adapter = this.getAdapter(appkit);
-    return getResolvedProvider(appkit, adapter);
+  getProvider() {
+    return getResolvedProvider();
   },
 
-  getAddress(appkit) {
-    const adapter = this.getAdapter(appkit);
-    const provider = this.getProvider(appkit);
-
-    return (
-      resolveAddress(adapter, provider) ||
-      provider?.defaultAddress?.base58 ||
-      provider?.address ||
-      provider?.selectedAddress ||
-      null
-    );
+  getAddress() {
+    const provider = this.getProvider();
+    return extractImTokenAddress(null, provider);
   },
 
-  async connect(appkit) {
-    const adapter = this.getAdapter(appkit);
-
-    if (adapter) {
-      await connectAdapter(adapter);
-    }
-
-    const provider = await waitForImTokenProvider(appkit, adapter);
+  async connect() {
+    const provider = await waitForImTokenProvider({
+      attempts: isImTokenBrowser() ? 24 : 18,
+      intervalMs: 180
+    });
 
     if (!provider) {
       throw new Error('imToken provider not found');
     }
 
-    const address = await waitForImTokenAddress(adapter, provider, {
+    const address = await waitForImTokenAddress(provider, {
       attempts: isImTokenBrowser() ? 24 : 20,
       intervalMs: 180,
       requestAccountAt: isImTokenBrowser() ? [0, 1, 2, 4, 8, 12, 16, 20] : [0, 2, 4, 8, 12, 16]
@@ -336,17 +308,12 @@ export const imTokenDriver = {
       walletName: DRIVER_NAME,
       address,
       provider,
-      tronWeb: provider?.tronWeb || provider || null,
-      adapter: adapter || null
+      tronWeb: provider,
+      adapter: null
     };
   },
 
-  async disconnect(appkit) {
-    const adapter = this.getAdapter(appkit);
-    const provider = this.getProvider(appkit);
-
-    await disconnectAdapter(adapter, provider);
-
+  async disconnect() {
     return { ok: true };
   },
 
@@ -374,13 +341,13 @@ export const imTokenDriver = {
     };
   },
 
-  getSigningState(appkit) {
-    const provider = this.getProvider(appkit);
+  getSigningState() {
+    const provider = this.getProvider();
     return getSigningCapabilities(provider);
   },
 
-  async assertSigningReady(appkit) {
-    const signing = this.getSigningState(appkit);
+  async assertSigningReady() {
+    const signing = this.getSigningState();
 
     if (!signing.canSign) {
       return {
@@ -399,7 +366,7 @@ export const imTokenDriver = {
 
   subscribe(appkit, handlers = {}) {
     const adapter = this.getAdapter(appkit);
-    const provider = this.getProvider(appkit);
+    const provider = this.getProvider();
     const win = getWindowSafe();
 
     const unsubs = [
