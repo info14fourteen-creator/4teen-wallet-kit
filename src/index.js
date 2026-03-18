@@ -174,6 +174,11 @@ import { waitAdaptersReady } from './wallet/runtime/waitAdaptersReady.js';
 import { refreshAvailableWallets } from './wallet/runtime/refreshAvailableWallets.js';
 import { buildWalletKitRuntime } from './wallet/runtime/buildWalletKitRuntime.js';
 import { createWalletScheduler } from './wallet/runtime/walletScheduler.js';
+import {
+  resolveAutoWallet,
+  shouldAutoConnectWallet,
+  getWalletEnvironmentSnapshot
+} from './wallet/runtime/resolveAutoWallet.js';
 
 import { createWalletManager } from './wallet/core/walletManager.js';
 
@@ -197,6 +202,59 @@ import {
 let appkit = null;
 let tronAdapter = null;
 let initPromise = null;
+let startupSessionPromise = null;
+
+async function runStartupSessionFlow(appkitInstance) {
+  if (!appkitInstance) {
+    return {
+      ok: false,
+      started: false,
+      reason: 'missing_appkit'
+    };
+  }
+
+  const autoWallet = resolveAutoWallet();
+
+  if (autoWallet.shouldAutoConnect && autoWallet.walletId) {
+    try {
+      const result = await connectWallet(appkitInstance, autoWallet.walletId);
+
+      if (result?.ok) {
+        return {
+          ok: true,
+          started: true,
+          mode: 'auto_connect',
+          walletId: autoWallet.walletId,
+          result
+        };
+      }
+    } catch (error) {
+      console.warn('[4TEEN] startup auto connect failed', error);
+    }
+  }
+
+  try {
+    const result = await restoreWalletSession(appkitInstance);
+
+    return {
+      ok: !!result?.ok,
+      started: true,
+      mode: 'restore',
+      walletId: null,
+      result
+    };
+  } catch (error) {
+    console.error('[4TEEN] restoreWalletSession failed', error);
+
+    return {
+      ok: false,
+      started: true,
+      mode: 'restore',
+      walletId: null,
+      error
+    };
+  }
+}
 
 async function ensureInitialized(projectId) {
   if (appkit) {
@@ -214,11 +272,13 @@ async function ensureInitialized(projectId) {
           hasTronAdapter: !!tronAdapter
         });
 
-        if (appkit) {
-          restoreWalletSession(appkit).catch((error) => {
-            console.error('[4TEEN] restoreWalletSession failed', error);
+        if (appkit && !startupSessionPromise) {
+          startupSessionPromise = runStartupSessionFlow(appkit).finally(() => {
+            startupSessionPromise = null;
           });
-        } else {
+        }
+
+        if (!appkit) {
           console.error('[4TEEN] initWalletKit did not return appkit');
         }
 
@@ -452,6 +512,11 @@ export { waitAdaptersReady };
 export { refreshAvailableWallets };
 export { buildWalletKitRuntime };
 export { createWalletScheduler };
+export {
+  resolveAutoWallet,
+  shouldAutoConnectWallet,
+  getWalletEnvironmentSnapshot
+};
 
 export { createWalletManager };
 
