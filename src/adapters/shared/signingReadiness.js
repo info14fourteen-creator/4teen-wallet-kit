@@ -1,339 +1,193 @@
-import { getWalletState, setWalletState } from '../../core/store/walletStore.js';
-import { shortenAddress } from '../../core/utils/address.js';
-import { resolveAddress } from '../../adapters/shared/addressResolver.js';
-import { forceBindTronWeb } from '../../adapters/shared/accountRequests.js';
-import { assertSigningCapability } from '../../adapters/shared/signingReadiness.js';
-import { refreshAllBalances } from '../../services/balances/refreshAllBalances.js';
+import { getWalletState } from '../../core/store/walletStore.js';
 
-let restoreInFlight = false;
-let lastRestoreAt = 0;
-let lastRestoreSignature = null;
+function getWindowSafe() {
+  return typeof window !== 'undefined' ? window : null;
+}
 
-function isUsableAddress(value) {
+export function isUsableAddress(value) {
   return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
 }
 
-function getAdapterName(adapter) {
-  return (
-    adapter?.name ||
-    adapter?.adapterName ||
-    adapter?.displayName ||
-    adapter?.id ||
-    'Wallet'
-  );
-}
+export function getResolvedSigningProvider(input = null) {
+  if (input && (input.provider || input.tronWeb || input.runtime)) {
+    return (
+      input.provider ||
+      input.runtime?.provider ||
+      input.tronWeb ||
+      input.runtime?.tronWeb ||
+      null
+    );
+  }
 
-function getAdapterId(adapter) {
+  const state = input || getWalletState();
+
   return (
-    adapter?.id ||
-    adapter?.name ||
-    adapter?.adapterName ||
-    adapter?.key ||
+    state?.provider ||
+    state?.runtime?.provider ||
+    state?.tronWeb ||
+    state?.runtime?.tronWeb ||
     null
   );
 }
 
-function resolveAdapters(appkit) {
-  if (!appkit) return [];
-
-  if (Array.isArray(appkit.adapters)) {
-    return appkit.adapters;
-  }
-
-  if (typeof appkit.getConnectors === 'function') {
-    const adapters = appkit.getConnectors();
-    return Array.isArray(adapters) ? adapters : [];
-  }
-
-  if (Array.isArray(appkit.connectors)) {
-    return appkit.connectors;
-  }
-
-  return [];
-}
-
-function resolveProviderFromAdapter(adapter) {
-  if (!adapter) return null;
-
-  const candidates = [
-    adapter?.provider,
-    adapter?.tronWeb,
-    adapter?.wallet,
-    adapter?.walletProvider,
-    adapter?.connector?.provider
-  ].filter(Boolean);
-
-  for (const provider of candidates) {
-    if (
-      provider?.tronWeb?.defaultAddress?.base58 ||
-      provider?.defaultAddress?.base58 ||
-      provider?.selectedAddress ||
-      provider?.address
-    ) {
-      return provider;
-    }
-  }
-
-  return candidates[0] || null;
-}
-
-function scoreAdapter(adapter, activeWalletId = null) {
-  const adapterId = getAdapterId(adapter);
-  const adapterName = getAdapterName(adapter);
-  const provider = resolveProviderFromAdapter(adapter);
-  const address = resolveAddress(adapter, provider);
-  const readyState = String(adapter?.readyState || '');
-  const connected = !!adapter?.connected;
-
-  let score = 0;
-
-  if (address) score += 20000;
-  if (connected) score += 15000;
-
-  if (
-    activeWalletId &&
-    (activeWalletId === adapterId || activeWalletId === adapterName)
-  ) {
-    score += 12000;
-  }
-
-  if (readyState === 'Found') score += 800;
-  if (readyState === 'Installed') score += 700;
-  if (readyState === 'Loadable') score += 400;
-  if (readyState === 'Loading') score += 100;
-
-  return score;
-}
-
-function pickRestorableAdapter(appkit) {
-  const state = getWalletState();
-
-  if (typeof appkit?.getConnectedAdapter === 'function') {
-    const connectedAdapter = appkit.getConnectedAdapter();
-
-    if (connectedAdapter) {
-      const provider =
-        typeof appkit.getWalletProvider === 'function'
-          ? appkit.getWalletProvider()
-          : resolveProviderFromAdapter(connectedAdapter);
-
-      const address = resolveAddress(connectedAdapter, provider);
-
-      if (isUsableAddress(address)) {
-        return {
-          adapter: connectedAdapter,
-          provider,
-          address
-        };
-      }
-    }
-  }
-
-  const adapters = resolveAdapters(appkit);
-  if (!adapters.length) {
-    return null;
-  }
-
-  const ranked = [...adapters].sort((a, b) => {
-    return scoreAdapter(b, state.activeWalletId) - scoreAdapter(a, state.activeWalletId);
-  });
-
-  for (const adapter of ranked) {
-    const provider = resolveProviderFromAdapter(adapter);
-    const address = resolveAddress(adapter, provider);
-
-    if (adapter?.connected && isUsableAddress(address)) {
-      return {
-        adapter,
-        provider,
-        address
-      };
-    }
-  }
-
-  for (const adapter of ranked) {
-    const provider = resolveProviderFromAdapter(adapter);
-    const address = resolveAddress(adapter, provider);
-
-    if (isUsableAddress(address)) {
-      return {
-        adapter,
-        provider,
-        address
-      };
-    }
-  }
-
-  return null;
-}
-
-function buildDisconnectedPatch() {
-  return {
-    connecting: false,
-    connected: false,
-    walletId: null,
-    walletName: null,
-    activeWalletId: null,
-    activeWalletName: null,
-    selectedWalletId: null,
-    address: null,
-    shortAddress: null,
-    provider: null,
-    tronWeb: null,
-    trxBalance: null,
-    fourteenBalance: null,
-    error: null
-  };
-}
-
-function buildConnectedPatch({ walletId, walletName, address, provider }) {
-  return {
-    initialized: true,
-    connecting: false,
-    connected: true,
-    walletId,
-    walletName,
-    activeWalletId: walletId,
-    activeWalletName: walletName,
-    selectedWalletId: walletId,
-    address,
-    shortAddress: shortenAddress(address),
-    provider,
-    tronWeb: provider?.tronWeb || provider || null,
-    walletPickerOpen: false,
-    error: null
-  };
-}
-
-function buildRestoreSignature(walletId, address) {
-  return `${walletId || 'none'}::${address || 'none'}`;
-}
-
-function clearRestoreState() {
-  setWalletState(buildDisconnectedPatch());
-  lastRestoreSignature = null;
-}
-
-export async function restoreWalletSession(appkit) {
-  const now = Date.now();
-
-  if (!appkit) {
-    return {
-      ok: false,
-      restored: false,
-      error: new Error('Wallet kit not initialized')
-    };
-  }
-
-  if (restoreInFlight) {
-    return { ok: false, restored: false };
-  }
-
-  if (now - lastRestoreAt < 500) {
-    return { ok: false, restored: false };
-  }
-
-  restoreInFlight = true;
-  lastRestoreAt = now;
-
-  try {
-    const selected = pickRestorableAdapter(appkit);
-
-    if (!selected) {
-      clearRestoreState();
-      return { ok: true, restored: false };
-    }
-
-    const { adapter, provider, address } = selected;
-
-    if (!provider || !isUsableAddress(address)) {
-      clearRestoreState();
-      return { ok: true, restored: false };
-    }
-
-    await forceBindTronWeb(provider, address);
-
-    const walletName = getAdapterName(adapter);
-    const walletId = getAdapterId(adapter) || walletName;
-    const restoreSignature = buildRestoreSignature(walletId, address);
-    const state = getWalletState();
-
-    if (
-      state.connected &&
-      state.address === address &&
-      state.activeWalletId === walletId &&
-      lastRestoreSignature === restoreSignature
-    ) {
-      return {
-        ok: true,
-        restored: true,
-        session: {
-          walletId,
-          walletName,
-          address,
-          provider,
-          tronWeb: provider?.tronWeb || provider || null
-        },
-        error: null
-      };
-    }
-
-    setWalletState(
-      buildConnectedPatch({
-        walletId,
-        walletName,
-        address,
-        provider
-      })
+export function getResolvedSigningTronWeb(input = null) {
+  if (input && (input.tronWeb || input.provider || input.runtime)) {
+    return (
+      input.tronWeb ||
+      input.runtime?.tronWeb ||
+      input.provider?.tronWeb ||
+      input.runtime?.provider?.tronWeb ||
+      input.provider ||
+      null
     );
+  }
 
-    lastRestoreSignature = restoreSignature;
+  const state = input || getWalletState();
 
-    const balances = await refreshAllBalances({
-      address,
-      walletId,
-      provider,
-      force: true
-    });
+  return (
+    state?.tronWeb ||
+    state?.runtime?.tronWeb ||
+    state?.provider?.tronWeb ||
+    state?.runtime?.provider?.tronWeb ||
+    state?.provider ||
+    null
+  );
+}
 
-    const signing = assertSigningCapability({
-      connected: true,
-      address,
-      provider,
-      tronWeb: provider?.tronWeb || provider || null
-    });
+export function getSigningCapabilities(provider, tronWeb) {
+  const resolvedProvider = provider || null;
+  const resolvedTronWeb = tronWeb || provider?.tronWeb || provider || null;
 
-    return {
-      ok: true,
-      restored: true,
-      session: {
-        walletId,
-        walletName,
-        address,
-        provider,
-        tronWeb: provider?.tronWeb || provider || null,
-        balances,
-        signing
-      },
-      error: null
-    };
-  } catch (error) {
-    console.error('[4TEEN] restoreWalletSession failed', error);
+  return {
+    hasProvider: !!resolvedProvider,
+    hasTronWeb: !!resolvedTronWeb,
 
-    setWalletState({
-      ...buildDisconnectedPatch(),
-      error: error?.message || 'restoreWalletSession failed'
-    });
+    hasProviderRequest: typeof resolvedProvider?.request === 'function',
+    hasProviderSend: typeof resolvedProvider?.send === 'function',
+    hasProviderSign: typeof resolvedProvider?.sign === 'function',
 
-    lastRestoreSignature = null;
+    hasTrxSign: typeof resolvedTronWeb?.trx?.sign === 'function',
+    hasTransactionBuilder: typeof resolvedTronWeb?.transactionBuilder?.sendTrx === 'function',
+    hasAddressToHex: typeof resolvedTronWeb?.address?.toHex === 'function',
+    hasAddressFromHex: typeof resolvedTronWeb?.address?.fromHex === 'function',
 
+    canSign: !!(
+      typeof resolvedProvider?.sign === 'function' ||
+      typeof resolvedProvider?.request === 'function' ||
+      typeof resolvedProvider?.send === 'function' ||
+      typeof resolvedTronWeb?.trx?.sign === 'function'
+    )
+  };
+}
+
+export function getSigningReadiness(input = {}) {
+  const state =
+    input && (input.connected !== undefined || input.address || input.provider || input.tronWeb)
+      ? input
+      : getWalletState();
+
+  const provider = getResolvedSigningProvider(state);
+  const tronWeb = getResolvedSigningTronWeb(state);
+  const capabilities = getSigningCapabilities(provider, tronWeb);
+
+  const address =
+    state?.address ||
+    state?.account?.address ||
+    tronWeb?.defaultAddress?.base58 ||
+    provider?.defaultAddress?.base58 ||
+    provider?.tronWeb?.defaultAddress?.base58 ||
+    null;
+
+  const win = getWindowSafe();
+
+  const providerName =
+    provider === win?.tronLink || provider === win?.tronLink?.tronWeb || provider?.isTronLink || provider?.tronWeb?.isTronLink
+      ? 'TronLink'
+      : provider === win?.okxwallet || provider === win?.okxwallet?.tronWeb || provider === win?.okxWallet || provider === win?.okxWallet?.tronWeb || provider?.isOkxWallet || provider?.isOKExWallet
+        ? 'OKX Wallet'
+        : provider === win?.BinanceChain || provider === win?.BinanceChain?.tronWeb || provider === win?.binancew3w || provider === win?.binancew3w?.tron || provider?.isBinance
+          ? 'Binance Wallet'
+          : provider === win?.tp || provider === win?.tp?.tronWeb || provider === win?.tokenPocket || provider === win?.tokenPocket?.tronWeb || provider?.isTokenPocket
+            ? 'TokenPocket'
+            : provider === win?.bitkeep || provider === win?.bitkeep?.tronWeb || provider === win?.bitget || provider === win?.bitget?.tronWeb || provider?.isBitKeep || provider?.isBitget
+              ? 'Bitget Wallet'
+              : provider === win?.trustwallet || provider === win?.trustwallet?.tronWeb || provider === win?.trustWallet || provider === win?.trustWallet?.tronWeb || provider?.isTrust || provider?.isTrustWallet
+                ? 'Trust'
+                : provider === win?.ethereum || provider === win?.ethereum?.tronWeb || provider?.isMetaMask
+                  ? 'MetaMask'
+                  : null;
+
+  if (!(state?.connected || state?.lifecycle?.connected)) {
     return {
       ok: false,
-      restored: false,
-      session: null,
-      error
+      stage: 'connection',
+      address: null,
+      providerName,
+      capabilities,
+      error: 'wallet is not connected'
     };
-  } finally {
-    restoreInFlight = false;
   }
+
+  if (!isUsableAddress(address)) {
+    return {
+      ok: false,
+      stage: 'address',
+      address: null,
+      providerName,
+      capabilities,
+      error: 'wallet address is missing or invalid'
+    };
+  }
+
+  if (!capabilities.canSign) {
+    return {
+      ok: false,
+      stage: 'capabilities',
+      address,
+      providerName,
+      capabilities,
+      error: 'wallet signing capability is not available'
+    };
+  }
+
+  if (!capabilities.hasTransactionBuilder) {
+    return {
+      ok: false,
+      stage: 'transaction_builder',
+      address,
+      providerName,
+      capabilities,
+      error: 'transaction builder is not available'
+    };
+  }
+
+  if (!capabilities.hasAddressToHex) {
+    return {
+      ok: false,
+      stage: 'address_codec',
+      address,
+      providerName,
+      capabilities,
+      error: 'tronWeb address codec is not available'
+    };
+  }
+
+  return {
+    ok: true,
+    stage: 'ready',
+    address,
+    providerName,
+    capabilities,
+    error: null
+  };
+}
+
+export function assertSigningCapability(input = {}) {
+  const readiness = getSigningReadiness(input);
+
+  if (!readiness.ok) {
+    throw new Error(readiness.error || 'wallet signing readiness failed');
+  }
+
+  return readiness;
 }
