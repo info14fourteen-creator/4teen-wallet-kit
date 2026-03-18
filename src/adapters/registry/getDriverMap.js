@@ -5,6 +5,8 @@ import { createTokenPocketDriver } from '../drivers/tokenpocket/index.js';
 import { createBitgetDriver } from '../drivers/bitget/index.js';
 import { createTrustDriver } from '../drivers/trust/index.js';
 import { createMetaMaskDriver } from '../drivers/metamask/index.js';
+import { createImTokenDriver } from '../drivers/imtoken/index.js';
+import { createFoxWalletDriver } from '../drivers/foxwallet/index.js';
 import { createWalletConnectDriver } from '../drivers/walletconnect/index.js';
 
 let driverMap = null;
@@ -22,6 +24,8 @@ export function getDriverMap() {
     bitget: createBitgetDriver(),
     trust: createTrustDriver(),
     metamask: createMetaMaskDriver(),
+    imtoken: createImTokenDriver(),
+    foxwallet: createFoxWalletDriver(),
     walletconnect: createWalletConnectDriver()
   };
 
