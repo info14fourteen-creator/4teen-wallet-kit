@@ -4,12 +4,24 @@ import { getWalletState, setWalletState } from '../../core/store/walletStore.js'
 const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
 const TRONGRID_FULL_HOST = 'https://api.trongrid.io';
 
+let refreshInFlight = null;
+let lastRefreshAt = 0;
+
 function isUsableAddress(value) {
   return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
 }
 
 function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRateLimitError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('429') || message.includes('too many requests');
 }
 
 function getReadOnlyTronWeb(address = null) {
@@ -268,94 +280,146 @@ async function readTokenBalanceViaTrigger(address) {
   return balance;
 }
 
-export async function refreshAllBalances({ address, walletId, provider } = {}) {
-  const state = getWalletState();
+async function withRetry(fn, retries = 2, delayMs = 500) {
+  let lastError = null;
 
-  const finalAddress =
-    address ||
-    state.address ||
-    state.account?.address ||
-    null;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
 
-  const finalWalletId =
-    walletId ||
-    state.activeWalletId ||
-    state.walletId ||
-    state.wallet?.activeId ||
-    state.wallet?.id ||
-    null;
+      if (!isRateLimitError(error) || i === retries) {
+        throw error;
+      }
 
-  const finalProvider =
-    provider ||
-    state.provider ||
-    state.tronWeb ||
-    state.runtime?.provider ||
-    state.runtime?.tronWeb ||
-    null;
-
-  if (!isUsableAddress(finalAddress)) {
-    throw new Error('refreshAllBalances: invalid address');
+      await sleep(delayMs * (i + 1));
+    }
   }
 
-  const injectedTronWeb = pickBestInjectedTronWeb(
-    finalProvider,
-    finalAddress,
-    finalWalletId
-  );
+  throw lastError;
+}
 
-  setWalletState({
-    address: finalAddress,
-    walletId: finalWalletId,
-    activeWalletId: finalWalletId,
-    provider: finalProvider,
-    tronWeb: injectedTronWeb || null
-  });
+export async function refreshAllBalances({ address, walletId, provider, force = false } = {}) {
+  const now = Date.now();
 
-  let trxBalance = null;
-  let fourteenBalance = null;
-  let trxError = null;
-  let tokenError = null;
-
-  try {
-    trxBalance = await readTrxBalance(finalAddress);
-  } catch (error) {
-    trxError = error;
-    console.error('[4TEEN] TRX balance error', error);
+  if (!force && refreshInFlight) {
+    return refreshInFlight;
   }
 
-  try {
-    fourteenBalance = await readTokenBalanceViaContract(finalAddress);
-  } catch (error) {
-    tokenError = error;
-    console.error('[4TEEN] token contract error', error);
+  if (!force && now - lastRefreshAt < 1200) {
+    return {
+      address: getWalletState().address || null,
+      walletId: getWalletState().activeWalletId || getWalletState().walletId || null,
+      trxBalance: getWalletState().trxBalance,
+      fourteenBalance: getWalletState().fourteenBalance,
+      warnings: {
+        trx: null,
+        token: null
+      }
+    };
+  }
+
+  refreshInFlight = (async () => {
+    const state = getWalletState();
+
+    const finalAddress =
+      address ||
+      state.address ||
+      state.account?.address ||
+      null;
+
+    const finalWalletId =
+      walletId ||
+      state.activeWalletId ||
+      state.walletId ||
+      state.wallet?.activeId ||
+      state.wallet?.id ||
+      null;
+
+    const finalProvider =
+      provider ||
+      state.provider ||
+      state.tronWeb ||
+      state.runtime?.provider ||
+      state.runtime?.tronWeb ||
+      null;
+
+    if (!isUsableAddress(finalAddress)) {
+      throw new Error('refreshAllBalances: invalid address');
+    }
+
+    const injectedTronWeb = pickBestInjectedTronWeb(
+      finalProvider,
+      finalAddress,
+      finalWalletId
+    );
+
+    const previousTrxBalance = state.trxBalance ?? state.balances?.trx ?? null;
+    const previousFourteenBalance = state.fourteenBalance ?? state.balances?.fourteen ?? null;
+
+    setWalletState({
+      address: finalAddress,
+      walletId: finalWalletId,
+      activeWalletId: finalWalletId,
+      provider: finalProvider,
+      tronWeb: injectedTronWeb || null
+    });
+
+    let trxBalance = previousTrxBalance;
+    let fourteenBalance = previousFourteenBalance;
+    let trxError = null;
+    let tokenError = null;
 
     try {
-      fourteenBalance = await readTokenBalanceViaTrigger(finalAddress);
-      tokenError = null;
-    } catch (fallbackError) {
-      tokenError = fallbackError;
-      console.error('[4TEEN] token fallback error', fallbackError);
+      trxBalance = await withRetry(() => readTrxBalance(finalAddress), 1, 350);
+    } catch (error) {
+      trxError = error;
+      console.error('[4TEEN] TRX balance error', error);
     }
-  }
 
-  if (trxBalance === null && fourteenBalance === null) {
-    throw new Error('Failed to fetch any balances');
-  }
+    try {
+      fourteenBalance = await withRetry(() => readTokenBalanceViaContract(finalAddress), 2, 700);
+    } catch (error) {
+      tokenError = error;
+      console.error('[4TEEN] token contract error', error);
 
-  setWalletState({
-    trxBalance,
-    fourteenBalance,
-    error: null
-  });
-
-  return {
-    address: finalAddress,
-    walletId: finalWalletId,
-    trxBalance,
-    fourteenBalance,
-    warnings: {
-      trx: trxError?.message || null,
-      token: tokenError?.message || null
+      try {
+        fourteenBalance = await withRetry(() => readTokenBalanceViaTrigger(finalAddress), 2, 900);
+        tokenError = null;
+      } catch (fallbackError) {
+        tokenError = fallbackError;
+        console.error('[4TEEN] token fallback error', fallbackError);
+      }
     }
-  };
+
+    if (trxBalance === null && fourteenBalance === null) {
+      throw new Error('Failed to fetch any balances');
+    }
+
+    setWalletState({
+      trxBalance,
+      fourteenBalance,
+      error: null
+    });
+
+    lastRefreshAt = Date.now();
+
+    return {
+      address: finalAddress,
+      walletId: finalWalletId,
+      trxBalance,
+      fourteenBalance,
+      warnings: {
+        trx: trxError?.message || null,
+        token: tokenError?.message || null
+      }
+    };
+  })();
+
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
 }
