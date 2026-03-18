@@ -112,6 +112,7 @@ export function mountWalletButton(target, options = {}) {
   let isDropdownOpen = false;
   let unsubscribe = null;
   let latestState = null;
+  let pickerOpen = false;
 
   function closeDropdown() {
     const existing = root.querySelector('.fw-wallet-dropdown');
@@ -140,18 +141,22 @@ export function mountWalletButton(target, options = {}) {
   }
 
   async function openPicker() {
-    try {
-      await options.onConnectClick?.(null);
-    } catch (_) {}
+    if (pickerOpen) return;
+    pickerOpen = true;
 
     const wallets = Array.isArray(latestState?.availableWallets) ? latestState.availableWallets : [];
 
     showWalletPicker({
       wallets,
       onSelect: async (wallet) => {
-        await options.onConnectClick?.(wallet.id);
+        try {
+          await options.onConnectClick?.(wallet.id);
+        } finally {
+          pickerOpen = false;
+        }
       },
       onClose: () => {
+        pickerOpen = false;
         hideWalletPicker();
       }
     });
@@ -205,6 +210,7 @@ export function mountWalletButton(target, options = {}) {
   document.addEventListener('click', handleOutsideClick);
 
   return () => {
+    pickerOpen = false;
     hideWalletPicker();
     closeDropdown();
     document.removeEventListener('click', handleOutsideClick);
