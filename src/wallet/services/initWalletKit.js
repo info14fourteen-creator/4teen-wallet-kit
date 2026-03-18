@@ -1,6 +1,5 @@
 import { createWalletAdapters } from '../../adapters/createAdapters.js';
 import { setWalletState } from '../../core/store/walletStore.js';
-import { isWalletBrowser } from '../../adapters/shared/browserDetection.js';
 import { createWalletManager } from '../core/walletManager.js';
 import { createWalletScheduler } from '../runtime/walletScheduler.js';
 import { waitAdaptersReady } from '../runtime/waitAdaptersReady.js';
@@ -17,17 +16,6 @@ function buildInitResult(appkit) {
   };
 }
 
-function scheduleRuntime(manager, scheduler) {
-  if (!manager || !scheduler) return;
-
-  if (isWalletBrowser()) {
-    scheduler.scheduleAutoConnect(manager, 80);
-    scheduler.scheduleRestore(manager, 140);
-  } else {
-    scheduler.scheduleRestore(manager, 180);
-  }
-}
-
 async function warmAdapters(manager) {
   try {
     await waitAdaptersReady(manager?.adapters || []);
@@ -40,7 +28,6 @@ async function warmAdapters(manager) {
 export async function initWalletKit({ projectId }) {
   if (initialized && walletKit) {
     walletKit.refreshAvailableWallets();
-    scheduleRuntime(walletKit, walletScheduler);
     return buildInitResult(walletKit);
   }
 
@@ -68,8 +55,6 @@ export async function initWalletKit({ projectId }) {
         initialized: true,
         error: null
       });
-
-      scheduleRuntime(walletKit, walletScheduler);
 
       void warmAdapters(walletKit);
 
