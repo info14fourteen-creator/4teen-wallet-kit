@@ -1,5 +1,7 @@
 import { getWalletState, setWalletState } from '../../core/store/walletStore.js';
 import { shortenAddress } from '../../core/utils/address.js';
+import { resolveAddress } from '../../adapters/shared/addressResolver.js';
+import { forceBindTronWeb } from '../../adapters/shared/accountRequests.js';
 import { refreshAllBalances } from '../../services/balances/refreshAllBalances.js';
 
 let restoreInFlight = false;
@@ -8,10 +10,6 @@ let lastRestoreSignature = null;
 
 function isUsableAddress(value) {
   return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
-}
-
-function isHexAddress(value) {
-  return typeof value === 'string' && /^41[0-9a-fA-F]{40}$/.test(value);
 }
 
 function getAdapterName(adapter) {
@@ -53,32 +51,6 @@ function resolveAdapters(appkit) {
   return [];
 }
 
-function normalizeAddress(value, provider = null) {
-  if (isUsableAddress(value)) {
-    return value;
-  }
-
-  if (isHexAddress(value) && provider?.address?.fromHex) {
-    try {
-      const converted = provider.address.fromHex(value);
-      if (isUsableAddress(converted)) {
-        return converted;
-      }
-    } catch (_) {}
-  }
-
-  if (isHexAddress(value) && provider?.tronWeb?.address?.fromHex) {
-    try {
-      const converted = provider.tronWeb.address.fromHex(value);
-      if (isUsableAddress(converted)) {
-        return converted;
-      }
-    } catch (_) {}
-  }
-
-  return null;
-}
-
 function resolveProviderFromAdapter(adapter) {
   if (!adapter) return null;
 
@@ -102,42 +74,6 @@ function resolveProviderFromAdapter(adapter) {
   }
 
   return candidates[0] || null;
-}
-
-function resolveAddress(adapter, provider) {
-  const candidates = [
-    adapter?.address,
-    adapter?.publicKey,
-    adapter?.account?.address,
-    adapter?.account?.publicKey,
-
-    adapter?.provider?.address,
-    adapter?.provider?.selectedAddress,
-    adapter?.provider?.defaultAddress?.base58,
-    adapter?.provider?.tronWeb?.defaultAddress?.base58,
-
-    adapter?.tronWeb?.defaultAddress?.base58,
-    adapter?.wallet?.defaultAddress?.base58,
-    adapter?.walletProvider?.defaultAddress?.base58,
-    adapter?.connector?.provider?.address,
-    adapter?.connector?.provider?.selectedAddress,
-    adapter?.connector?.provider?.defaultAddress?.base58,
-    adapter?.connector?.provider?.tronWeb?.defaultAddress?.base58,
-
-    provider?.address,
-    provider?.selectedAddress,
-    provider?.defaultAddress?.base58,
-    provider?.tronWeb?.defaultAddress?.base58
-  ];
-
-  for (const candidate of candidates) {
-    const normalized = normalizeAddress(candidate, provider);
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  return null;
 }
 
 function scoreAdapter(adapter, activeWalletId = null) {
@@ -175,9 +111,10 @@ function pickRestorableAdapter(appkit) {
     const connectedAdapter = appkit.getConnectedAdapter();
 
     if (connectedAdapter) {
-      const provider = typeof appkit.getWalletProvider === 'function'
-        ? appkit.getWalletProvider()
-        : resolveProviderFromAdapter(connectedAdapter);
+      const provider =
+        typeof appkit.getWalletProvider === 'function'
+          ? appkit.getWalletProvider()
+          : resolveProviderFromAdapter(connectedAdapter);
 
       const address = resolveAddress(connectedAdapter, provider);
 
@@ -227,34 +164,6 @@ function pickRestorableAdapter(appkit) {
   }
 
   return null;
-}
-
-async function forceBindTronWeb(provider, address) {
-  if (!provider || !address) return;
-
-  try {
-    if (typeof provider.setAddress === 'function') {
-      provider.setAddress(address);
-    }
-  } catch (_) {}
-
-  try {
-    if (provider?.tronWeb && typeof provider.tronWeb.setAddress === 'function') {
-      provider.tronWeb.setAddress(address);
-    }
-  } catch (_) {}
-
-  try {
-    if (provider?.defaultAddress && typeof provider.defaultAddress === 'object') {
-      provider.defaultAddress.base58 = address;
-    }
-  } catch (_) {}
-
-  try {
-    if (provider?.tronWeb?.defaultAddress && typeof provider.tronWeb.defaultAddress === 'object') {
-      provider.tronWeb.defaultAddress.base58 = address;
-    }
-  } catch (_) {}
 }
 
 function buildDisconnectedPatch() {
@@ -307,9 +216,21 @@ function clearRestoreState() {
 export async function restoreWalletSession(appkit) {
   const now = Date.now();
 
-  if (!appkit) return { ok: false, restored: false, error: new Error('Wallet kit not initialized') };
-  if (restoreInFlight) return { ok: false, restored: false };
-  if (now - lastRestoreAt < 500) return { ok: false, restored: false };
+  if (!appkit) {
+    return {
+      ok: false,
+      restored: false,
+      error: new Error('Wallet kit not initialized')
+    };
+  }
+
+  if (restoreInFlight) {
+    return { ok: false, restored: false };
+  }
+
+  if (now - lastRestoreAt < 500) {
+    return { ok: false, restored: false };
+  }
 
   restoreInFlight = true;
   lastRestoreAt = now;
