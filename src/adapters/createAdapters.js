@@ -6,7 +6,9 @@ import {
   BitKeepAdapter,
   TokenPocketAdapter,
   MetaMaskAdapter,
-  WalletConnectAdapter
+  WalletConnectAdapter,
+  ImTokenAdapter,
+  FoxWalletAdapter
 } from '@tronweb3/tronwallet-adapters';
 
 import {
@@ -16,7 +18,9 @@ import {
   isTrustWalletBrowser,
   isMetaMaskBrowser,
   isTokenPocketBrowser,
-  isBitgetBrowser
+  isBitgetBrowser,
+  isImTokenBrowser,
+  isFoxWalletBrowser
 } from './shared/browserDetection.js';
 
 function getPreferredInjectedOrder() {
@@ -48,6 +52,14 @@ function getPreferredInjectedOrder() {
     return ['MetaMask', 'WalletConnect'];
   }
 
+  if (isImTokenBrowser()) {
+    return ['imToken', 'WalletConnect'];
+  }
+
+  if (isFoxWalletBrowser()) {
+    return ['FoxWallet', 'WalletConnect'];
+  }
+
   return [
     'TronLink',
     'OKX Wallet',
@@ -56,6 +68,8 @@ function getPreferredInjectedOrder() {
     'Bitget Wallet',
     'Trust',
     'MetaMask',
+    'imToken',
+    'FoxWallet',
     'WalletConnect'
   ];
 }
@@ -134,6 +148,22 @@ function createNamedAdapters(projectId) {
       adapter: new MetaMaskAdapter({
         useDeeplink: true
       })
+    });
+  } catch (_) {}
+
+  try {
+    entries.push({
+      id: 'imToken',
+      name: 'imToken',
+      adapter: new ImTokenAdapter()
+    });
+  } catch (_) {}
+
+  try {
+    entries.push({
+      id: 'FoxWallet',
+      name: 'FoxWallet',
+      adapter: new FoxWalletAdapter()
     });
   } catch (_) {}
 
