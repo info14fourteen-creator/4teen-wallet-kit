@@ -182,15 +182,49 @@ export async function forceBindTronWeb(provider, address) {
   } catch (_) {}
 
   try {
+    if (provider?.defaultAddress && typeof provider.defaultAddress === 'object') {
+      provider.defaultAddress.hex = null;
+    }
+  } catch (_) {}
+
+  try {
     if (provider?.tronWeb?.defaultAddress && typeof provider.tronWeb.defaultAddress === 'object') {
       provider.tronWeb.defaultAddress.base58 = address;
     }
   } catch (_) {}
 
   try {
+    if (provider?.tronWeb?.defaultAddress && typeof provider.tronWeb.defaultAddress === 'object') {
+      provider.tronWeb.defaultAddress.hex = null;
+    }
+  } catch (_) {}
+
+  try {
+    if ('selectedAddress' in provider) {
+      provider.selectedAddress = address;
+    }
+  } catch (_) {}
+
+  try {
+    if ('address' in provider && typeof provider.address === 'string') {
+      provider.address = address;
+    }
+  } catch (_) {}
+
+  try {
     const win = getWindowSafe();
+
     if (win?.tronWeb && typeof win.tronWeb.setAddress === 'function') {
       win.tronWeb.setAddress(address);
+    }
+  } catch (_) {}
+
+  try {
+    const win = getWindowSafe();
+
+    if (win?.tronWeb?.defaultAddress && typeof win.tronWeb.defaultAddress === 'object') {
+      win.tronWeb.defaultAddress.base58 = address;
+      win.tronWeb.defaultAddress.hex = null;
     }
   } catch (_) {}
 }
