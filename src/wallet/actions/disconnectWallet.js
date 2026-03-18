@@ -304,10 +304,7 @@ export async function disconnectWallet(appkit) {
   } finally {
     resetWalletState();
 
-    const availableWallets =
-      typeof appkit?.refreshAvailableWallets === 'function'
-        ? appkit.refreshAvailableWallets() || buildAvailableWallets(adapters)
-        : buildAvailableWallets(adapters);
+    const availableWallets = buildAvailableWallets(adapters);
 
     setWalletState(buildDisconnectedState(availableWallets));
   }
