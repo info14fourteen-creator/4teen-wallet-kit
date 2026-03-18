@@ -48,11 +48,13 @@ export async function finalizeWalletConnection({
     force: true
   });
 
+  const latestState = getWalletState();
+
   const signing = assertSigningCapability({
     connected: true,
-    address: state.address,
-    provider: state.provider,
-    tronWeb: state.tronWeb
+    address: latestState.address,
+    provider: latestState.provider,
+    tronWeb: latestState.tronWeb
   });
 
   return {
@@ -62,7 +64,7 @@ export async function finalizeWalletConnection({
       walletName,
       address,
       provider,
-      tronWeb: provider?.tronWeb || provider || null,
+      tronWeb: latestState.tronWeb || provider?.tronWeb || provider || null,
       balances,
       signing
     },
