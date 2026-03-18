@@ -1,6 +1,10 @@
 import { isBitgetBrowser } from '../../shared/browserDetection.js';
 import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
-import { forceBindTronWeb, waitForAddress } from '../../shared/accountRequests.js';
+import {
+  forceBindTronWeb,
+  waitForAddress,
+  tryRequestAccounts
+} from '../../shared/accountRequests.js';
 import { pickBestProvider } from '../../shared/providerResolver.js';
 import { readTrxBalance } from '../../shared/trxBalanceReader.js';
 import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
@@ -11,6 +15,10 @@ const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
 
 function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getAdapterName(adapter) {
@@ -38,12 +46,14 @@ function isMatchingAdapter(adapter) {
   const name = String(getAdapterName(adapter) || '').trim().toLowerCase();
 
   return (
-    id === 'bitget wallet' ||
     id === 'bitget' ||
+    id === 'bitget wallet' ||
     id === 'bitkeep' ||
-    name === 'bitget wallet' ||
+    id === 'bitkeep wallet' ||
     name === 'bitget' ||
-    name === 'bitkeep'
+    name === 'bitget wallet' ||
+    name === 'bitkeep' ||
+    name === 'bitkeep wallet'
   );
 }
 
@@ -70,13 +80,12 @@ function getInjectedBitgetProvider() {
   const win = getWindowSafe();
   if (!win) return null;
 
-  return (
-    win.bitkeep?.tronWeb ||
-    win.bitkeep ||
-    win.bitget?.tronWeb ||
-    win.bitget ||
-    null
-  );
+  if (win.bitkeep?.tronWeb) return win.bitkeep.tronWeb;
+  if (win.bitkeep) return win.bitkeep;
+  if (win.bitget?.tronWeb) return win.bitget.tronWeb;
+  if (win.bitget) return win.bitget;
+
+  return null;
 }
 
 function getCandidateAdapter(appkit) {
@@ -144,10 +153,14 @@ function getSigningCapabilities(provider) {
   return {
     hasProviderRequest: typeof provider?.request === 'function',
     hasProviderSend: typeof provider?.send === 'function',
+    hasProviderSign: typeof provider?.sign === 'function',
     hasTronWebSign: typeof tronWeb?.trx?.sign === 'function',
+    hasTransactionBuilder: typeof tronWeb?.transactionBuilder?.sendTrx === 'function',
+    hasAddressToHex: typeof tronWeb?.address?.toHex === 'function',
     canSign: !!(
       typeof provider?.request === 'function' ||
       typeof provider?.send === 'function' ||
+      typeof provider?.sign === 'function' ||
       typeof tronWeb?.trx?.sign === 'function'
     )
   };
@@ -177,6 +190,42 @@ function subscribe(target, eventName, handler) {
       }
     } catch (_) {}
   };
+}
+
+async function ensureBitgetSession(adapter, provider) {
+  const directAddress = resolveAddress(adapter, provider);
+
+  if (isUsableAddress(directAddress)) {
+    return directAddress;
+  }
+
+  const requestedAddress = await tryRequestAccounts(provider);
+
+  if (isUsableAddress(requestedAddress)) {
+    return requestedAddress;
+  }
+
+  return null;
+}
+
+async function waitForBitgetProvider(appkit, adapter, options = {}) {
+  const {
+    attempts = 12,
+    intervalMs = 120
+  } = options;
+
+  for (let i = 0; i < attempts; i++) {
+    const provider = getResolvedProvider(appkit, adapter);
+    const address = resolveAddress(adapter, provider);
+
+    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign)) {
+      return provider;
+    }
+
+    await sleep(intervalMs);
+  }
+
+  return getResolvedProvider(appkit, adapter);
 }
 
 export const bitgetDriver = {
@@ -212,31 +261,34 @@ export const bitgetDriver = {
       await connectAdapter(adapter);
     }
 
-    let provider = this.getProvider(appkit);
-    let address = null;
+    let provider = await waitForBitgetProvider(appkit, adapter);
+    let address = await ensureBitgetSession(adapter, provider);
 
-    if (adapter || provider) {
-      provider = getResolvedProvider(appkit, adapter);
+    provider = await waitForBitgetProvider(appkit, adapter);
+
+    if (!isUsableAddress(address)) {
       address = await waitForAddress(adapter, provider, {
         attempts: 16,
-        intervalMs: 250,
-        requestAccountAt: [0, 4, 8, 12]
+        intervalMs: 180,
+        requestAccountAt: [0, 2, 4, 8, 12]
       });
     }
 
     if (!isUsableAddress(address)) {
-      throw new Error('Bitget address not resolved');
+      throw new Error('Bitget Wallet address not resolved');
     }
 
     await forceBindTronWeb(provider, address);
+
+    const finalProvider = await waitForBitgetProvider(appkit, adapter);
 
     return {
       ok: true,
       walletId: DRIVER_NAME,
       walletName: DRIVER_NAME,
       address,
-      provider,
-      tronWeb: provider?.tronWeb || provider || null,
+      provider: finalProvider || provider,
+      tronWeb: finalProvider?.tronWeb || finalProvider || provider?.tronWeb || provider || null,
       adapter: adapter || null
     };
   },
@@ -254,7 +306,7 @@ export const bitgetDriver = {
     const address = options.address || this.getAddress(appkit);
 
     if (!isUsableAddress(address)) {
-      throw new Error('Bitget balances: invalid address');
+      throw new Error('Bitget Wallet balances: invalid address');
     }
 
     const trxBalance = await readTrxBalance(address);
@@ -283,7 +335,15 @@ export const bitgetDriver = {
     const signing = this.getSigningState(appkit);
 
     if (!signing.canSign) {
-      throw new Error('Bitget signing not available');
+      throw new Error('Bitget Wallet signing not available');
+    }
+
+    if (!signing.hasTransactionBuilder) {
+      throw new Error('Bitget Wallet transaction builder is not available');
+    }
+
+    if (!signing.hasAddressToHex) {
+      throw new Error('Bitget Wallet address codec is not available');
     }
 
     return {
@@ -295,6 +355,7 @@ export const bitgetDriver = {
   subscribe(appkit, handlers = {}) {
     const adapter = this.getAdapter(appkit);
     const provider = this.getProvider(appkit);
+    const win = getWindowSafe();
 
     const unsubs = [
       subscribe(adapter, 'connect', handlers.onConnect),
@@ -303,7 +364,13 @@ export const bitgetDriver = {
       subscribe(adapter, 'readyStateChanged', handlers.onReadyStateChanged),
       subscribe(provider, 'accountsChanged', handlers.onAccountsChanged),
       subscribe(provider, 'disconnect', handlers.onDisconnect),
-      subscribe(provider, 'connect', handlers.onConnect)
+      subscribe(provider, 'connect', handlers.onConnect),
+      subscribe(win?.bitkeep, 'accountsChanged', handlers.onAccountsChanged),
+      subscribe(win?.bitkeep, 'disconnect', handlers.onDisconnect),
+      subscribe(win?.bitkeep, 'connect', handlers.onConnect),
+      subscribe(win?.bitget, 'accountsChanged', handlers.onAccountsChanged),
+      subscribe(win?.bitget, 'disconnect', handlers.onDisconnect),
+      subscribe(win?.bitget, 'connect', handlers.onConnect)
     ];
 
     return () => {
