@@ -10,6 +10,11 @@ import { restoreWalletSession } from './wallet/actions/restoreWalletSession.js';
 import { refreshWalletBalances } from './wallet/actions/refreshWalletBalances.js';
 
 import {
+  createWalletConnectDriver,
+  walletConnectDriver
+} from './adapters/drivers/walletconnect/index.js';
+
+import {
   getWalletState,
   setWalletState,
   patchWalletState,
@@ -535,4 +540,9 @@ export {
 export {
   assertWalletSigning,
   printWalletSigningDiagnostics
+};
+
+export {
+  createWalletConnectDriver,
+  walletConnectDriver
 };
