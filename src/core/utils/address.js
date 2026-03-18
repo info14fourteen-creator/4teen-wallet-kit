@@ -7,7 +7,9 @@ export function isHexAddress(value) {
 }
 
 export function isTronAddress(value) {
-  return isString(value) && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
+  return isString(value) &&
+    value.length === 34 &&
+    value.startsWith('T');
 }
 
 export function isUsableAddress(value) {
@@ -29,23 +31,32 @@ export function normalizeAddress(value) {
 export function extractAddressFromPayload(payload) {
   if (!payload) return null;
 
-  if (isString(payload)) return normalizeAddress(payload);
+  const candidates = [
+    payload,
+    payload?.data,
+    payload?.result,
+    payload?.accounts,
+    payload?.address,
+    payload?.object,
+    payload?.object?.address
+  ];
 
-  if (Array.isArray(payload)) {
-    return normalizeAddress(payload[0]);
-  }
+  for (const c of candidates) {
+    if (!c) continue;
 
-  if (typeof payload === 'object') {
-    if (Array.isArray(payload.result)) {
-      return normalizeAddress(payload.result[0]);
+    if (typeof c === 'string') {
+      const normalized = normalizeAddress(c);
+      if (normalized) return normalized;
     }
 
-    if (Array.isArray(payload.accounts)) {
-      return normalizeAddress(payload.accounts[0]);
+    if (Array.isArray(c)) {
+      const first = normalizeAddress(c[0]);
+      if (first) return first;
     }
 
-    if (isString(payload.address)) {
-      return normalizeAddress(payload.address);
+    if (typeof c === 'object') {
+      const nested = extractAddressFromPayload(c);
+      if (nested) return nested;
     }
   }
 
