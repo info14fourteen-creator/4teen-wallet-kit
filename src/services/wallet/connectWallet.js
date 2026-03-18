@@ -655,6 +655,79 @@ export async function connectWallet(appkit, walletId = null) {
       });
     }
 
+    // BINANCE HARD OVERRIDE
+if (walletId === 'Binance Wallet') {
+  const win = getWindowSafe();
+
+  const provider =
+    win?.binancew3w?.tron ||
+    win?.BinanceChain?.tron ||
+    win?.BinanceChain ||
+    null;
+
+  if (!provider) {
+    throw new Error('Binance TRON provider not found');
+  }
+
+  let address = null;
+
+  try {
+    if (typeof provider.getAccount === 'function') {
+      const acc = await provider.getAccount();
+      address = Array.isArray(acc) ? acc[0] : acc;
+    }
+  } catch (_) {}
+
+  if (!address && typeof provider.request === 'function') {
+    try {
+      const res = await provider.request({ method: 'tron_requestAccounts' });
+      address = Array.isArray(res) ? res[0] : res;
+    } catch (_) {}
+  }
+
+  if (!address) {
+    address =
+      provider.address ||
+      provider.selectedAddress ||
+      provider.defaultAddress?.base58 ||
+      provider.tronWeb?.defaultAddress?.base58 ||
+      null;
+  }
+
+  if (!isUsableAddress(address)) {
+    throw new Error('Binance did not return valid address');
+  }
+
+  let tronWeb = provider.tronWeb || null;
+
+  if (!tronWeb) {
+    const { TronWeb } = await import('tronweb');
+
+    tronWeb = new TronWeb({
+      fullHost: 'https://api.trongrid.io'
+    });
+  }
+
+  try {
+    if (typeof tronWeb.setAddress === 'function') {
+      tronWeb.setAddress(address);
+    } else {
+      tronWeb.defaultAddress = {
+        base58: address,
+        hex: tronWeb.address?.toHex?.(address) || ''
+      };
+    }
+
+    tronWeb.ready = true;
+  } catch (_) {}
+
+  return await finalizeConnection({
+    walletId: 'Binance Wallet',
+    walletName: 'Binance Wallet',
+    address,
+    provider: tronWeb
+  });
+}
     const adapter = pickAdapter(appkit, walletId);
 
     if (!adapter) {
