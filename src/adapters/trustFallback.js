@@ -180,9 +180,9 @@ async function forceBindTronWeb(tronWeb, address) {
 
 async function waitForTrustAddress(provider, tronWeb, options = {}) {
   const {
-    attempts = 20,
+    attempts = 22,
     intervalMs = 180,
-    requestAt = [0, 1, 2, 4, 8, 12]
+    requestAt = [0, 1, 2, 4, 8, 12, 16]
   } = options;
 
   for (let i = 0; i < attempts; i++) {
