@@ -1,31 +1,13 @@
 import { createWalletAdapters } from '../../adapters/createAdapters.js';
 import { setWalletState } from '../../core/store/walletStore.js';
+import { isWalletBrowser } from '../../adapters/shared/browserDetection.js';
 import { createWalletManager } from '../core/walletManager.js';
 import { createWalletScheduler } from '../runtime/walletScheduler.js';
-import { isWalletBrowser } from '../../adapters/shared/browserDetection.js';
+import { waitAdaptersReady } from '../runtime/waitAdaptersReady.js';
 
 let initialized = false;
 let walletKit = null;
 let walletScheduler = null;
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function waitAdaptersReady(adapters = []) {
-  for (let i = 0; i < 12; i++) {
-    const anyReady = adapters.some((adapter) => {
-      const state = String(adapter?.readyState || '');
-      return state === 'Found' || state === 'Installed' || state === 'Loadable';
-    });
-
-    if (anyReady) {
-      return;
-    }
-
-    await sleep(200);
-  }
-}
 
 function buildInitResult(appkit) {
   return {
