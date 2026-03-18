@@ -80,6 +80,95 @@ export function getSigningCapabilities(provider, tronWeb) {
   };
 }
 
+function getResolvedSigningAddress(state, provider, tronWeb) {
+  return (
+    state?.address ||
+    state?.account?.address ||
+    tronWeb?.defaultAddress?.base58 ||
+    provider?.defaultAddress?.base58 ||
+    provider?.tronWeb?.defaultAddress?.base58 ||
+    provider?.address ||
+    provider?.selectedAddress ||
+    null
+  );
+}
+
+function getResolvedProviderName(provider) {
+  const win = getWindowSafe();
+
+  if (
+    provider === win?.tronLink ||
+    provider === win?.tronLink?.tronWeb ||
+    provider?.isTronLink ||
+    provider?.tronWeb?.isTronLink
+  ) {
+    return 'TronLink';
+  }
+
+  if (
+    provider === win?.okxwallet ||
+    provider === win?.okxwallet?.tronWeb ||
+    provider === win?.okxWallet ||
+    provider === win?.okxWallet?.tronWeb ||
+    provider?.isOkxWallet ||
+    provider?.isOKExWallet
+  ) {
+    return 'OKX Wallet';
+  }
+
+  if (
+    provider === win?.BinanceChain ||
+    provider === win?.BinanceChain?.tronWeb ||
+    provider === win?.binancew3w ||
+    provider === win?.binancew3w?.tron ||
+    provider?.isBinance
+  ) {
+    return 'Binance Wallet';
+  }
+
+  if (
+    provider === win?.tp ||
+    provider === win?.tp?.tronWeb ||
+    provider === win?.tokenPocket ||
+    provider === win?.tokenPocket?.tronWeb ||
+    provider?.isTokenPocket
+  ) {
+    return 'TokenPocket';
+  }
+
+  if (
+    provider === win?.bitkeep ||
+    provider === win?.bitkeep?.tronWeb ||
+    provider === win?.bitget ||
+    provider === win?.bitget?.tronWeb ||
+    provider?.isBitKeep ||
+    provider?.isBitget
+  ) {
+    return 'Bitget Wallet';
+  }
+
+  if (
+    provider === win?.trustwallet ||
+    provider === win?.trustwallet?.tronWeb ||
+    provider === win?.trustWallet ||
+    provider === win?.trustWallet?.tronWeb ||
+    provider?.isTrust ||
+    provider?.isTrustWallet
+  ) {
+    return 'Trust';
+  }
+
+  if (
+    provider === win?.ethereum ||
+    provider === win?.ethereum?.tronWeb ||
+    provider?.isMetaMask
+  ) {
+    return 'MetaMask';
+  }
+
+  return null;
+}
+
 export function getSigningReadiness(input = {}) {
   const state =
     input && (input.connected !== undefined || input.address || input.provider || input.tronWeb)
@@ -89,33 +178,8 @@ export function getSigningReadiness(input = {}) {
   const provider = getResolvedSigningProvider(state);
   const tronWeb = getResolvedSigningTronWeb(state);
   const capabilities = getSigningCapabilities(provider, tronWeb);
-
-  const address =
-    state?.address ||
-    state?.account?.address ||
-    tronWeb?.defaultAddress?.base58 ||
-    provider?.defaultAddress?.base58 ||
-    provider?.tronWeb?.defaultAddress?.base58 ||
-    null;
-
-  const win = getWindowSafe();
-
-  const providerName =
-    provider === win?.tronLink || provider === win?.tronLink?.tronWeb || provider?.isTronLink || provider?.tronWeb?.isTronLink
-      ? 'TronLink'
-      : provider === win?.okxwallet || provider === win?.okxwallet?.tronWeb || provider === win?.okxWallet || provider === win?.okxWallet?.tronWeb || provider?.isOkxWallet || provider?.isOKExWallet
-        ? 'OKX Wallet'
-        : provider === win?.BinanceChain || provider === win?.BinanceChain?.tronWeb || provider === win?.binancew3w || provider === win?.binancew3w?.tron || provider?.isBinance
-          ? 'Binance Wallet'
-          : provider === win?.tp || provider === win?.tp?.tronWeb || provider === win?.tokenPocket || provider === win?.tokenPocket?.tronWeb || provider?.isTokenPocket
-            ? 'TokenPocket'
-            : provider === win?.bitkeep || provider === win?.bitkeep?.tronWeb || provider === win?.bitget || provider === win?.bitget?.tronWeb || provider?.isBitKeep || provider?.isBitget
-              ? 'Bitget Wallet'
-              : provider === win?.trustwallet || provider === win?.trustwallet?.tronWeb || provider === win?.trustWallet || provider === win?.trustWallet?.tronWeb || provider?.isTrust || provider?.isTrustWallet
-                ? 'Trust'
-                : provider === win?.ethereum || provider === win?.ethereum?.tronWeb || provider?.isMetaMask
-                  ? 'MetaMask'
-                  : null;
+  const address = getResolvedSigningAddress(state, provider, tronWeb);
+  const providerName = getResolvedProviderName(provider);
 
   if (!(state?.connected || state?.lifecycle?.connected)) {
     return {
