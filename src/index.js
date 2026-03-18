@@ -400,7 +400,6 @@ export {
 };
 
 export { createWalletAdapters };
-export { connectTrustFallback, isTrustWalletBrowser };
 
 export {
   isOkxBrowser,
