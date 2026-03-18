@@ -1,43 +1,13 @@
 import { getWalletState } from '../core/store/walletStore.js';
+import {
+  getResolvedSigningProvider,
+  getResolvedSigningTronWeb,
+  getSigningCapabilities,
+  getSigningReadiness,
+  isUsableAddress
+} from '../adapters/shared/signingReadiness.js';
 
 const DRY_RUN_RECEIVER = 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb';
-
-function isUsableAddress(value) {
-  return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
-}
-
-function getResolvedProvider(state) {
-  return state?.provider || state?.runtime?.provider || null;
-}
-
-function getResolvedTronWeb(state) {
-  return (
-    state?.tronWeb ||
-    state?.runtime?.tronWeb ||
-    state?.provider?.tronWeb ||
-    state?.runtime?.provider?.tronWeb ||
-    null
-  );
-}
-
-function getSigningCapabilities(provider, tronWeb) {
-  return {
-    hasProvider: !!provider,
-    hasTronWeb: !!tronWeb,
-    hasProviderRequest: typeof provider?.request === 'function',
-    hasProviderSend: typeof provider?.send === 'function',
-    hasProviderSign: typeof provider?.sign === 'function',
-    hasTrxSign: typeof tronWeb?.trx?.sign === 'function',
-    hasTransactionBuilder: typeof tronWeb?.transactionBuilder?.sendTrx === 'function',
-    hasAddressToHex: typeof tronWeb?.address?.toHex === 'function',
-    canSign: !!(
-      typeof provider?.sign === 'function' ||
-      typeof provider?.request === 'function' ||
-      typeof provider?.send === 'function' ||
-      typeof tronWeb?.trx?.sign === 'function'
-    )
-  };
-}
 
 async function buildDryRunTransaction(tronWeb, address) {
   if (!tronWeb) {
@@ -164,40 +134,32 @@ async function trySignWithProvider(provider, tx) {
   };
 }
 
-export async function assertWalletSigning() {
+export async function assertWalletSigning(options = {}) {
+  const { mode = 'capability' } = options;
+
   const state = getWalletState();
+  const readiness = getSigningReadiness(state);
 
-  const address = state.address || state.account?.address || null;
-  const provider = getResolvedProvider(state);
-  const tronWeb = getResolvedTronWeb(state);
+  if (!readiness.ok) {
+    return readiness;
+  }
+
+  if (mode !== 'verify') {
+    return {
+      ok: true,
+      stage: 'capability',
+      address: readiness.address,
+      providerName: readiness.providerName,
+      capabilities: readiness.capabilities,
+      transactionBuilt: false,
+      error: null
+    };
+  }
+
+  const provider = getResolvedSigningProvider(state);
+  const tronWeb = getResolvedSigningTronWeb(state);
   const capabilities = getSigningCapabilities(provider, tronWeb);
-
-  if (!state.connected) {
-    return {
-      ok: false,
-      stage: 'connection',
-      error: 'wallet is not connected',
-      capabilities
-    };
-  }
-
-  if (!isUsableAddress(address)) {
-    return {
-      ok: false,
-      stage: 'address',
-      error: 'wallet address is missing or invalid',
-      capabilities
-    };
-  }
-
-  if (!capabilities.canSign) {
-    return {
-      ok: false,
-      stage: 'capabilities',
-      error: 'no signing capability detected',
-      capabilities
-    };
-  }
+  const address = readiness.address;
 
   let tx = null;
 
@@ -220,6 +182,7 @@ export async function assertWalletSigning() {
       stage: 'sign',
       method: tronWebResult.method,
       address,
+      providerName: readiness.providerName,
       capabilities,
       transactionBuilt: true
     };
@@ -233,6 +196,7 @@ export async function assertWalletSigning() {
       stage: 'sign',
       method: providerResult.method,
       address,
+      providerName: readiness.providerName,
       capabilities,
       transactionBuilt: true
     };
@@ -243,6 +207,7 @@ export async function assertWalletSigning() {
     stage: 'sign',
     error: providerResult.error || tronWebResult.error || 'signing failed',
     address,
+    providerName: readiness.providerName,
     capabilities,
     transactionBuilt: true,
     attempts: {
@@ -252,14 +217,15 @@ export async function assertWalletSigning() {
   };
 }
 
-export async function printWalletSigningDiagnostics() {
-  const result = await assertWalletSigning();
+export async function printWalletSigningDiagnostics(options = {}) {
+  const result = await assertWalletSigning(options);
 
   console.group('[4TEEN] WALLET SIGNING DIAGNOSTICS');
   console.log('Signing OK:', result.ok);
   console.log('Stage:', result.stage);
   console.log('Method:', result.method || null);
   console.log('Address:', result.address || null);
+  console.log('Provider:', result.providerName || null);
   console.log('Capabilities:', result.capabilities || null);
   console.log('Error:', result.error || null);
   console.log('Attempts:', result.attempts || null);
