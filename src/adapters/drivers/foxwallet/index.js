@@ -1,9 +1,5 @@
 import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
-import {
-  forceBindTronWeb,
-  waitForAddress,
-  tryRequestAccounts
-} from '../../shared/accountRequests.js';
+import { forceBindTronWeb } from '../../shared/accountRequests.js';
 import { readTrxBalance } from '../../shared/trxBalanceReader.js';
 import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
 
@@ -89,9 +85,10 @@ function isFoxWalletBrowser() {
   const href = String(win.location?.href || '').toLowerCase();
 
   return (
+    href.includes('utm_source=foxwallet') ||
     ua.includes('foxwallet') ||
     ua.includes('fox wallet') ||
-    href.includes('utm_source=foxwallet')
+    !!win.foxwallet
   );
 }
 
@@ -135,6 +132,76 @@ function getResolvedProvider(appkit, adapter = null) {
   }
 
   return windowProvider || null;
+}
+
+function extractFoxAddress(payload, provider = null) {
+  const candidates = [
+    payload,
+    payload?.data,
+    payload?.result,
+    payload?.object,
+    payload?.object?.address,
+    payload?.data?.address,
+    provider?.defaultAddress?.base58,
+    provider?.tronWeb?.defaultAddress?.base58,
+    provider?.address,
+    provider?.selectedAddress
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      const first = candidate[0] || null;
+      if (isUsableAddress(first)) {
+        return first;
+      }
+    }
+
+    if (typeof candidate === 'string' && isUsableAddress(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+async function tryFoxRequest(provider, method, params = []) {
+  if (!provider) {
+    return null;
+  }
+
+  if (typeof provider.request === 'function') {
+    try {
+      return await provider.request({ method, params });
+    } catch (_) {}
+  }
+
+  if (typeof provider.send === 'function') {
+    try {
+      return await provider.send(method, params);
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+async function requestFoxAddress(provider) {
+  const methods = [
+    ['tron_requestAccounts', []],
+    ['requestAccounts', []],
+    ['tron_requestAccounts', null],
+    ['requestAccounts', null]
+  ];
+
+  for (const [method, params] of methods) {
+    const result = await tryFoxRequest(provider, method, params || []);
+    const address = extractFoxAddress(result, provider);
+
+    if (isUsableAddress(address)) {
+      return address;
+    }
+  }
+
+  return null;
 }
 
 async function connectAdapter(adapter) {
@@ -200,19 +267,15 @@ async function waitForFoxProvider(appkit, adapter, options = {}) {
 
 async function waitForFoxAddress(adapter, provider, options = {}) {
   const {
-    attempts = 20,
+    attempts = 24,
     intervalMs = 180,
-    requestAccountAt = [0, 1, 2, 4, 8, 12, 16]
+    requestAccountAt = [0, 1, 2, 4, 8, 12, 16, 20]
   } = options;
 
   for (let i = 0; i < attempts; i++) {
     const directAddress =
       resolveAddress(adapter, provider) ||
-      provider?.defaultAddress?.base58 ||
-      provider?.address ||
-      provider?.selectedAddress ||
-      provider?.tronWeb?.defaultAddress?.base58 ||
-      null;
+      extractFoxAddress(null, provider);
 
     if (isUsableAddress(directAddress)) {
       await forceBindTronWeb(provider, directAddress);
@@ -220,7 +283,7 @@ async function waitForFoxAddress(adapter, provider, options = {}) {
     }
 
     if (requestAccountAt.includes(i)) {
-      const requestedAddress = await tryRequestAccounts(provider);
+      const requestedAddress = await requestFoxAddress(provider);
 
       if (isUsableAddress(requestedAddress)) {
         await forceBindTronWeb(provider, requestedAddress);
@@ -304,11 +367,7 @@ export const foxWalletDriver = {
 
     return (
       resolveAddress(adapter, provider) ||
-      provider?.defaultAddress?.base58 ||
-      provider?.address ||
-      provider?.selectedAddress ||
-      provider?.tronWeb?.defaultAddress?.base58 ||
-      null
+      extractFoxAddress(null, provider)
     );
   },
 
@@ -316,7 +375,9 @@ export const foxWalletDriver = {
     const adapter = this.getAdapter(appkit);
 
     if (adapter) {
-      await connectAdapter(adapter);
+      try {
+        await connectAdapter(adapter);
+      } catch (_) {}
     }
 
     const provider = await waitForFoxProvider(appkit, adapter);
