@@ -149,6 +149,8 @@ function getSigningCapabilities(provider) {
     hasProviderRequest: typeof provider?.request === 'function',
     hasProviderSend: typeof provider?.send === 'function',
     hasTronWebSign: typeof tronWeb?.trx?.sign === 'function',
+    hasTransactionBuilder: typeof tronWeb?.transactionBuilder?.sendTrx === 'function',
+    hasAddressToHex: typeof tronWeb?.address?.toHex === 'function',
     canSign: !!(
       typeof provider?.request === 'function' ||
       typeof provider?.send === 'function' ||
@@ -275,13 +277,28 @@ export const tronLinkDriver = {
 
     await forceBindTronWeb(provider, address);
 
+    const finalProvider = await waitForTronLinkProvider(appkit, adapter);
+    const signing = getSigningCapabilities(finalProvider || provider);
+
+    if (!signing.canSign) {
+      throw new Error('TronLink signing capability is not available');
+    }
+
+    if (!signing.hasTransactionBuilder) {
+      throw new Error('TronLink transaction builder is not available');
+    }
+
+    if (!signing.hasAddressToHex) {
+      throw new Error('TronLink address codec is not available');
+    }
+
     return {
       ok: true,
       walletId: DRIVER_NAME,
       walletName: DRIVER_NAME,
       address,
-      provider,
-      tronWeb: provider?.tronWeb || provider || null,
+      provider: finalProvider || provider,
+      tronWeb: finalProvider?.tronWeb || finalProvider || provider?.tronWeb || provider || null,
       adapter: adapter || null
     };
   },
@@ -329,6 +346,14 @@ export const tronLinkDriver = {
 
     if (!signing.canSign) {
       throw new Error('TronLink signing not available');
+    }
+
+    if (!signing.hasTransactionBuilder) {
+      throw new Error('TronLink transaction builder is not available');
+    }
+
+    if (!signing.hasAddressToHex) {
+      throw new Error('TronLink address codec is not available');
     }
 
     return {
