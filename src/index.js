@@ -78,7 +78,6 @@ export {
   safeReadTokenBalance
 } from './adapters/shared/tokenBalanceReader.js';
 
-export { connectAdapter } from './adapters/shared/connectAdapter.js';
 
 export {
   pickWalletAdapter,
