@@ -1,8 +1,12 @@
+import { getWalletState } from '../core/store/walletStore.js';
+import { getSigningReadiness } from '../adapters/shared/signingReadiness.js';
+
 let overlayRoot = null;
 let logBox = null;
 let badge = null;
 let stateBox = null;
 let envBox = null;
+let healthBox = null;
 let isVisible = false;
 let logs = [];
 let maxLogs = 120;
@@ -142,6 +146,10 @@ function makeSection(titleText) {
   return { wrap, box };
 }
 
+function isUsableAddress(value) {
+  return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
+}
+
 function getEnvSnapshot() {
   return {
     href: window.location.href,
@@ -172,7 +180,111 @@ function getStateSnapshot() {
     return { error: error?.message || 'getState failed' };
   }
 
-  return { note: 'window.FourteenKit.getState is not available' };
+  try {
+    return getWalletState();
+  } catch (error) {
+    return { error: error?.message || 'wallet state unavailable' };
+  }
+}
+
+function getHealthSnapshot() {
+  const state = getStateSnapshot();
+
+  const provider =
+    state?.provider ||
+    state?.runtime?.provider ||
+    null;
+
+  const tronWeb =
+    state?.tronWeb ||
+    state?.runtime?.tronWeb ||
+    provider?.tronWeb ||
+    null;
+
+  const address =
+    state?.address ||
+    state?.account?.address ||
+    tronWeb?.defaultAddress?.base58 ||
+    provider?.defaultAddress?.base58 ||
+    provider?.tronWeb?.defaultAddress?.base58 ||
+    null;
+
+  const trxBalance =
+    state?.trxBalance ??
+    state?.balances?.trx ??
+    null;
+
+  const fourteenBalance =
+    state?.fourteenBalance ??
+    state?.balances?.fourteen ??
+    null;
+
+  const signing = getSigningReadiness(state);
+
+  const addressResolved = isUsableAddress(address);
+  const balancesResolved =
+    trxBalance !== null &&
+    trxBalance !== undefined &&
+    fourteenBalance !== null &&
+    fourteenBalance !== undefined;
+
+  const providerBoundCorrectly = !!(
+    provider &&
+    tronWeb &&
+    (
+      tronWeb === provider ||
+      provider?.tronWeb === tronWeb ||
+      tronWeb?.defaultAddress?.base58 === address ||
+      provider?.defaultAddress?.base58 === address ||
+      provider?.tronWeb?.defaultAddress?.base58 === address
+    )
+  );
+
+  const connected = !!(
+    state?.connected ||
+    state?.lifecycle?.connected
+  );
+
+  const overallOk = !!(
+    connected &&
+    addressResolved &&
+    balancesResolved &&
+    providerBoundCorrectly &&
+    signing?.ok
+  );
+
+  return {
+    overallOk,
+    checks: {
+      connected: {
+        ok: connected
+      },
+      addressResolved: {
+        ok: addressResolved,
+        value: address
+      },
+      balancesResolved: {
+        ok: balancesResolved,
+        trxBalance,
+        fourteenBalance
+      },
+      providerBoundCorrectly: {
+        ok: providerBoundCorrectly,
+        hasProvider: !!provider,
+        hasTronWeb: !!tronWeb,
+        providerAddress:
+          provider?.defaultAddress?.base58 ||
+          provider?.tronWeb?.defaultAddress?.base58 ||
+          provider?.address ||
+          provider?.selectedAddress ||
+          null,
+        tronWebAddress:
+          tronWeb?.defaultAddress?.base58 ||
+          null
+      },
+      signingCapabilityPresent: signing
+    }
+  };
 }
 
 function refreshStateBox() {
@@ -181,6 +293,16 @@ function refreshStateBox() {
 
 function refreshEnvBox() {
   setBoxText(envBox, getEnvSnapshot());
+}
+
+function refreshHealthBox() {
+  setBoxText(healthBox, getHealthSnapshot());
+}
+
+function refreshAllBoxes() {
+  refreshStateBox();
+  refreshEnvBox();
+  refreshHealthBox();
 }
 
 function buildUi() {
@@ -274,8 +396,7 @@ function buildUi() {
   });
 
   refreshBtn.addEventListener('click', () => {
-    refreshStateBox();
-    refreshEnvBox();
+    refreshAllBoxes();
   });
 
   hideBtn.addEventListener('click', () => setVisible(false));
@@ -288,18 +409,23 @@ function buildUi() {
   topBar.appendChild(title);
   topBar.appendChild(actions);
 
+  const healthSection = makeSection('Health');
   const stateSection = makeSection('State');
   const envSection = makeSection('Env');
   const logSection = makeSection('Logs');
 
+  healthBox = healthSection.box;
   stateBox = stateSection.box;
   envBox = envSection.box;
   logBox = logSection.box;
+
+  healthBox.style.color = '#86efac';
   logBox.style.flex = '1';
   logBox.style.maxHeight = 'none';
   logBox.style.color = '#93c5fd';
 
   panel.appendChild(topBar);
+  panel.appendChild(healthSection.wrap);
   panel.appendChild(stateSection.wrap);
   panel.appendChild(envSection.wrap);
   panel.appendChild(logSection.wrap);
@@ -307,8 +433,7 @@ function buildUi() {
   toggle.addEventListener('click', () => {
     setVisible(!isVisible);
     if (isVisible) {
-      refreshStateBox();
-      refreshEnvBox();
+      refreshAllBoxes();
     }
   });
 
@@ -316,8 +441,7 @@ function buildUi() {
   overlayRoot.appendChild(panel);
   document.body.appendChild(overlayRoot);
 
-  refreshStateBox();
-  refreshEnvBox();
+  refreshAllBoxes();
   refreshLogBox();
 }
 
@@ -370,6 +494,10 @@ function bindStateUpdates() {
     stateUnsubscribe = window.FourteenKit.subscribe((state) => {
       if (stateBox) {
         setBoxText(stateBox, state);
+      }
+
+      if (healthBox) {
+        refreshHealthBox();
       }
     });
   } catch (_) {}
@@ -426,8 +554,7 @@ export function debugOverlayLog(...args) {
 
 export function showDebugOverlay() {
   setVisible(true);
-  refreshStateBox();
-  refreshEnvBox();
+  refreshAllBoxes();
 }
 
 export function hideDebugOverlay() {
