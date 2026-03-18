@@ -1,119 +1,72 @@
-import './polyfills/node.js';
-import { initWalletKit } from './services/wallet/initWalletKit.js';
-import { connectWallet } from './services/wallet/connectWallet.js';
-import { disconnectWallet } from './services/wallet/disconnectWallet.js';
-import { restoreSession } from './services/wallet/restoreSession.js';
-import { refreshAllBalances } from './services/balances/refreshAllBalances.js';
-import { getWalletState, subscribeWalletState } from './core/store/walletStore.js';
+export { initWalletKit } from './wallet/services/initWalletKit.js';
 
-let appkit = null;
-let tronAdapter = null;
-let readyPromise = null;
-
-async function ensureWalletKit(projectId) {
-  if (appkit) {
-    return { appkit, tronAdapter };
-  }
-
-  if (readyPromise) {
-    return readyPromise;
-  }
-
-  readyPromise = (async () => {
-    const init = await Promise.resolve(initWalletKit({ projectId })) || {};
-
-    appkit = init.appkit || null;
-    tronAdapter = init.tronAdapter || null;
-
-    console.log('[4TEEN] initFourteenConnect', {
-      hasAppkit: !!appkit,
-      hasTronAdapter: !!tronAdapter
-    });
-
-    if (!appkit) {
-      throw new Error('initWalletKit did not return appkit');
-    }
-
-    return { appkit, tronAdapter };
-  })();
-
-  try {
-    return await readyPromise;
-  } catch (error) {
-    readyPromise = null;
-    console.error('[4TEEN] wallet kit initialization failed', error);
-    throw error;
-  }
-}
-
-export function initFourteenConnect({ projectId }) {
-  ensureWalletKit(projectId)
-    .then(({ appkit }) => {
-      console.log('[4TEEN] Wallet kit ready');
-
-      restoreSession(appkit).catch((error) => {
-        console.error('[4TEEN] restoreSession failed', error);
-      });
-    })
-    .catch((error) => {
-      console.error('[4TEEN] initWalletKit did not return appkit', error);
-    });
-
-  return {
-    async connect(walletId = null) {
-      const { appkit } = await ensureWalletKit(projectId);
-      return connectWallet(appkit, walletId);
-    },
-
-    async disconnect() {
-      const { appkit } = await ensureWalletKit(projectId);
-      return disconnectWallet(appkit);
-    },
-
-    async restore() {
-      const { appkit } = await ensureWalletKit(projectId);
-      return restoreSession(appkit);
-    },
-
-    async refreshBalances() {
-      return refreshAllBalances();
-    },
-
-    getState() {
-      return getWalletState();
-    },
-
-    subscribe(listener) {
-      return subscribeWalletState(listener);
-    },
-
-    getAppkit() {
-      return appkit;
-    },
-
-    getTronAdapter() {
-      return tronAdapter;
-    },
-
-    whenReady() {
-      return ensureWalletKit(projectId);
-    }
-  };
-}
-
-export { mountWalletButton } from './ui/walletButton.js';
+export { connectWallet } from './wallet/actions/connectWallet.js';
+export { disconnectWallet } from './wallet/actions/disconnectWallet.js';
+export { restoreWalletSession } from './wallet/actions/restoreWalletSession.js';
+export { refreshWalletBalances } from './wallet/actions/refreshWalletBalances.js';
 
 export {
-  initDebugOverlay,
-  debugOverlayLog,
-  showDebugOverlay,
-  hideDebugOverlay
-} from './debug/debugOverlay.js';
+  getWalletState,
+  setWalletState,
+  resetWalletState,
+  subscribeWalletState
+} from './core/store/walletStore.js';
+
+export { openWalletPicker } from './ui/wallet/openWalletPicker.js';
+
+export { createWalletAdapters } from './adapters/createAdapters.js';
+export { connectTrustFallback, isTrustWalletBrowser } from './adapters/trustFallback.js';
 
 export {
-  showNotice,
-  hideNotice,
-  showSuccessNotice,
-  showErrorNotice,
-  showNeutralNotice
-} from './ui/noticeCenter.js';
+  isOkxBrowser,
+  isBinanceBrowser,
+  isTronLinkBrowser,
+  isTrustWalletBrowser as isTrustBrowser,
+  isMetaMaskBrowser,
+  isTokenPocketBrowser,
+  isBitgetBrowser,
+  detectBrowserWalletName,
+  isWalletBrowser,
+  getBrowserDetectionSnapshot
+} from './adapters/shared/browserDetection.js';
+
+export {
+  isUsableAddress,
+  isHexAddress,
+  normalizeAddress,
+  extractAddressFromPayload,
+  resolveAddress,
+  readAddressFromAdapter
+} from './adapters/shared/addressResolver.js';
+
+export {
+  getProviderCandidates,
+  providerMatchesWallet,
+  pickBestProvider
+} from './adapters/shared/providerResolver.js';
+
+export {
+  tryProviderRequest,
+  tryRequestAccounts,
+  forceBindTronWeb,
+  waitForAddress
+} from './adapters/shared/accountRequests.js';
+
+export { connectAdapter } from './adapters/shared/connectAdapter.js';
+
+export {
+  pickWalletAdapter,
+  getWalletAdapterById,
+  listWalletAdapters
+} from './adapters/registry/pickWalletAdapter.js';
+
+export { bindAdapterEvents } from './wallet/runtime/bindAdapterEvents.js';
+export { waitAdaptersReady } from './wallet/runtime/waitAdaptersReady.js';
+export { refreshAvailableWallets } from './wallet/runtime/refreshAvailableWallets.js';
+export { buildWalletKitRuntime } from './wallet/runtime/buildWalletKitRuntime.js';
+export { createWalletScheduler } from './wallet/runtime/walletScheduler.js';
+
+export { createWalletManager } from './wallet/core/walletManager.js';
+
+export { finalizeWalletConnection } from './wallet/session/finalizeWalletConnection.js';
+export { failWalletConnection } from './wallet/session/failWalletConnection.js';
