@@ -1,5 +1,7 @@
 import { getWalletState } from '../core/store/walletStore.js';
 
+const DRY_RUN_RECEIVER = 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb';
+
 function isUsableAddress(value) {
   return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
 }
@@ -22,15 +24,12 @@ function getSigningCapabilities(provider, tronWeb) {
   return {
     hasProvider: !!provider,
     hasTronWeb: !!tronWeb,
-
     hasProviderRequest: typeof provider?.request === 'function',
     hasProviderSend: typeof provider?.send === 'function',
     hasProviderSign: typeof provider?.sign === 'function',
-
     hasTrxSign: typeof tronWeb?.trx?.sign === 'function',
     hasTransactionBuilder: typeof tronWeb?.transactionBuilder?.sendTrx === 'function',
     hasAddressToHex: typeof tronWeb?.address?.toHex === 'function',
-
     canSign: !!(
       typeof provider?.sign === 'function' ||
       typeof provider?.request === 'function' ||
@@ -49,12 +48,16 @@ async function buildDryRunTransaction(tronWeb, address) {
     throw new Error('wallet address is invalid');
   }
 
+  if (!isUsableAddress(DRY_RUN_RECEIVER)) {
+    throw new Error('dry run receiver is invalid');
+  }
+
   if (typeof tronWeb?.transactionBuilder?.sendTrx !== 'function') {
     throw new Error('transactionBuilder.sendTrx is not available');
   }
 
   const tx = await tronWeb.transactionBuilder.sendTrx(
-    address,
+    DRY_RUN_RECEIVER,
     1,
     address
   );
