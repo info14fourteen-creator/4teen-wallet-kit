@@ -8,6 +8,15 @@ import { connectWallet } from './wallet/actions/connectWallet.js';
 import { disconnectWallet } from './wallet/actions/disconnectWallet.js';
 import { restoreWalletSession } from './wallet/actions/restoreWalletSession.js';
 import { refreshWalletBalances } from './wallet/actions/refreshWalletBalances.js';
+import {
+  createTrustDriver,
+  trustDriver
+} from './adapters/drivers/trust/index.js';
+
+import {
+  createWalletConnectDriver,
+  walletConnectDriver
+} from './adapters/drivers/walletconnect/index.js';
 
 import {
   createWalletConnectDriver,
