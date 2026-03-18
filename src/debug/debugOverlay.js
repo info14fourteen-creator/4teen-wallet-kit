@@ -1,12 +1,15 @@
 let overlayRoot = null;
 let logBox = null;
 let badge = null;
+let stateBox = null;
+let envBox = null;
 let isVisible = false;
 let logs = [];
-let maxLogs = 200;
+let maxLogs = 120;
 let installed = false;
 let originalConsole = null;
 let bodyObserver = null;
+let stateUnsubscribe = null;
 
 function getNowTime() {
   const now = new Date();
@@ -43,6 +46,11 @@ function refreshLogBox() {
   logBox.textContent = logs.join('\n\n');
   logBox.scrollTop = logBox.scrollHeight;
   refreshBadge();
+}
+
+function setBoxText(node, value) {
+  if (!node) return;
+  node.textContent = typeof value === 'string' ? value : stringifyArg(value);
 }
 
 function addLog(level, ...args) {
@@ -101,6 +109,78 @@ function makeBtn(text) {
   btn.style.fontSize = '12px';
   btn.style.cursor = 'pointer';
   return btn;
+}
+
+function makeSection(titleText) {
+  const wrap = document.createElement('div');
+  wrap.style.display = 'flex';
+  wrap.style.flexDirection = 'column';
+  wrap.style.gap = '6px';
+
+  const title = document.createElement('div');
+  title.textContent = titleText;
+  title.style.color = '#fff';
+  title.style.fontSize = '12px';
+  title.style.fontWeight = '700';
+
+  const box = document.createElement('pre');
+  box.style.margin = '0';
+  box.style.padding = '10px';
+  box.style.borderRadius = '12px';
+  box.style.background = '#050505';
+  box.style.color = '#c4b5fd';
+  box.style.fontSize = '11px';
+  box.style.lineHeight = '1.45';
+  box.style.whiteSpace = 'pre-wrap';
+  box.style.wordBreak = 'break-word';
+  box.style.overflow = 'auto';
+  box.style.maxHeight = '140px';
+
+  wrap.appendChild(title);
+  wrap.appendChild(box);
+
+  return { wrap, box };
+}
+
+function getEnvSnapshot() {
+  return {
+    href: window.location.href,
+    userAgent: navigator.userAgent,
+    fourteenConnect: !!window.FourteenConnect,
+    fourteenKit: !!window.FourteenKit,
+    tronWeb: !!window.tronWeb,
+    tronLink: !!window.tronLink,
+    okxwallet: !!window.okxwallet,
+    okxWallet: !!window.okxWallet,
+    BinanceChain: !!window.BinanceChain,
+    trustwallet: !!window.trustwallet,
+    trustWallet: !!window.trustWallet,
+    ethereum: !!window.ethereum,
+    tokenPocket: !!window.tokenPocket,
+    tp: !!window.tp,
+    bitkeep: !!window.bitkeep,
+    bitget: !!window.bitget
+  };
+}
+
+function getStateSnapshot() {
+  try {
+    if (window.FourteenKit?.getState) {
+      return window.FourteenKit.getState();
+    }
+  } catch (error) {
+    return { error: error?.message || 'getState failed' };
+  }
+
+  return { note: 'window.FourteenKit.getState is not available' };
+}
+
+function refreshStateBox() {
+  setBoxText(stateBox, getStateSnapshot());
+}
+
+function refreshEnvBox() {
+  setBoxText(envBox, getEnvSnapshot());
 }
 
 function buildUi() {
@@ -183,9 +263,8 @@ function buildUi() {
 
   const copyBtn = makeBtn('Copy');
   const clearBtn = makeBtn('Clear');
+  const refreshBtn = makeBtn('Refresh');
   const hideBtn = makeBtn('Hide');
-  const stateBtn = makeBtn('State');
-  const envBtn = makeBtn('Env');
 
   copyBtn.addEventListener('click', () => copyLogs());
 
@@ -194,72 +273,51 @@ function buildUi() {
     refreshLogBox();
   });
 
+  refreshBtn.addEventListener('click', () => {
+    refreshStateBox();
+    refreshEnvBox();
+  });
+
   hideBtn.addEventListener('click', () => setVisible(false));
-
-  stateBtn.addEventListener('click', () => {
-    try {
-      if (window.FourteenKit?.getState) {
-        addLog('STATE', window.FourteenKit.getState());
-      } else {
-        addLog('STATE', 'window.FourteenKit.getState is not available');
-      }
-    } catch (error) {
-      addLog('STATE_ERROR', error);
-    }
-  });
-
-  envBtn.addEventListener('click', () => {
-    addLog('ENV', {
-      href: window.location.href,
-      userAgent: navigator.userAgent,
-      fourteенConnect: !!window.FourteenConnect,
-      fourteenKit: !!window.FourteenKit,
-      tronWeb: !!window.tronWeb,
-      tronLink: !!window.tronLink,
-      okxwallet: !!window.okxwallet,
-      okx: !!window.okx,
-      BinanceChain: !!window.BinanceChain,
-      trustwallet: !!window.trustwallet,
-      trustWallet: !!window.trustWallet,
-      ethereum: !!window.ethereum,
-      tokenpocket: !!window.tokenpocket,
-      bitkeep: !!window.bitkeep
-    });
-  });
 
   actions.appendChild(copyBtn);
   actions.appendChild(clearBtn);
-  actions.appendChild(stateBtn);
-  actions.appendChild(envBtn);
+  actions.appendChild(refreshBtn);
   actions.appendChild(hideBtn);
 
   topBar.appendChild(title);
   topBar.appendChild(actions);
 
-  logBox = document.createElement('pre');
+  const stateSection = makeSection('State');
+  const envSection = makeSection('Env');
+  const logSection = makeSection('Logs');
+
+  stateBox = stateSection.box;
+  envBox = envSection.box;
+  logBox = logSection.box;
   logBox.style.flex = '1';
-  logBox.style.margin = '0';
-  logBox.style.padding = '10px';
-  logBox.style.borderRadius = '12px';
-  logBox.style.background = '#050505';
+  logBox.style.maxHeight = 'none';
   logBox.style.color = '#93c5fd';
-  logBox.style.fontSize = '11px';
-  logBox.style.lineHeight = '1.45';
-  logBox.style.whiteSpace = 'pre-wrap';
-  logBox.style.wordBreak = 'break-word';
-  logBox.style.overflow = 'auto';
 
   panel.appendChild(topBar);
-  panel.appendChild(logBox);
+  panel.appendChild(stateSection.wrap);
+  panel.appendChild(envSection.wrap);
+  panel.appendChild(logSection.wrap);
 
   toggle.addEventListener('click', () => {
     setVisible(!isVisible);
+    if (isVisible) {
+      refreshStateBox();
+      refreshEnvBox();
+    }
   });
 
   overlayRoot.appendChild(toggle);
   overlayRoot.appendChild(panel);
   document.body.appendChild(overlayRoot);
 
+  refreshStateBox();
+  refreshEnvBox();
   refreshLogBox();
 }
 
@@ -269,9 +327,7 @@ function patchConsole() {
   originalConsole = {
     log: console.log.bind(console),
     warn: console.warn.bind(console),
-    error: console.error.bind(console),
-    info: console.info ? console.info.bind(console) : console.log.bind(console),
-    debug: console.debug ? console.debug.bind(console) : console.log.bind(console)
+    error: console.error.bind(console)
   };
 
   console.log = (...args) => {
@@ -287,16 +343,6 @@ function patchConsole() {
   console.error = (...args) => {
     addLog('ERROR', ...args);
     originalConsole.error(...args);
-  };
-
-  console.info = (...args) => {
-    addLog('INFO', ...args);
-    originalConsole.info(...args);
-  };
-
-  console.debug = (...args) => {
-    addLog('DEBUG', ...args);
-    originalConsole.debug(...args);
   };
 }
 
@@ -314,6 +360,19 @@ function bindGlobalErrors() {
   window.addEventListener('unhandledrejection', (event) => {
     addLog('PROMISE_REJECTION', event.reason);
   });
+}
+
+function bindStateUpdates() {
+  if (stateUnsubscribe) return;
+  if (!window.FourteenKit?.subscribe) return;
+
+  try {
+    stateUnsubscribe = window.FourteenKit.subscribe((state) => {
+      if (stateBox) {
+        setBoxText(stateBox, state);
+      }
+    });
+  } catch (_) {}
 }
 
 function waitForBodyAndStart(start) {
@@ -351,6 +410,7 @@ export function initDebugOverlay(options = {}) {
     buildUi();
     patchConsole();
     bindGlobalErrors();
+    bindStateUpdates();
 
     addLog('INFO', 'Debug overlay initialized');
     addLog('INFO', 'User agent:', navigator.userAgent);
@@ -366,6 +426,8 @@ export function debugOverlayLog(...args) {
 
 export function showDebugOverlay() {
   setVisible(true);
+  refreshStateBox();
+  refreshEnvBox();
 }
 
 export function hideDebugOverlay() {
