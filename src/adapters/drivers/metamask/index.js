@@ -1,6 +1,11 @@
+import { TronWeb } from 'tronweb';
 import { isMetaMaskBrowser } from '../../shared/browserDetection.js';
 import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
-import { forceBindTronWeb, waitForAddress } from '../../shared/accountRequests.js';
+import {
+  forceBindTronWeb,
+  waitForAddress,
+  tryRequestAccounts
+} from '../../shared/accountRequests.js';
 import { pickBestProvider } from '../../shared/providerResolver.js';
 import { readTrxBalance } from '../../shared/trxBalanceReader.js';
 import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
@@ -8,9 +13,14 @@ import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
 const DRIVER_ID = 'metamask';
 const DRIVER_NAME = 'MetaMask';
 const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
+const TRONGRID_FULL_HOST = 'https://api.trongrid.io';
 
 function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getAdapterName(adapter) {
@@ -37,7 +47,12 @@ function isMatchingAdapter(adapter) {
   const id = String(getAdapterId(adapter) || '').trim().toLowerCase();
   const name = String(getAdapterName(adapter) || '').trim().toLowerCase();
 
-  return id === 'metamask' || name === 'metamask';
+  return (
+    id === 'metamask' ||
+    id === 'meta mask' ||
+    name === 'metamask' ||
+    name === 'meta mask'
+  );
 }
 
 function resolveAdapters(appkit) {
@@ -63,11 +78,10 @@ function getInjectedMetaMaskProvider() {
   const win = getWindowSafe();
   if (!win) return null;
 
-  return (
-    win.ethereum?.tronWeb ||
-    win.ethereum ||
-    null
-  );
+  if (win.ethereum?.tronWeb) return win.ethereum.tronWeb;
+  if (win.ethereum?.isMetaMask) return win.ethereum;
+
+  return null;
 }
 
 function getCandidateAdapter(appkit) {
@@ -129,17 +143,21 @@ async function disconnectAdapter(adapter, provider = null) {
   }
 }
 
-function getSigningCapabilities(provider) {
-  const tronWeb = provider?.tronWeb || provider || null;
+function getSigningCapabilities(provider, tronWeb = null) {
+  const resolvedTronWeb = tronWeb || provider?.tronWeb || provider || null;
 
   return {
     hasProviderRequest: typeof provider?.request === 'function',
     hasProviderSend: typeof provider?.send === 'function',
-    hasTronWebSign: typeof tronWeb?.trx?.sign === 'function',
+    hasProviderSign: typeof provider?.sign === 'function',
+    hasTronWebSign: typeof resolvedTronWeb?.trx?.sign === 'function',
+    hasTransactionBuilder: typeof resolvedTronWeb?.transactionBuilder?.sendTrx === 'function',
+    hasAddressToHex: typeof resolvedTronWeb?.address?.toHex === 'function',
     canSign: !!(
       typeof provider?.request === 'function' ||
       typeof provider?.send === 'function' ||
-      typeof tronWeb?.trx?.sign === 'function'
+      typeof provider?.sign === 'function' ||
+      typeof resolvedTronWeb?.trx?.sign === 'function'
     )
   };
 }
@@ -168,6 +186,92 @@ function subscribe(target, eventName, handler) {
       }
     } catch (_) {}
   };
+}
+
+async function readAddressFromProvider(provider) {
+  if (!provider) {
+    return null;
+  }
+
+  try {
+    const result = await tryRequestAccounts(provider);
+
+    if (isUsableAddress(result)) {
+      return result;
+    }
+  } catch (_) {}
+
+  return (
+    provider?.address ||
+    provider?.selectedAddress ||
+    provider?.defaultAddress?.base58 ||
+    provider?.tronWeb?.defaultAddress?.base58 ||
+    getWindowSafe()?.tronWeb?.defaultAddress?.base58 ||
+    null
+  );
+}
+
+function createMetaMaskTronWeb(provider, address) {
+  const tronWeb = new TronWeb({
+    fullHost: TRONGRID_FULL_HOST
+  });
+
+  if (isUsableAddress(address)) {
+    try {
+      tronWeb.setAddress(address);
+    } catch (_) {}
+
+    try {
+      tronWeb.defaultAddress = {
+        ...tronWeb.defaultAddress,
+        base58: address
+      };
+    } catch (_) {}
+  }
+
+  return tronWeb;
+}
+
+async function ensureMetaMaskSession(adapter, provider) {
+  const directAddress = resolveAddress(adapter, provider);
+
+  if (isUsableAddress(directAddress)) {
+    return directAddress;
+  }
+
+  const providerAddress = await readAddressFromProvider(provider);
+
+  if (isUsableAddress(providerAddress)) {
+    return providerAddress;
+  }
+
+  const requestedAddress = await tryRequestAccounts(provider);
+
+  if (isUsableAddress(requestedAddress)) {
+    return requestedAddress;
+  }
+
+  return null;
+}
+
+async function waitForMetaMaskProvider(appkit, adapter, options = {}) {
+  const {
+    attempts = 12,
+    intervalMs = 120
+  } = options;
+
+  for (let i = 0; i < attempts; i++) {
+    const provider = getResolvedProvider(appkit, adapter);
+    const address = resolveAddress(adapter, provider);
+
+    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign)) {
+      return provider;
+    }
+
+    await sleep(intervalMs);
+  }
+
+  return getResolvedProvider(appkit, adapter);
 }
 
 export const metaMaskDriver = {
@@ -203,15 +307,16 @@ export const metaMaskDriver = {
       await connectAdapter(adapter);
     }
 
-    let provider = this.getProvider(appkit);
-    let address = null;
+    let provider = await waitForMetaMaskProvider(appkit, adapter);
+    let address = await ensureMetaMaskSession(adapter, provider);
 
-    if (adapter || provider) {
-      provider = getResolvedProvider(appkit, adapter);
+    provider = await waitForMetaMaskProvider(appkit, adapter);
+
+    if (!isUsableAddress(address)) {
       address = await waitForAddress(adapter, provider, {
         attempts: 16,
-        intervalMs: 250,
-        requestAccountAt: [0, 4, 8, 12]
+        intervalMs: 180,
+        requestAccountAt: [0, 2, 4, 8, 12]
       });
     }
 
@@ -219,15 +324,38 @@ export const metaMaskDriver = {
       throw new Error('MetaMask address not resolved');
     }
 
+    let tronWeb =
+      provider?.tronWeb ||
+      (provider?.trx?.sign ? provider : null) ||
+      null;
+
+    if (!tronWeb) {
+      tronWeb = createMetaMaskTronWeb(provider, address);
+    }
+
     await forceBindTronWeb(provider, address);
+
+    if (tronWeb && typeof tronWeb.setAddress === 'function') {
+      try {
+        tronWeb.setAddress(address);
+      } catch (_) {}
+    }
+
+    const finalProvider = await waitForMetaMaskProvider(appkit, adapter);
 
     return {
       ok: true,
       walletId: DRIVER_NAME,
       walletName: DRIVER_NAME,
       address,
-      provider,
-      tronWeb: provider?.tronWeb || provider || null,
+      provider: finalProvider || provider,
+      tronWeb:
+        finalProvider?.tronWeb ||
+        (finalProvider?.trx?.sign ? finalProvider : null) ||
+        tronWeb ||
+        provider?.tronWeb ||
+        provider ||
+        null,
       adapter: adapter || null
     };
   },
@@ -267,14 +395,35 @@ export const metaMaskDriver = {
 
   getSigningState(appkit) {
     const provider = this.getProvider(appkit);
-    return getSigningCapabilities(provider);
+    const address = this.getAddress(appkit);
+    const tronWeb =
+      provider?.tronWeb ||
+      (provider?.trx?.sign ? provider : null) ||
+      createMetaMaskTronWeb(provider, address);
+
+    return getSigningCapabilities(provider, tronWeb);
   },
 
   async assertSigningReady(appkit) {
-    const signing = this.getSigningState(appkit);
+    const provider = this.getProvider(appkit);
+    const address = this.getAddress(appkit);
+    const tronWeb =
+      provider?.tronWeb ||
+      (provider?.trx?.sign ? provider : null) ||
+      createMetaMaskTronWeb(provider, address);
+
+    const signing = getSigningCapabilities(provider, tronWeb);
 
     if (!signing.canSign) {
       throw new Error('MetaMask signing not available');
+    }
+
+    if (!signing.hasTransactionBuilder) {
+      throw new Error('MetaMask transaction builder is not available');
+    }
+
+    if (!signing.hasAddressToHex) {
+      throw new Error('MetaMask address codec is not available');
     }
 
     return {
@@ -286,6 +435,7 @@ export const metaMaskDriver = {
   subscribe(appkit, handlers = {}) {
     const adapter = this.getAdapter(appkit);
     const provider = this.getProvider(appkit);
+    const win = getWindowSafe();
 
     const unsubs = [
       subscribe(adapter, 'connect', handlers.onConnect),
@@ -294,7 +444,10 @@ export const metaMaskDriver = {
       subscribe(adapter, 'readyStateChanged', handlers.onReadyStateChanged),
       subscribe(provider, 'accountsChanged', handlers.onAccountsChanged),
       subscribe(provider, 'disconnect', handlers.onDisconnect),
-      subscribe(provider, 'connect', handlers.onConnect)
+      subscribe(provider, 'connect', handlers.onConnect),
+      subscribe(win?.ethereum, 'accountsChanged', handlers.onAccountsChanged),
+      subscribe(win?.ethereum, 'disconnect', handlers.onDisconnect),
+      subscribe(win?.ethereum, 'connect', handlers.onConnect)
     ];
 
     return () => {
