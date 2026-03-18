@@ -308,11 +308,13 @@ export async function refreshAllBalances({ address, walletId, provider, force = 
   }
 
   if (!force && now - lastRefreshAt < 1200) {
+    const state = getWalletState();
+
     return {
-      address: getWalletState().address || null,
-      walletId: getWalletState().activeWalletId || getWalletState().walletId || null,
-      trxBalance: getWalletState().trxBalance,
-      fourteenBalance: getWalletState().fourteenBalance,
+      address: state.address || null,
+      walletId: state.activeWalletId || state.walletId || null,
+      trxBalance: state.trxBalance,
+      fourteenBalance: state.fourteenBalance,
       warnings: {
         trx: null,
         token: null
