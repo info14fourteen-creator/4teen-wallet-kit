@@ -1,11 +1,13 @@
 import { bindAdapterEvents } from '../runtime/bindAdapterEvents.js';
 import { isWalletBrowser } from '../../adapters/shared/browserDetection.js';
+import { readAddressFromAdapter } from '../../adapters/shared/addressResolver.js';
 import { getWalletState, setWalletState } from '../../core/store/walletStore.js';
 
 function createNoopScheduler() {
   return {
     scheduleRestore() {},
-    scheduleAutoConnect() {}
+    scheduleAutoConnect() {},
+    clearAll() {}
   };
 }
 
@@ -27,38 +29,6 @@ function getAdapterId(adapter) {
     adapter?.key ||
     null
   );
-}
-
-function isUsableAddress(value) {
-  return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
-}
-
-function readAddressFromAdapter(adapter) {
-  if (!adapter) return null;
-
-  const candidates = [
-    adapter?.address,
-    adapter?.publicKey,
-    adapter?.account?.address,
-    adapter?.account?.publicKey,
-    adapter?.tronWeb?.defaultAddress?.base58,
-    adapter?.provider?.defaultAddress?.base58,
-    adapter?.provider?.tronWeb?.defaultAddress?.base58,
-    adapter?.provider?.selectedAddress,
-    adapter?.provider?.address,
-    adapter?.wallet?.defaultAddress?.base58,
-    adapter?.walletProvider?.defaultAddress?.base58,
-    adapter?.connector?.provider?.defaultAddress?.base58,
-    adapter?.connector?.provider?.tronWeb?.defaultAddress?.base58
-  ];
-
-  for (const value of candidates) {
-    if (isUsableAddress(value)) {
-      return value;
-    }
-  }
-
-  return null;
 }
 
 function isWalletConnectAdapter(adapter) {
@@ -96,7 +66,7 @@ function getConnectedAdapterPriority(adapter, activeWalletId = null) {
   return score;
 }
 
-function resolveConnectedAdapter(adapters, activeWalletId = null) {
+function resolveConnectedAdapter(adapters = [], activeWalletId = null) {
   const connectedAdapters = adapters.filter((adapter) => {
     if (!adapter) return false;
     return !!adapter?.connected || !!readAddressFromAdapter(adapter);
@@ -116,7 +86,7 @@ function resolveConnectedAdapter(adapters, activeWalletId = null) {
   return ranked[0] || null;
 }
 
-function mapAvailableWallets(adapters, activeWalletId = null) {
+function mapAvailableWallets(adapters = [], activeWalletId = null) {
   const connectedAdapter = resolveConnectedAdapter(adapters, activeWalletId);
 
   return adapters.map((adapter) => {
@@ -130,8 +100,10 @@ function mapAvailableWallets(adapters, activeWalletId = null) {
       readyState,
       connected: !!(
         connectedAdapter &&
-        (getAdapterId(connectedAdapter) === adapterId ||
-          getAdapterName(connectedAdapter) === adapterName)
+        (
+          getAdapterId(connectedAdapter) === adapterId ||
+          getAdapterName(connectedAdapter) === adapterName
+        )
       )
     };
   });
@@ -163,7 +135,9 @@ export function createWalletManager({
     },
 
     getAdapterById(walletId) {
-      if (!walletId) return null;
+      if (!walletId) {
+        return null;
+      }
 
       return (
         this.adapters.find((adapter) => {
@@ -177,6 +151,7 @@ export function createWalletManager({
 
     getConnectedAdapter() {
       const state = getWalletState();
+
       this.connectedAdapter = resolveConnectedAdapter(
         this.adapters,
         state.activeWalletId || null
@@ -187,7 +162,10 @@ export function createWalletManager({
 
     getWalletProvider() {
       const adapter = this.getConnectedAdapter();
-      if (!adapter) return null;
+
+      if (!adapter) {
+        return null;
+      }
 
       return (
         adapter?.provider ||
@@ -236,6 +214,7 @@ export function createWalletManager({
           isWalletBrowser,
           resolveConnectedAdapter: () => {
             const state = getWalletState();
+
             return resolveConnectedAdapter(
               this.adapters,
               state.activeWalletId || null
@@ -252,6 +231,14 @@ export function createWalletManager({
           }
         });
       });
+    },
+
+    destroy() {
+      this.connectedAdapter = null;
+
+      if (typeof runtimeScheduler.clearAll === 'function') {
+        runtimeScheduler.clearAll();
+      }
     }
   };
 
