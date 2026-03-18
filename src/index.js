@@ -1,6 +1,7 @@
 import './ui/wallet/walletButton.css';
 import './ui/wallet/walletPicker.css';
 import './ui/wallet/noticeCenter.css';
+
 export { initWalletKit } from './wallet/services/initWalletKit.js';
 
 export { connectWallet } from './wallet/actions/connectWallet.js';
@@ -73,14 +74,21 @@ export {
   waitForAddress
 } from './adapters/shared/accountRequests.js';
 
-export { createReadonlyTronWeb, getDefaultReadonlyTronWeb } from './adapters/shared/createReadonlyTronWeb.js';
-export { readTrxBalance, safeReadTrxBalance } from './adapters/shared/trxBalanceReader.js';
+export {
+  createReadonlyTronWeb,
+  getDefaultReadonlyTronWeb
+} from './adapters/shared/createReadonlyTronWeb.js';
+
+export {
+  readTrxBalance,
+  safeReadTrxBalance
+} from './adapters/shared/trxBalanceReader.js';
+
 export {
   readTokenBalance,
   readTokenBalanceViaTrigger,
   safeReadTokenBalance
 } from './adapters/shared/tokenBalanceReader.js';
-
 
 export {
   pickWalletAdapter,
@@ -88,17 +96,53 @@ export {
   listWalletAdapters
 } from './adapters/registry/pickWalletAdapter.js';
 
-export { getWalletRegistry, WALLET_REGISTRY } from './adapters/registry/walletRegistry.js';
-export { getAvailableDrivers, listAvailableDriverIds } from './adapters/registry/getAvailableDrivers.js';
-export { getDriverMap } from './adapters/registry/getDriverMap.js';
-export { getWalletById, getDriverIdByWallet, getDriverById } from './adapters/registry/getDriverById.js';
+export {
+  getWalletRegistry,
+  WALLET_REGISTRY
+} from './adapters/registry/walletRegistry.js';
 
-export { createTronLinkDriver, tronLinkDriver } from './adapters/drivers/tronlink/index.js';
-export { createOkxDriver, okxDriver } from './adapters/drivers/okx/index.js';
-export { createBinanceDriver, binanceDriver } from './adapters/drivers/binance/index.js';
-export { createTokenPocketDriver, tokenPocketDriver } from './adapters/drivers/tokenpocket/index.js';
-export { createBitgetDriver, bitgetDriver } from './adapters/drivers/bitget/index.js';
-export { createMetaMaskDriver, metaMaskDriver } from './adapters/drivers/metamask/index.js';
+export {
+  getAvailableDrivers,
+  listAvailableDriverIds
+} from './adapters/registry/getAvailableDrivers.js';
+
+export { getDriverMap } from './adapters/registry/getDriverMap.js';
+
+export {
+  getWalletById,
+  getDriverIdByWallet,
+  getDriverById
+} from './adapters/registry/getDriverById.js';
+
+export {
+  createTronLinkDriver,
+  tronLinkDriver
+} from './adapters/drivers/tronlink/index.js';
+
+export {
+  createOkxDriver,
+  okxDriver
+} from './adapters/drivers/okx/index.js';
+
+export {
+  createBinanceDriver,
+  binanceDriver
+} from './adapters/drivers/binance/index.js';
+
+export {
+  createTokenPocketDriver,
+  tokenPocketDriver
+} from './adapters/drivers/tokenpocket/index.js';
+
+export {
+  createBitgetDriver,
+  bitgetDriver
+} from './adapters/drivers/bitget/index.js';
+
+export {
+  createMetaMaskDriver,
+  metaMaskDriver
+} from './adapters/drivers/metamask/index.js';
 
 export { bindAdapterEvents } from './wallet/runtime/bindAdapterEvents.js';
 export { waitAdaptersReady } from './wallet/runtime/waitAdaptersReady.js';
@@ -108,8 +152,13 @@ export { createWalletScheduler } from './wallet/runtime/walletScheduler.js';
 
 export { createWalletManager } from './wallet/core/walletManager.js';
 
-export { finalizeWalletConnection } from './wallet/session/finalizeWalletConnection.js';
-export { failWalletConnection } from './wallet/session/failWalletConnection.js';
+export {
+  finalizeWalletConnection
+} from './wallet/session/finalizeWalletConnection.js';
+
+export {
+  failWalletConnection
+} from './wallet/session/failWalletConnection.js';
 
 export { refreshAllBalances } from './services/balances/refreshAllBalances.js';
 
