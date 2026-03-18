@@ -56,6 +56,22 @@ export const WALLET_REGISTRY = [
     enabled: true
   },
   {
+    id: 'imToken',
+    key: 'imtoken',
+    name: 'imToken',
+    driverId: 'imtoken',
+    type: 'injected',
+    enabled: true
+  },
+  {
+    id: 'FoxWallet',
+    key: 'foxwallet',
+    name: 'FoxWallet',
+    driverId: 'foxwallet',
+    type: 'injected',
+    enabled: true
+  },
+  {
     id: 'WalletConnect',
     key: 'walletconnect',
     name: 'WalletConnect',
