@@ -555,3 +555,12 @@ export {
   createWalletConnectDriver,
   walletConnectDriver
 };
+export {
+  createTrustDriver,
+  trustDriver
+};
+
+export {
+  createWalletConnectDriver,
+  walletConnectDriver
+};
