@@ -8,20 +8,6 @@ import { connectWallet } from './wallet/actions/connectWallet.js';
 import { disconnectWallet } from './wallet/actions/disconnectWallet.js';
 import { restoreWalletSession } from './wallet/actions/restoreWalletSession.js';
 import { refreshWalletBalances } from './wallet/actions/refreshWalletBalances.js';
-import {
-  createTrustDriver,
-  trustDriver
-} from './adapters/drivers/trust/index.js';
-
-import {
-  createWalletConnectDriver,
-  walletConnectDriver
-} from './adapters/drivers/walletconnect/index.js';
-
-import {
-  createWalletConnectDriver,
-  walletConnectDriver
-} from './adapters/drivers/walletconnect/index.js';
 
 import {
   getWalletState,
@@ -179,9 +165,19 @@ import {
 } from './adapters/drivers/bitget/index.js';
 
 import {
+  createTrustDriver,
+  trustDriver
+} from './adapters/drivers/trust/index.js';
+
+import {
   createMetaMaskDriver,
   metaMaskDriver
 } from './adapters/drivers/metamask/index.js';
+
+import {
+  createWalletConnectDriver,
+  walletConnectDriver
+} from './adapters/drivers/walletconnect/index.js';
 
 import { bindAdapterEvents } from './wallet/runtime/bindAdapterEvents.js';
 import { waitAdaptersReady } from './wallet/runtime/waitAdaptersReady.js';
@@ -517,8 +513,18 @@ export {
 };
 
 export {
+  createTrustDriver,
+  trustDriver
+};
+
+export {
   createMetaMaskDriver,
   metaMaskDriver
+};
+
+export {
+  createWalletConnectDriver,
+  walletConnectDriver
 };
 
 export { bindAdapterEvents };
@@ -549,18 +555,4 @@ export {
 export {
   assertWalletSigning,
   printWalletSigningDiagnostics
-};
-
-export {
-  createWalletConnectDriver,
-  walletConnectDriver
-};
-export {
-  createTrustDriver,
-  trustDriver
-};
-
-export {
-  createWalletConnectDriver,
-  walletConnectDriver
 };
