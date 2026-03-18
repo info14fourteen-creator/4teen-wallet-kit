@@ -1,38 +1,10 @@
+import { getDriverById } from '../../adapters/registry/getDriverById.js';
 import { isTrustWalletBrowser } from '../../adapters/shared/browserDetection.js';
-import { isUsableAddress } from '../../adapters/shared/addressResolver.js';
-import { waitForAddress } from '../../adapters/shared/accountRequests.js';
-import { connectAdapter } from '../../adapters/shared/connectAdapter.js';
-import { pickBestProvider } from '../../adapters/shared/providerResolver.js';
-import { pickWalletAdapter } from '../../adapters/registry/pickWalletAdapter.js';
 import { connectTrustFallback } from '../../adapters/trustFallback.js';
 import { setWalletState } from '../../core/store/walletStore.js';
 import { openWalletPicker } from '../../ui/wallet/openWalletPicker.js';
 import { failWalletConnection } from '../session/failWalletConnection.js';
 import { finalizeWalletConnection } from '../session/finalizeWalletConnection.js';
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function getAdapterName(adapter) {
-  return (
-    adapter?.name ||
-    adapter?.adapterName ||
-    adapter?.displayName ||
-    adapter?.id ||
-    'Wallet'
-  );
-}
-
-function getAdapterId(adapter) {
-  return (
-    adapter?.id ||
-    adapter?.name ||
-    adapter?.adapterName ||
-    adapter?.key ||
-    null
-  );
-}
 
 export async function connectWallet(appkit, walletId = null) {
   try {
@@ -70,44 +42,23 @@ export async function connectWallet(appkit, walletId = null) {
       });
     }
 
-    const adapter =
-      (typeof appkit.getAdapterById === 'function' && appkit.getAdapterById(walletId)) ||
-      pickWalletAdapter(appkit, walletId);
+    const driver = getDriverById(walletId);
 
-    if (!adapter) {
-      throw new Error(`Adapter not found: ${walletId}`);
+    if (!driver) {
+      throw new Error(`Driver not found: ${walletId}`);
     }
 
-    await connectAdapter(adapter);
+    const result = await driver.connect(appkit);
 
-    let provider = null;
-    let address = null;
-
-    for (const delay of [0, 400, 600]) {
-      if (delay) {
-        await sleep(delay);
-      }
-
-      provider = pickBestProvider(appkit, adapter, walletId);
-      address = await waitForAddress(adapter, provider);
-
-      if (isUsableAddress(address)) {
-        break;
-      }
+    if (!result?.address) {
+      throw new Error(`${driver.name || walletId} did not return address`);
     }
-
-    if (!isUsableAddress(address)) {
-      throw new Error('Address not resolved');
-    }
-
-    const walletIdResolved = getAdapterId(adapter) || walletId;
-    const walletNameResolved = getAdapterName(adapter) || walletId;
 
     return await finalizeWalletConnection({
-      walletId: walletIdResolved,
-      walletName: walletNameResolved,
-      address,
-      provider
+      walletId: result.walletId || driver.name || walletId,
+      walletName: result.walletName || driver.name || walletId,
+      address: result.address,
+      provider: result.tronWeb || result.provider || null
     });
   } catch (error) {
     return failWalletConnection(error);
