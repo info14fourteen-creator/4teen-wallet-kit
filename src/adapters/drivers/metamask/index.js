@@ -78,8 +78,21 @@ function hasTronSigningCapability(target) {
 
   return !!(
     typeof tronWeb?.trx?.sign === 'function' &&
-    typeof tronWeb?.transactionBuilder?.sendTrx === 'function' &&
-    typeof tronWeb?.address?.toHex === 'function'
+    typeof tronWeb?.address?.toHex === 'function' &&
+    (
+      typeof tronWeb?.transactionBuilder?.triggerSmartContract === 'function' ||
+      typeof tronWeb?.transactionBuilder?.sendTrx === 'function'
+    )
+  );
+}
+
+function getProviderSignerAddress(provider) {
+  return (
+    provider?.tronWeb?.defaultAddress?.base58 ||
+    provider?.defaultAddress?.base58 ||
+    provider?.address ||
+    provider?.selectedAddress ||
+    null
   );
 }
 
@@ -166,7 +179,8 @@ function getSigningCapabilities(provider, tronWeb = null) {
   const resolvedTronWeb = tronWeb || provider?.tronWeb || provider || null;
 
   const hasTronWebSign = typeof resolvedTronWeb?.trx?.sign === 'function';
-  const hasTransactionBuilder = typeof resolvedTronWeb?.transactionBuilder?.triggerSmartContract === 'function' ||
+  const hasTransactionBuilder =
+    typeof resolvedTronWeb?.transactionBuilder?.triggerSmartContract === 'function' ||
     typeof resolvedTronWeb?.transactionBuilder?.sendTrx === 'function';
   const hasAddressToHex = typeof resolvedTronWeb?.address?.toHex === 'function';
 
@@ -221,10 +235,7 @@ async function readAddressFromProvider(provider) {
   } catch (_) {}
 
   return (
-    provider?.address ||
-    provider?.selectedAddress ||
-    provider?.defaultAddress?.base58 ||
-    provider?.tronWeb?.defaultAddress?.base58 ||
+    getProviderSignerAddress(provider) ||
     getWindowSafe()?.tronWeb?.defaultAddress?.base58 ||
     null
   );
@@ -288,6 +299,12 @@ function createBoundTronWeb(provider, address) {
 }
 
 async function ensureMetaMaskSession(adapter, provider) {
+  const signerAddress = getProviderSignerAddress(provider);
+
+  if (isUsableAddress(signerAddress)) {
+    return signerAddress;
+  }
+
   const directAddress = resolveAddress(adapter, provider);
 
   if (isUsableAddress(directAddress)) {
@@ -317,7 +334,9 @@ async function waitForMetaMaskProvider(appkit, adapter, options = {}) {
 
   for (let i = 0; i < attempts; i++) {
     const provider = getResolvedProvider(appkit, adapter);
-    const address = resolveAddress(adapter, provider);
+    const address =
+      getProviderSignerAddress(provider) ||
+      resolveAddress(adapter, provider);
 
     if (provider && (address || hasTronSigningCapability(provider) || hasTronSigningCapability(provider?.tronWeb))) {
       return provider;
@@ -352,7 +371,10 @@ export const metaMaskDriver = {
     const adapter = this.getAdapter(appkit);
     const provider = this.getProvider(appkit);
 
-    return resolveAddress(adapter, provider);
+    return (
+      getProviderSignerAddress(provider) ||
+      resolveAddress(adapter, provider)
+    );
   },
 
   async connect(appkit) {
@@ -375,6 +397,12 @@ export const metaMaskDriver = {
       });
     }
 
+    const signerAddress = getProviderSignerAddress(provider);
+
+    if (isUsableAddress(signerAddress)) {
+      address = signerAddress;
+    }
+
     if (!isUsableAddress(address)) {
       throw new Error('MetaMask address not resolved');
     }
@@ -393,6 +421,16 @@ export const metaMaskDriver = {
         tronWeb.setAddress(address);
       } catch (_) {}
     }
+
+    try {
+      if (tronWeb?.defaultAddress && typeof tronWeb.address?.toHex === 'function') {
+        tronWeb.defaultAddress = {
+          ...tronWeb.defaultAddress,
+          base58: address,
+          hex: tronWeb.address.toHex(address)
+        };
+      }
+    } catch (_) {}
 
     const signing = getSigningCapabilities(provider, tronWeb);
 
