@@ -15,8 +15,24 @@ const DEFAULT_CONFIG = {
   title: 'Liquidity Controller',
   subtitle: 'Manual trigger for automated liquidity routing',
   infoTitle: 'How this controller works',
-  infoText:
-    'This module lets an authorized wallet manually trigger the liquidity controller when conditions are satisfied. Once executed, the controller processes the available TRX and routes liquidity according to the contract rules.\n\nThe dashboard shows recent LiquidityExecuted and TRXReceived events directly from the blockchain, so you can verify controller activity, incoming deposits, execution timestamps, and transaction IDs in real time.\n\nUse the compact wallet button on desktop to connect quickly. On mobile, use the main connect button placed below the page content.'
+  infoText: `4TEEN runs a fully automated on-chain liquidity system.
+
+The Liquidity Controller smart contract accumulates TRX and executes daily liquidity distribution when conditions are met.
+
+Funds from token sales are routed directly into liquidity pools through on-chain execution.
+
+6.43% of the contract balance is deployed to liquidity every day during the lock period.
+
+All actions are executed via smart contracts and sent to JustMoney and Sun.io.
+
+Everything you see here is 100% on-chain:
+
+• LiquidityExecuted — confirmed liquidity distribution  
+• TRXReceived — incoming TRX from token sales  
+
+No backend. No manual control. No hidden logic.
+
+If it's shown here — it's on-chain and verifiable.`
 };
 
 const LIQUIDITY_CONTROLLER_ABI = [
@@ -190,8 +206,8 @@ export function mountLiquidityController(target, config = {}) {
 
           <div class="fourteen-liquidity-hero__text">
             <div class="fourteen-liquidity-hero__title">
-              <span>Liquidity</span> Controller
-            </div>
+  Liquidity <span>Controller</span>
+</div>
             <div class="fourteen-liquidity-hero__subtitle">${escapeHtml(subtitle)}</div>
           </div>
 
