@@ -9,10 +9,44 @@ import { trxIcon, fourteenIcon } from './icons.js';
 import { showWalletPicker, hideWalletPicker } from './walletPicker.js';
 import { resolveAutoWallet } from '../wallet/runtime/resolveAutoWallet.js';
 
-function formatNumber(value, digits = 2) {
+function formatNumber(value) {
   const num = Number(value || 0);
-  if (!Number.isFinite(num)) return '0.00';
-  return num.toFixed(digits);
+
+  if (!Number.isFinite(num)) {
+    return '0.00';
+  }
+
+  const abs = Math.abs(num);
+
+  if (abs >= 1_000_000_000) {
+    return `${(num / 1_000_000_000).toFixed(2)}b`;
+  }
+
+  if (abs >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(2)}m`;
+  }
+
+  if (abs >= 1_000) {
+    return `${(num / 1_000).toFixed(2)}k`;
+  }
+
+  return num.toFixed(2);
+}
+
+function getCycleBalance(state, cycleIndex) {
+  if (cycleIndex === 1) {
+    return {
+      value: formatNumber(state.fourteenBalance),
+      icon: fourteenIcon,
+      alt: '4TEEN'
+    };
+  }
+
+  return {
+    value: formatNumber(state.trxBalance),
+    icon: trxIcon,
+    alt: 'TRX'
+  };
 }
 
 function createDropdown({ onRefresh, onDisconnect }) {
@@ -64,7 +98,7 @@ function renderIdle(root, variant) {
   root.innerHTML = `
     <button type="button" class="fw-wallet-button fw-wallet-button--idle ${getVariantClass(variant)}">
       <span class="fw-wallet-button__wallet-dot"></span>
-      <span class="fw-wallet-button__label">WALLET NOT CONNECTED</span>
+      <span class="fw-wallet-button__label">Connect Wallet</span>
     </button>
   `;
 }
@@ -78,21 +112,18 @@ function renderConnecting(root, variant) {
   `;
 }
 
-function renderConnected(root, state, variant) {
+function renderConnected(root, state, variant, cycleIndex) {
   const compact = variant === 'compact';
+  const currentBalance = getCycleBalance(state, cycleIndex);
 
   root.innerHTML = `
     <button type="button" class="fw-wallet-button fw-wallet-button--connected ${getVariantClass(variant)}">
       <span class="fw-wallet-button__status-dot"></span>
       <span class="fw-wallet-button__address">${state.shortAddress || ''}</span>
       ${compact ? '' : '<span class="fw-wallet-button__divider"></span>'}
-      <span class="fw-wallet-button__balance">
-        <span class="fw-wallet-button__balance-value">${formatNumber(state.trxBalance)}</span>
-        <img class="fw-wallet-button__icon" src="${trxIcon}" alt="TRX" />
-      </span>
-      <span class="fw-wallet-button__balance">
-        <span class="fw-wallet-button__balance-value">${formatNumber(state.fourteenBalance)}</span>
-        <img class="fw-wallet-button__icon" src="${fourteenIcon}" alt="4TEEN" />
+      <span class="fw-wallet-button__balance fw-wallet-button__balance--single">
+        <span class="fw-wallet-button__balance-value">${currentBalance.value}</span>
+        <img class="fw-wallet-button__icon" src="${currentBalance.icon}" alt="${currentBalance.alt}" />
       </span>
       <span class="fw-wallet-button__caret">▾</span>
     </button>
@@ -115,11 +146,38 @@ export function mountWalletButton(target, options = {}) {
   let latestState = null;
   let pickerOpen = false;
   let connectInFlight = false;
+  let cycleTimer = null;
+  let cycleIndex = 0;
 
   function closeDropdown() {
     const existing = root.querySelector('.fw-wallet-dropdown');
     if (existing) existing.remove();
     isDropdownOpen = false;
+  }
+
+  function stopCycle() {
+    if (cycleTimer) {
+      clearInterval(cycleTimer);
+      cycleTimer = null;
+    }
+
+    cycleIndex = 0;
+  }
+
+  function startCycle() {
+    if (cycleTimer) {
+      return;
+    }
+
+    cycleTimer = setInterval(() => {
+      if (!latestState?.connected) {
+        stopCycle();
+        return;
+      }
+
+      cycleIndex = (cycleIndex + 1) % 2;
+      render(latestState);
+    }, 3000);
   }
 
   function toggleDropdown() {
@@ -228,16 +286,19 @@ export function mountWalletButton(target, options = {}) {
     closeDropdown();
 
     if (state.connecting) {
+      stopCycle();
       renderConnecting(root, variant);
       return;
     }
 
     if (state.connected) {
-      renderConnected(root, state, variant);
+      renderConnected(root, state, variant, cycleIndex);
       bindConnected();
+      startCycle();
       return;
     }
 
+    stopCycle();
     renderIdle(root, variant);
     bindDisconnected();
   }
@@ -255,6 +316,7 @@ export function mountWalletButton(target, options = {}) {
   return () => {
     pickerOpen = false;
     connectInFlight = false;
+    stopCycle();
     hideWalletPicker();
     closeDropdown();
     document.removeEventListener('click', handleOutsideClick);
