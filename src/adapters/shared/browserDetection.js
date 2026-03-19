@@ -69,18 +69,6 @@ export function isTrustWalletBrowser() {
   );
 }
 
-export function isMetaMaskBrowser() {
-  const win = getWindowSafe();
-  const ua = getUserAgent();
-  const href = getLocationHref();
-
-  return (
-    href.includes('utm_source=metamask') ||
-    ua.includes('metamask') ||
-    !!win?.ethereum?.isMetaMask
-  );
-}
-
 export function isTokenPocketBrowser() {
   const win = getWindowSafe();
   const ua = getUserAgent();
@@ -118,7 +106,8 @@ export function isImTokenBrowser() {
   return (
     href.includes('utm_source=imtoken') ||
     ua.includes('imtoken') ||
-    !!win?.tronweb
+    !!win?.tronweb ||
+    !!win?.tronWeb
   );
 }
 
@@ -136,16 +125,33 @@ export function isFoxWalletBrowser() {
   );
 }
 
+export function isMetaMaskBrowser() {
+  const win = getWindowSafe();
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=metamask') ||
+    ua.includes('metamask') ||
+    !!win?.ethereum?.isMetaMask
+  );
+}
+
 export function detectBrowserWalletName() {
   if (isOkxBrowser()) return 'OKX Wallet';
   if (isBinanceBrowser()) return 'Binance Wallet';
   if (isTronLinkBrowser()) return 'TronLink';
   if (isTrustWalletBrowser()) return 'Trust';
-  if (isMetaMaskBrowser()) return 'MetaMask';
   if (isTokenPocketBrowser()) return 'TokenPocket';
   if (isBitgetBrowser()) return 'Bitget Wallet';
+
+  // These must be checked before MetaMask because mobile in-app browsers
+  // may also expose window.ethereum and otherwise get misdetected.
   if (isImTokenBrowser()) return 'imToken';
   if (isFoxWalletBrowser()) return 'FoxWallet';
+
+  if (isMetaMaskBrowser()) return 'MetaMask';
+
   return null;
 }
 
@@ -159,11 +165,11 @@ export function getBrowserDetectionSnapshot() {
     binance: isBinanceBrowser(),
     tronLink: isTronLinkBrowser(),
     trust: isTrustWalletBrowser(),
-    metaMask: isMetaMaskBrowser(),
     tokenPocket: isTokenPocketBrowser(),
     bitget: isBitgetBrowser(),
     imToken: isImTokenBrowser(),
     foxWallet: isFoxWalletBrowser(),
+    metaMask: isMetaMaskBrowser(),
     detectedWalletName: detectBrowserWalletName()
   };
 }
