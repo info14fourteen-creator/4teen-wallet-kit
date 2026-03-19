@@ -247,7 +247,7 @@ export function mountDirectBuy(
     inputLabel = 'Enter TRX amount',
     buttonBuyText = 'Buy Now',
     title = 'Direct Buy',
-    subtitle = 'Buy locked 4TEEN directly from the contract.'
+    subtitle = 'Buy 4TEEN directly from the contract.'
   } = {}
 ) {
   if (!target) {
