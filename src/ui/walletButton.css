@@ -19,14 +19,12 @@
   font-family: Inter, Arial, Helvetica, sans-serif;
 }
 
-/* ================= BUTTON BASE ================= */
-
 .fw-wallet-button {
   display: inline-flex;
   align-items: center;
-  gap: 8px; /* уменьшили */
+  gap: 8px;
   min-height: 40px;
-  padding: 8px 12px; /* компактнее */
+  padding: 8px 12px;
   border-radius: var(--fw-radius);
   border: 1px solid rgba(255, 105, 0, 0.22);
   background: linear-gradient(
@@ -62,12 +60,11 @@
   cursor: default;
 }
 
-/* ================= IDLE ================= */
-
 .fw-wallet-button--idle .fw-wallet-button__label {
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.04em;
+  color: var(--fw-white);
 }
 
 .fw-wallet-button__wallet-dot {
@@ -76,12 +73,18 @@
   border-radius: 50%;
   background: var(--fw-orange);
   box-shadow: 0 0 12px rgba(255, 105, 0, 0.75);
+  flex: 0 0 auto;
 }
-
-/* ================= CONNECTING ================= */
 
 .fw-wallet-button--connecting {
   border-color: rgba(255, 105, 0, 0.55);
+}
+
+.fw-wallet-button--connecting .fw-wallet-button__label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--fw-light);
 }
 
 .fw-wallet-spinner {
@@ -99,8 +102,6 @@
   }
 }
 
-/* ================= CONNECTED ================= */
-
 .fw-wallet-button--connected {
   border-color: rgba(26, 224, 58, 0.34);
   background:
@@ -114,23 +115,22 @@
   border-radius: 50%;
   background: var(--fw-green);
   box-shadow: 0 0 10px rgba(26, 224, 58, 0.75);
+  flex: 0 0 auto;
 }
 
-/* адрес компактнее */
 .fw-wallet-button__address {
   font-size: 12px;
   font-weight: 700;
-  opacity: 0.9;
+  color: var(--fw-white);
+  opacity: 0.92;
 }
 
-/* divider тоньше */
 .fw-wallet-button__divider {
   width: 1px;
   height: 14px;
   background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
 }
-
-/* ================= BALANCE ================= */
 
 .fw-wallet-button__balance {
   display: inline-flex;
@@ -139,13 +139,42 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--fw-light);
-  transition: opacity 0.3s ease;
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease,
+    filter 0.28s ease;
 }
 
-/* главный баланс */
 .fw-wallet-button__balance--single {
-  min-width: 60px;
+  min-width: 64px;
   justify-content: flex-start;
+}
+
+.fw-wallet-button__balance--animate {
+  animation: fw-balance-swap 0.42s ease;
+}
+
+.fw-wallet-button__balance--trx {
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.05));
+}
+
+.fw-wallet-button__balance--fourteen {
+  filter: drop-shadow(0 0 10px rgba(255, 105, 0, 0.12));
+}
+
+@keyframes fw-balance-swap {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .fw-wallet-button__balance-value {
@@ -154,21 +183,19 @@
   letter-spacing: 0.02em;
 }
 
-/* иконка аккуратнее */
 .fw-wallet-button__icon {
   width: 14px;
   height: 14px;
   object-fit: contain;
+  display: block;
+  flex: 0 0 auto;
 }
 
-/* caret меньше */
 .fw-wallet-button__caret {
   margin-left: 2px;
   font-size: 10px;
-  opacity: 0.6;
+  color: rgba(255, 255, 255, 0.64);
 }
-
-/* ================= DROPDOWN ================= */
 
 .fw-wallet-dropdown {
   position: absolute;
@@ -190,12 +217,16 @@
   align-items: center;
   gap: 10px;
   padding: 9px 11px;
+  border: 0;
+  outline: 0;
   border-radius: var(--fw-radius-sm);
   background: transparent;
   color: var(--fw-white);
   font-size: 12px;
   font-weight: 700;
+  text-align: left;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .fw-wallet-dropdown__item:hover {
@@ -212,13 +243,12 @@
   height: 7px;
   border-radius: 50%;
   background: var(--fw-orange);
+  flex: 0 0 auto;
 }
 
 .fw-wallet-dropdown__item--danger .fw-wallet-dropdown__bullet {
   background: var(--fw-red);
 }
-
-/* ================= VARIANTS ================= */
 
 .fw-wallet-button--compact {
   min-height: 34px;
@@ -226,6 +256,7 @@
   gap: 6px;
 }
 
+.fw-wallet-button--compact .fw-wallet-button__label,
 .fw-wallet-button--compact .fw-wallet-button__address,
 .fw-wallet-button--compact .fw-wallet-button__balance {
   font-size: 11px;
@@ -236,12 +267,22 @@
   height: 12px;
 }
 
+.fw-wallet-button--compact .fw-wallet-button__divider {
+  height: 12px;
+}
+
+.fw-wallet-button--standard {
+  min-height: 40px;
+}
+
 .fw-wallet-button--hero {
   min-height: 48px;
   padding: 10px 14px;
   gap: 10px;
+  border-radius: 12px;
 }
 
+.fw-wallet-button--hero .fw-wallet-button__label,
 .fw-wallet-button--hero .fw-wallet-button__address,
 .fw-wallet-button--hero .fw-wallet-button__balance {
   font-size: 13px;
@@ -252,7 +293,9 @@
   height: 16px;
 }
 
-/* ================= MOBILE ================= */
+.fw-wallet-button--hero .fw-wallet-button__divider {
+  height: 16px;
+}
 
 @media (max-width: 640px) {
   .fw-wallet-button {
@@ -269,9 +312,16 @@
     font-size: 11px;
   }
 
+  .fw-wallet-button__icon {
+    width: 13px;
+    height: 13px;
+  }
+
   .fw-wallet-dropdown {
-    left: 0;
-    right: auto;
+    top: auto;
+    bottom: calc(100% + 8px);
+    right: 0;
+    left: auto;
     min-width: 180px;
   }
 }
