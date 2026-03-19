@@ -6,7 +6,9 @@ import {
   isTokenPocketBrowser,
   isBitgetBrowser,
   isTrustWalletBrowser,
-  isMetaMaskBrowser
+  isMetaMaskBrowser,
+  isImTokenBrowser,
+  isFoxWalletBrowser
 } from '../../adapters/shared/browserDetection.js';
 
 function getWindowSafe() {
@@ -64,6 +66,16 @@ function getInstalledInjectedWallets() {
     installed.push('Trust');
   }
 
+  if (win.tronweb || win.tronWeb) {
+    if (isImTokenBrowser()) {
+      installed.push('imToken');
+    }
+  }
+
+  if (win.foxwallet || win.foxwallet?.tronLink) {
+    installed.push('FoxWallet');
+  }
+
   if (win.ethereum?.isMetaMask) {
     installed.push('MetaMask');
   }
@@ -81,6 +93,12 @@ function getMobileWalletBrowserId() {
   if (isTokenPocketBrowser()) return 'TokenPocket';
   if (isBitgetBrowser()) return 'Bitget Wallet';
   if (isTrustWalletBrowser()) return 'Trust';
+
+  // These must be resolved before MetaMask because in-app mobile browsers
+  // may also expose window.ethereum and otherwise get misclassified.
+  if (isImTokenBrowser()) return 'imToken';
+  if (isFoxWalletBrowser()) return 'FoxWallet';
+
   if (isMetaMaskBrowser()) return 'MetaMask';
 
   return null;
