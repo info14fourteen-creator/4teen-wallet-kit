@@ -296,49 +296,33 @@ async function waitForFoxWalletAddress(adapter, provider, connectResult = null, 
   return null;
 }
 
-function getSigningCapabilities(provider) {
-  const tronWeb = provider?.tronWeb || provider || null;
+async function readFoxWalletTrxBalance(address, provider) {
+  const candidates = [
+    provider?.tronWeb,
+    provider,
+    getInjectedFoxWalletContainer()?.tronLink?.tronWeb,
+    getInjectedFoxWalletContainer()?.tronWeb,
+    getInjectedFoxWalletProvider()
+  ].filter(Boolean);
 
-  return {
-    hasProviderRequest: typeof provider?.request === 'function',
-    hasProviderSend: typeof provider?.send === 'function',
-    hasProviderSign: typeof provider?.sign === 'function',
-    hasTronWebSign: typeof tronWeb?.trx?.sign === 'function',
-    hasTransactionBuilder: typeof tronWeb?.transactionBuilder?.sendTrx === 'function',
-    hasAddressToHex: typeof tronWeb?.address?.toHex === 'function',
-    canSign: !!(
-      typeof provider?.request === 'function' ||
-      typeof provider?.send === 'function' ||
-      typeof provider?.sign === 'function' ||
-      typeof tronWeb?.trx?.sign === 'function'
-    )
-  };
-}
-
-function subscribe(target, eventName, handler) {
-  if (!target || typeof target.on !== 'function' || typeof handler !== 'function') {
-    return () => {};
-  }
-
-  try {
-    target.on(eventName, handler);
-  } catch (_) {
-    return () => {};
-  }
-
-  return () => {
+  for (const tronWeb of candidates) {
     try {
-      if (typeof target.off === 'function') {
-        target.off(eventName, handler);
+      if (typeof tronWeb?.trx?.getBalance === 'function') {
+        const balanceSun = await tronWeb.trx.getBalance(address);
+        const value = Number((Number(balanceSun || 0) / 1_000_000).toFixed(6));
+
+        if (Number.isFinite(value)) {
+          return {
+            ok: true,
+            value,
+            source: 'foxwallet_injected'
+          };
+        }
       }
     } catch (_) {}
+  }
 
-    try {
-      if (typeof target.removeListener === 'function') {
-        target.removeListener(eventName, handler);
-      }
-    } catch (_) {}
-  };
+  return { ok: false, value: null };
 }
 
 export const foxWalletDriver = {
@@ -347,50 +331,21 @@ export const foxWalletDriver = {
   name: DRIVER_NAME,
   type: 'injected',
 
-  canHandle(appkit) {
-    return isFoxWalletBrowser() || !!getResolvedProvider(appkit, this.getAdapter(appkit));
-  },
-
-  getAdapter(appkit) {
-    return getCandidateAdapter(appkit);
-  },
-
-  getProvider(appkit) {
-    const adapter = this.getAdapter(appkit);
-    return getResolvedProvider(appkit, adapter);
-  },
-
-  getAddress(appkit) {
-    const adapter = this.getAdapter(appkit);
-    const provider = this.getProvider(appkit);
-
-    return (
-      extractFoxWalletAddress(provider) ||
-      resolveAddress(adapter, provider) ||
-      null
-    );
-  },
-
   async connect(appkit) {
-    const adapter = this.getAdapter(appkit);
+    const adapter = getCandidateAdapter(appkit);
     const connectResult = await connectAdapter(adapter);
 
     let provider = await waitForFoxWalletProvider(appkit, adapter);
-    const container = getInjectedFoxWalletContainer();
 
-    if (!provider && container) {
-      provider = container;
+    if (!provider) {
+      provider = getInjectedFoxWalletProvider();
     }
 
     if (!provider) {
       throw new Error('FoxWallet provider not found');
     }
 
-    const address = await waitForFoxWalletAddress(adapter, provider, connectResult, {
-      attempts: isFoxWalletBrowser() ? 24 : 20,
-      intervalMs: 180,
-      requestAccountAt: isFoxWalletBrowser() ? [0, 1, 2, 4, 8, 12, 16, 20] : [0, 2, 4, 8, 12, 16]
-    });
+    const address = await waitForFoxWalletAddress(adapter, provider, connectResult);
 
     if (!isUsableAddress(address)) {
       throw new Error('FoxWallet address not resolved');
@@ -398,36 +353,33 @@ export const foxWalletDriver = {
 
     await forceBindTronWeb(provider, address);
 
-    const finalProvider = await waitForFoxWalletProvider(appkit, adapter);
-
     return {
       ok: true,
       walletId: DRIVER_NAME,
       walletName: DRIVER_NAME,
       address,
-      provider: finalProvider || provider,
-      tronWeb: finalProvider?.tronWeb || finalProvider || provider?.tronWeb || provider || null,
-      adapter: adapter || null
+      provider,
+      tronWeb: provider?.tronWeb || provider
     };
   },
 
-  async disconnect(appkit) {
-    const adapter = this.getAdapter(appkit);
-    const provider = this.getProvider(appkit);
-
-    await disconnectAdapter(adapter, provider);
-
-    return { ok: true };
-  },
-
   async readBalances(appkit, options = {}) {
-    const address = options.address || this.getAddress(appkit);
+    const provider = this.getProvider?.(appkit) || getInjectedFoxWalletProvider();
+    const address = options.address || this.getAddress?.(appkit);
 
     if (!isUsableAddress(address)) {
       throw new Error('FoxWallet balances: invalid address');
     }
 
-    const trxBalance = await readTrxBalance(address);
+    // 🔥 Сначала пробуем через Fox injected
+    const injected = await readFoxWalletTrxBalance(address, provider);
+
+    let trxBalance = injected.value;
+
+    // fallback на универсальный
+    if (!injected.ok) {
+      trxBalance = await readTrxBalance(address);
+    }
 
     const tokenResult = await safeReadTokenBalance(
       address,
@@ -441,59 +393,6 @@ export const foxWalletDriver = {
       tokenBalance: tokenResult.value,
       tokenSource: tokenResult.source || null,
       tokenError: tokenResult.error?.message || null
-    };
-  },
-
-  getSigningState(appkit) {
-    const provider = this.getProvider(appkit);
-    return getSigningCapabilities(provider);
-  },
-
-  async assertSigningReady(appkit) {
-    const signing = this.getSigningState(appkit);
-
-    if (!signing.canSign) {
-      return {
-        ok: true,
-        degraded: true,
-        reason: 'signing_not_ready_yet',
-        ...signing
-      };
-    }
-
-    return {
-      ok: true,
-      ...signing
-    };
-  },
-
-  subscribe(appkit, handlers = {}) {
-    const adapter = this.getAdapter(appkit);
-    const provider = this.getProvider(appkit);
-    const container = getInjectedFoxWalletContainer();
-
-    const unsubs = [
-      subscribe(adapter, 'connect', handlers.onConnect),
-      subscribe(adapter, 'disconnect', handlers.onDisconnect),
-      subscribe(adapter, 'accountsChanged', handlers.onAccountsChanged),
-      subscribe(adapter, 'readyStateChanged', handlers.onReadyStateChanged),
-      subscribe(provider, 'accountsChanged', handlers.onAccountsChanged),
-      subscribe(provider, 'disconnect', handlers.onDisconnect),
-      subscribe(provider, 'connect', handlers.onConnect),
-      subscribe(container, 'accountsChanged', handlers.onAccountsChanged),
-      subscribe(container, 'disconnect', handlers.onDisconnect),
-      subscribe(container, 'connect', handlers.onConnect),
-      subscribe(container?.tronLink, 'accountsChanged', handlers.onAccountsChanged),
-      subscribe(container?.tronLink, 'disconnect', handlers.onDisconnect),
-      subscribe(container?.tronLink, 'connect', handlers.onConnect)
-    ];
-
-    return () => {
-      unsubs.forEach((unsub) => {
-        try {
-          unsub();
-        } catch (_) {}
-      });
     };
   }
 };
