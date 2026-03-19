@@ -12,7 +12,7 @@ const DEFAULT_CONFIG = {
   typeList: 'SUNSWAP_V3',
   connectText: 'Connect Wallet',
   swapUrl: 'https://4teen.me/sw',
-  title: 'Unlock Timeline',
+  title: 'Token Unlock Timeline',
   subtitle: 'Track your locked 4TEEN releases',
   infoTitle: 'What this timeline shows — and why it matters',
   infoText:
