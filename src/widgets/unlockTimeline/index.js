@@ -3,8 +3,6 @@ import './unlockTimeline.css';
 const ACTIVE_INSTANCES = new WeakMap();
 
 const DEFAULT_CONFIG = {
-    infoTitle: 'About Timeline',
-  infoText: 'When you buy 4TEEN, your tokens are created and automatically locked for 14 days. This protects the market from instant sell-offs and gives early holders a fair, stable entry. The timeline on the right displays every one of your purchases, showing the exact unlock date in GMT, a live countdown, and your current Locked/Unlocked status.\n\nEach row includes a direct link to the on-chain transaction on Tronscan, so you can always verify the data yourself — block time, amount received, and event ID. As soon as the 14-day period ends, the status updates automatically and your tokens become freely tradable, with no action required from your side.\n\nThis gives you complete clarity: you always know when your tokens unlock, how close you are to the next release, and where to check everything on the blockchain.',
   contractAddress: 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A',
   apiKey: 'd4fcb4c1-89d8-4651-9e34-11dd7848789b',
   decimals: 6,
@@ -15,7 +13,10 @@ const DEFAULT_CONFIG = {
   connectText: 'Connect Wallet',
   swapUrl: 'https://4teen.me/sw',
   title: 'Unlock Timeline',
-  subtitle: 'Track your locked 4TEEN releases'
+  subtitle: 'Track your locked 4TEEN releases',
+  infoTitle: 'What this timeline shows — and why it matters',
+  infoText:
+    'When you buy 4TEEN, your tokens are created and automatically locked for 14 days. This protects the market from instant sell-offs and gives early holders a fair, stable entry. The timeline on the right displays every one of your purchases, showing the exact unlock date in GMT, a live countdown, and your current Locked/Unlocked status.\n\nEach row includes a direct link to the on-chain transaction on Tronscan, so you can always verify the data yourself — block time, amount received, and event ID. As soon as the 14-day period ends, the status updates automatically and your tokens become freely tradable, with no action required from your side.\n\nThis gives you complete clarity: you always know when your tokens unlock, how close you are to the next release, and where to check everything on the blockchain.'
 };
 
 function wait(ms) {
@@ -156,7 +157,9 @@ export function mountUnlockTimeline(target, config = {}) {
     connectText,
     swapUrl,
     title,
-    subtitle
+    subtitle,
+    infoTitle,
+    infoText
   } = { ...DEFAULT_CONFIG, ...config };
 
   if (!target) {
@@ -192,7 +195,25 @@ export function mountUnlockTimeline(target, config = {}) {
             <div class="fourteen-timeline-hero__subtitle">${escapeHtml(subtitle)}</div>
           </div>
 
-          <div class="fourteen-timeline-badge">${escapeHtml(`${unlockDays} Day Lock`)}</div>
+          <div class="fourteen-timeline-hero__actions">
+            <div class="fourteen-timeline-badge">${escapeHtml(`${unlockDays} Day Lock`)}</div>
+
+            <div class="fourteen-timeline-info-toggle-wrap">
+              <button
+                class="fourteen-timeline-info-toggle"
+                type="button"
+                aria-label="Timeline info"
+                data-role="timeline-info-toggle"
+              >
+                i
+              </button>
+
+              <div class="fourteen-timeline-popover" data-role="timeline-popover" hidden>
+                <div class="fourteen-timeline-popover__title">${escapeHtml(infoTitle)}</div>
+                <div class="fourteen-timeline-popover__text">${escapeHtml(infoText).replaceAll('\n', '<br><br>')}</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="fourteen-timeline-topbar">
@@ -267,6 +288,8 @@ export function mountUnlockTimeline(target, config = {}) {
   const statusEl = target.querySelector('[data-role="status"]');
   const tableBodyEl = target.querySelector('[data-role="table-body"]');
   const mobileListEl = target.querySelector('[data-role="mobile-list"]');
+  const infoToggleEl = target.querySelector('[data-role="timeline-info-toggle"]');
+  const popoverEl = target.querySelector('[data-role="timeline-popover"]');
 
   let isDestroyed = false;
   let isConnecting = false;
@@ -299,6 +322,26 @@ export function mountUnlockTimeline(target, config = {}) {
     if (!statusEl) return;
     statusEl.textContent = message;
     statusEl.dataset.state = isError ? 'error' : 'default';
+  }
+
+  function closePopover() {
+    if (popoverEl) {
+      popoverEl.hidden = true;
+    }
+  }
+
+  function togglePopover(event) {
+    event?.stopPropagation?.();
+
+    if (!popoverEl) return;
+
+    popoverEl.hidden = !popoverEl.hidden;
+  }
+
+  function handleOutsideClick(event) {
+    if (!target.contains(event.target)) {
+      closePopover();
+    }
   }
 
   function updateWalletLabel() {
@@ -665,6 +708,8 @@ export function mountUnlockTimeline(target, config = {}) {
   }
 
   buttonEl.addEventListener('click', handleConnect);
+  infoToggleEl?.addEventListener('click', togglePopover);
+  document.addEventListener('click', handleOutsideClick);
 
   if (typeof wallet.subscribe === 'function') {
     walletUnsubscribe = wallet.subscribe(handleWalletUpdate);
@@ -675,6 +720,8 @@ export function mountUnlockTimeline(target, config = {}) {
       isDestroyed = true;
       stopCountdown();
       buttonEl.removeEventListener('click', handleConnect);
+      infoToggleEl?.removeEventListener('click', togglePopover);
+      document.removeEventListener('click', handleOutsideClick);
 
       try {
         walletUnsubscribe?.();
