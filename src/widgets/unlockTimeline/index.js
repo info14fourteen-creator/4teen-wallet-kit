@@ -1,4 +1,5 @@
 import './unlockTimeline.css';
+import { mountWalletButton } from '../../ui/walletButton.js';
 
 const ACTIVE_INSTANCES = new WeakMap();
 
@@ -11,6 +12,7 @@ const DEFAULT_CONFIG = {
   toToken: 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
   typeList: 'SUNSWAP_V3',
   connectText: 'Connect Wallet',
+  mobileConnectHint: 'Tap connect below to continue.',
   swapUrl: 'https://4teen.me/sw',
   title: 'Token Unlock Timeline',
   subtitle: 'Track your locked 4TEEN releases',
@@ -166,6 +168,16 @@ function isConnectedSafe(wallet) {
   return !!state?.connected && !!state?.address;
 }
 
+function isMobileViewport() {
+  if (typeof window === 'undefined') return false;
+
+  if (typeof window.matchMedia === 'function') {
+    return window.matchMedia('(max-width: 640px)').matches;
+  }
+
+  return window.innerWidth <= 640;
+}
+
 export function mountUnlockTimeline(target, config = {}) {
   const {
     contractAddress,
@@ -176,6 +188,7 @@ export function mountUnlockTimeline(target, config = {}) {
     toToken,
     typeList,
     connectText,
+    mobileConnectHint,
     swapUrl,
     title,
     subtitle,
@@ -256,6 +269,13 @@ export function mountUnlockTimeline(target, config = {}) {
           </a>
         </div>
 
+        <div class="fourteen-timeline-connect-slot">
+          <div class="fourteen-timeline-connect-slot__desktop" data-role="embedded-wallet-button"></div>
+          <div class="fourteen-timeline-connect-slot__mobile" data-role="mobile-connect-hint" hidden>
+            ${escapeHtml(mobileConnectHint)}
+          </div>
+        </div>
+
         <div class="fourteen-timeline-summary">
           <div class="fourteen-timeline-summary-card">
             <div class="fourteen-timeline-summary-label">Available Now</div>
@@ -273,8 +293,6 @@ export function mountUnlockTimeline(target, config = {}) {
             Connect wallet to load balances, current rate, and your unlock timeline.
           </div>
         </div>
-
-        <button class="fourteen-timeline-button" type="button">${escapeHtml(connectText)}</button>
 
         <div class="fourteen-timeline-status" data-role="status" role="status" aria-live="polite"></div>
 
@@ -309,17 +327,19 @@ export function mountUnlockTimeline(target, config = {}) {
   const rateEl = target.querySelector('[data-role="rate"]');
   const swapLinkEl = target.querySelector('[data-role="swap-link"]');
   const detailsEl = target.querySelector('[data-role="details"]');
-  const buttonEl = target.querySelector('.fourteen-timeline-button');
   const statusEl = target.querySelector('[data-role="status"]');
   const tableBodyEl = target.querySelector('[data-role="table-body"]');
   const mobileListEl = target.querySelector('[data-role="mobile-list"]');
   const infoToggleEl = target.querySelector('[data-role="timeline-info-toggle"]');
   const popoverEl = target.querySelector('[data-role="timeline-popover"]');
+  const embeddedWalletButtonEl = target.querySelector('[data-role="embedded-wallet-button"]');
+  const mobileConnectHintEl = target.querySelector('[data-role="mobile-connect-hint"]');
 
   let isDestroyed = false;
-  let isConnecting = false;
   let walletUnsubscribe = null;
   let countdownInterval = null;
+  let embeddedWalletUnmount = null;
+  let resizeListenerBound = false;
 
   let balances = {
     total: 0,
@@ -526,6 +546,68 @@ export function mountUnlockTimeline(target, config = {}) {
     }, 1000);
   }
 
+  function unmountEmbeddedWalletButton() {
+    try {
+      embeddedWalletUnmount?.();
+    } catch (_) {}
+
+    embeddedWalletUnmount = null;
+
+    if (embeddedWalletButtonEl) {
+      embeddedWalletButtonEl.innerHTML = '';
+    }
+  }
+
+  async function refreshBalancesSafe() {
+    if (!wallet || typeof wallet.refreshBalances !== 'function') {
+      return;
+    }
+
+    try {
+      await wallet.refreshBalances();
+    } catch (_) {}
+  }
+
+  function syncEmbeddedWalletUi() {
+    const connected = isConnectedSafe(wallet);
+    const mobile = isMobileViewport();
+
+    if (mobile) {
+      unmountEmbeddedWalletButton();
+      if (mobileConnectHintEl) {
+        mobileConnectHintEl.hidden = connected;
+      }
+      return;
+    }
+
+    if (mobileConnectHintEl) {
+      mobileConnectHintEl.hidden = true;
+    }
+
+    if (embeddedWalletUnmount || !embeddedWalletButtonEl) {
+      return;
+    }
+
+    embeddedWalletUnmount = mountWalletButton(embeddedWalletButtonEl, {
+      variant: 'hero',
+      onConnectClick: async (walletId) => {
+        if (typeof wallet.connect === 'function') {
+          await wallet.connect(walletId);
+          await wait(450);
+          await refreshBalancesSafe();
+        }
+      },
+      onRefresh: async () => {
+        await refreshBalancesSafe();
+      },
+      onDisconnect: async () => {
+        if (typeof wallet.disconnect === 'function') {
+          await wallet.disconnect();
+        }
+      }
+    });
+  }
+
   async function getBalances() {
     const tronWeb = getTronWebSafe(wallet);
 
@@ -639,6 +721,8 @@ export function mountUnlockTimeline(target, config = {}) {
   }
 
   async function syncTimeline() {
+    syncEmbeddedWalletUi();
+
     if (!isConnectedSafe(wallet)) {
       updateWalletLabel();
       balances = { total: 0, locked: 0, available: 0 };
@@ -648,18 +732,12 @@ export function mountUnlockTimeline(target, config = {}) {
       renderPlaceholder();
       renderEmptyHistory('Connect wallet to view unlock events.');
       updateSwapLink();
-      buttonEl.disabled = false;
-      buttonEl.classList.remove('connected');
-      buttonEl.textContent = connectText;
       setStatus('');
       stopCountdown();
       return;
     }
 
     updateWalletLabel();
-    buttonEl.disabled = true;
-    buttonEl.classList.add('connected');
-    buttonEl.textContent = 'Connected';
 
     try {
       await getBalances();
@@ -705,32 +783,6 @@ export function mountUnlockTimeline(target, config = {}) {
     }
   }
 
-  async function handleConnect() {
-    if (isConnecting) return;
-
-    try {
-      isConnecting = true;
-      buttonEl.disabled = true;
-      buttonEl.textContent = 'Connecting...';
-      setStatus('Connecting wallet...');
-
-      if (typeof wallet.connect !== 'function') {
-        throw new Error('Wallet connect method is not available');
-      }
-
-      await wallet.connect();
-      await wait(500);
-      await syncTimeline();
-    } catch (error) {
-      buttonEl.disabled = false;
-      buttonEl.classList.remove('connected');
-      buttonEl.textContent = connectText;
-      setStatus(`Failed to connect: ${error?.message || error}`, true);
-    } finally {
-      isConnecting = false;
-    }
-  }
-
   function handleWalletUpdate() {
     if (!isAlive()) return;
 
@@ -740,9 +792,18 @@ export function mountUnlockTimeline(target, config = {}) {
     });
   }
 
-  buttonEl.addEventListener('click', handleConnect);
+  function handleResize() {
+    if (!isAlive()) return;
+    syncEmbeddedWalletUi();
+  }
+
   infoToggleEl?.addEventListener('click', togglePopover);
   document.addEventListener('click', handleOutsideClick);
+
+  if (typeof window !== 'undefined' && !resizeListenerBound) {
+    window.addEventListener('resize', handleResize);
+    resizeListenerBound = true;
+  }
 
   if (typeof wallet.subscribe === 'function') {
     walletUnsubscribe = wallet.subscribe(handleWalletUpdate);
@@ -752,9 +813,14 @@ export function mountUnlockTimeline(target, config = {}) {
     destroy() {
       isDestroyed = true;
       stopCountdown();
-      buttonEl.removeEventListener('click', handleConnect);
+      unmountEmbeddedWalletButton();
       infoToggleEl?.removeEventListener('click', togglePopover);
       document.removeEventListener('click', handleOutsideClick);
+
+      if (resizeListenerBound && typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleResize);
+        resizeListenerBound = false;
+      }
 
       try {
         walletUnsubscribe?.();
