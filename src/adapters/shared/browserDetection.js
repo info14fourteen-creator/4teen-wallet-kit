@@ -1,124 +1,171 @@
-import { getDriverById } from '../../adapters/registry/getDriverById.js';
-import { setWalletState } from '../../core/store/walletStore.js';
-import { openWalletPicker } from '../../ui/wallet/openWalletPicker.js';
-import { failWalletConnection } from '../session/failWalletConnection.js';
-import { finalizeWalletConnection } from '../session/finalizeWalletConnection.js';
-
-function isUsableAddress(value) {
-  return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
+function getWindowSafe() {
+  return typeof window !== 'undefined' ? window : null;
 }
 
-function shouldSkipAppkitSelection(walletId) {
-  return walletId === 'imToken' || walletId === 'FoxWallet';
+function getUserAgent() {
+  const win = getWindowSafe();
+  return String(win?.navigator?.userAgent || '').toLowerCase();
 }
 
-function extractAddressFromUnknown(value) {
-  if (!value) return null;
+function getLocationHref() {
+  const win = getWindowSafe();
+  return String(win?.location?.href || '').toLowerCase();
+}
 
-  if (typeof value === 'string') {
-    return isUsableAddress(value) ? value : null;
-  }
+export function isOkxBrowser() {
+  const win = getWindowSafe();
+  const ua = getUserAgent();
+  const href = getLocationHref();
 
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const nested = extractAddressFromUnknown(item);
-      if (nested) return nested;
-    }
+  return (
+    href.includes('utm_source=okx') ||
+    ua.includes('okex/') ||
+    ua.includes('okapp/') ||
+    ua.includes('okx') ||
+    !!win?.okxwallet ||
+    !!win?.okxWallet
+  );
+}
 
-    return null;
-  }
+export function isBinanceBrowser() {
+  const win = getWindowSafe();
+  const ua = getUserAgent();
+  const href = getLocationHref();
 
-  if (typeof value === 'object') {
-    return (
-      extractAddressFromUnknown(value.address) ||
-      extractAddressFromUnknown(value.publicKey) ||
-      extractAddressFromUnknown(value.selectedAddress) ||
-      extractAddressFromUnknown(value.base58) ||
-      extractAddressFromUnknown(value.data) ||
-      extractAddressFromUnknown(value.result) ||
-      extractAddressFromUnknown(value.accounts) ||
-      extractAddressFromUnknown(value.account) ||
-      extractAddressFromUnknown(value.payload) ||
-      extractAddressFromUnknown(value.object) ||
-      extractAddressFromUnknown(value.defaultAddress?.base58) ||
-      extractAddressFromUnknown(value.tronWeb?.defaultAddress?.base58) ||
-      null
-    );
-  }
+  return (
+    href.includes('utm_source=binance') ||
+    ua.includes('bnc/') ||
+    ua.includes('binance') ||
+    !!win?.BinanceChain ||
+    !!win?.binancew3w
+  );
+}
+
+export function isTronLinkBrowser() {
+  const win = getWindowSafe();
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=tronlink') ||
+    ua.includes('tronlink') ||
+    !!win?.tronLink ||
+    !!win?.tronWeb?.isTronLink
+  );
+}
+
+export function isTrustWalletBrowser() {
+  const win = getWindowSafe();
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=trust') ||
+    href.includes('trust_ios_browser') ||
+    ua.includes('trustwallet') ||
+    ua.includes('trust wallet') ||
+    !!win?.trustwallet ||
+    !!win?.trustWallet
+  );
+}
+
+export function isTokenPocketBrowser() {
+  const win = getWindowSafe();
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=tokenpocket') ||
+    ua.includes('tokenpocket') ||
+    ua.includes('tp/') ||
+    !!win?.tp ||
+    !!win?.tokenPocket
+  );
+}
+
+export function isBitgetBrowser() {
+  const win = getWindowSafe();
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=bitget') ||
+    href.includes('utm_source=bitkeep') ||
+    ua.includes('bitkeep') ||
+    ua.includes('bitget') ||
+    !!win?.bitkeep ||
+    !!win?.bitget
+  );
+}
+
+export function isImTokenBrowser() {
+  const win = getWindowSafe();
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=imtoken') ||
+    ua.includes('imtoken') ||
+    !!win?.tronweb ||
+    !!win?.tronWeb
+  );
+}
+
+export function isFoxWalletBrowser() {
+  const win = getWindowSafe();
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=foxwallet') ||
+    ua.includes('foxwallet') ||
+    ua.includes('fox wallet') ||
+    !!win?.foxwallet?.tronLink ||
+    !!win?.foxwallet
+  );
+}
+
+export function isMetaMaskBrowser() {
+  const win = getWindowSafe();
+  const ua = getUserAgent();
+  const href = getLocationHref();
+
+  return (
+    href.includes('utm_source=metamask') ||
+    ua.includes('metamask') ||
+    !!win?.ethereum?.isMetaMask
+  );
+}
+
+export function detectBrowserWalletName() {
+  if (isOkxBrowser()) return 'OKX Wallet';
+  if (isBinanceBrowser()) return 'Binance Wallet';
+  if (isTronLinkBrowser()) return 'TronLink';
+  if (isTrustWalletBrowser()) return 'Trust';
+  if (isTokenPocketBrowser()) return 'TokenPocket';
+  if (isBitgetBrowser()) return 'Bitget Wallet';
+  if (isImTokenBrowser()) return 'imToken';
+  if (isFoxWalletBrowser()) return 'FoxWallet';
+  if (isMetaMaskBrowser()) return 'MetaMask';
 
   return null;
 }
 
-function resolveFinalAddress(appkit, result, driver) {
-  return (
-    extractAddressFromUnknown(result?.address) ||
-    extractAddressFromUnknown(result?.provider) ||
-    extractAddressFromUnknown(result?.tronWeb) ||
-    extractAddressFromUnknown(result?.adapter) ||
-    extractAddressFromUnknown(driver?.getAddress?.(appkit)) ||
-    null
-  );
+export function isWalletBrowser() {
+  return !!detectBrowserWalletName();
 }
 
-function resolveFinalProvider(result) {
-  return (
-    result?.tronWeb ||
-    result?.provider ||
-    result?.adapter?.provider ||
-    result?.adapter?.tronWeb ||
-    result?.adapter?.walletProvider ||
-    result?.adapter?.wallet ||
-    result?.adapter?.connector?.provider ||
-    null
-  );
-}
-
-export async function connectWallet(appkit, walletId = null) {
-  try {
-    setWalletState({
-      connecting: true,
-      error: null
-    });
-
-    if (!appkit) {
-      throw new Error('Wallet kit not initialized');
-    }
-
-    if (!walletId) {
-      await openWalletPicker(appkit);
-
-      return {
-        ok: true,
-        session: null,
-        error: null
-      };
-    }
-
-    if (!shouldSkipAppkitSelection(walletId) && typeof appkit.selectWallet === 'function') {
-      appkit.selectWallet(walletId);
-    }
-
-    const driver = getDriverById(walletId);
-
-    if (!driver) {
-      throw new Error(`Driver not found: ${walletId}`);
-    }
-
-    const result = await driver.connect(appkit);
-    const address = resolveFinalAddress(appkit, result, driver);
-    const provider = resolveFinalProvider(result);
-
-    if (!isUsableAddress(address)) {
-      throw new Error('wallet address is missing or invalid');
-    }
-
-    return await finalizeWalletConnection({
-      walletId: result?.walletId || driver.name || walletId,
-      walletName: result?.walletName || driver.name || walletId,
-      address,
-      provider
-    });
-  } catch (error) {
-    return failWalletConnection(error);
-  }
+export function getBrowserDetectionSnapshot() {
+  return {
+    okx: isOkxBrowser(),
+    binance: isBinanceBrowser(),
+    tronLink: isTronLinkBrowser(),
+    trust: isTrustWalletBrowser(),
+    tokenPocket: isTokenPocketBrowser(),
+    bitget: isBitgetBrowser(),
+    imToken: isImTokenBrowser(),
+    foxWallet: isFoxWalletBrowser(),
+    metaMask: isMetaMaskBrowser(),
+    detectedWalletName: detectBrowserWalletName()
+  };
 }
