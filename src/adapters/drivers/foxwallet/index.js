@@ -287,20 +287,11 @@ function getFoxWalletActiveProvider(appkit, adapter = null) {
 
 function getFoxWalletDynamicTronWeb(appkit, adapter = null) {
   const provider = getFoxWalletActiveProvider(appkit, adapter);
-  return provider?.tronWeb || provider || null;
+  return provider?.tronWeb || null;
 }
 
 async function readFoxWalletTrxBalance(appkit, adapter, address) {
   const provider = getFoxWalletActiveProvider(appkit, adapter);
-  const tronWeb = getFoxWalletDynamicTronWeb(appkit, adapter);
-
-  if (!provider || !tronWeb) {
-    return {
-      ok: false,
-      value: null,
-      source: 'foxwallet_provider'
-    };
-  }
 
   try {
     if (typeof provider?.tronWeb?.getBalance === 'function') {
@@ -318,8 +309,8 @@ async function readFoxWalletTrxBalance(appkit, adapter, address) {
   } catch (_) {}
 
   try {
-    if (typeof tronWeb?.trx?.getBalance === 'function') {
-      const balanceSun = await tronWeb.trx.getBalance(address);
+    if (typeof provider?.tronWeb?.trx?.getBalance === 'function') {
+      const balanceSun = await provider.tronWeb.trx.getBalance(address);
       const value = Number((Number(balanceSun || 0) / 1_000_000).toFixed(6));
 
       if (Number.isFinite(value)) {
