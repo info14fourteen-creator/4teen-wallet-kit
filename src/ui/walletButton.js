@@ -127,9 +127,11 @@ function getVariantClass(variant) {
 function renderIdle(root, variant) {
   if (variant === 'mobile') {
     root.innerHTML = `
-      <button type="button" class="fw-wallet-mobile-button fw-wallet-mobile-button--idle">
-        <span class="fw-wallet-mobile-button__dot"></span>
-        <span class="fw-wallet-mobile-button__label">connect</span>
+      <button type="button" class="fw-wallet-mobile" aria-label="Connect Wallet">
+        <span class="fw-wallet-mobile__circle fw-wallet-mobile__circle--idle">
+          <span class="fw-wallet-mobile__status-dot fw-wallet-mobile__status-dot--idle"></span>
+        </span>
+        <span class="fw-wallet-mobile__text">connect</span>
       </button>
     `;
     return;
@@ -137,8 +139,10 @@ function renderIdle(root, variant) {
 
   root.innerHTML = `
     <button type="button" class="fw-wallet-button fw-wallet-button--idle ${getVariantClass(variant)}">
-      <span class="fw-wallet-button__wallet-dot"></span>
-      <span class="fw-wallet-button__label">Connect Wallet</span>
+      <span class="fw-wallet-button__left">
+        <span class="fw-wallet-button__wallet-dot"></span>
+        <span class="fw-wallet-button__label">Connect Wallet</span>
+      </span>
     </button>
   `;
 }
@@ -146,9 +150,11 @@ function renderIdle(root, variant) {
 function renderConnecting(root, variant) {
   if (variant === 'mobile') {
     root.innerHTML = `
-      <button type="button" class="fw-wallet-mobile-button fw-wallet-mobile-button--connecting" disabled>
-        <span class="fw-wallet-spinner"></span>
-        <span class="fw-wallet-mobile-button__label">connecting</span>
+      <button type="button" class="fw-wallet-mobile" aria-label="Connecting" disabled>
+        <span class="fw-wallet-mobile__circle fw-wallet-mobile__circle--connecting">
+          <span class="fw-wallet-spinner"></span>
+        </span>
+        <span class="fw-wallet-mobile__text">connecting</span>
       </button>
     `;
     return;
@@ -156,45 +162,49 @@ function renderConnecting(root, variant) {
 
   root.innerHTML = `
     <button type="button" class="fw-wallet-button fw-wallet-button--connecting ${getVariantClass(variant)}" disabled>
-      <span class="fw-wallet-spinner"></span>
-      <span class="fw-wallet-button__label">CONNECTING...</span>
+      <span class="fw-wallet-button__left">
+        <span class="fw-wallet-spinner"></span>
+        <span class="fw-wallet-button__label">CONNECTING...</span>
+      </span>
     </button>
   `;
 }
 
 function renderDesktopConnected(root, state, variant, cycleIndex, animate = false) {
-  const compact = variant === 'compact';
   const currentBalance = getDesktopCycleBalance(state, cycleIndex);
   const balanceAnimationClass = animate ? ' fw-wallet-button__balance--animate' : '';
 
   root.innerHTML = `
     <button type="button" class="fw-wallet-button fw-wallet-button--connected ${getVariantClass(variant)}">
-      <span class="fw-wallet-button__status-dot"></span>
-      <span class="fw-wallet-button__address">${state.shortAddress || ''}</span>
-      ${compact ? '' : '<span class="fw-wallet-button__divider"></span>'}
-      <span class="fw-wallet-button__balance fw-wallet-button__balance--single fw-wallet-button__balance--${currentBalance.kind}${balanceAnimationClass}">
-        <img class="fw-wallet-button__icon" src="${currentBalance.icon}" alt="${currentBalance.alt}" />
-        <span class="fw-wallet-button__balance-value">${currentBalance.value}</span>
+      <span class="fw-wallet-button__left">
+        <span class="fw-wallet-button__status-dot"></span>
+        <span class="fw-wallet-button__address">${state.shortAddress || ''}</span>
       </span>
-      <span class="fw-wallet-button__caret">▾</span>
+      <span class="fw-wallet-button__right">
+        <span class="fw-wallet-button__balance fw-wallet-button__balance--${currentBalance.kind}${balanceAnimationClass}">
+          <img class="fw-wallet-button__icon" src="${currentBalance.icon}" alt="${currentBalance.alt}" />
+          <span class="fw-wallet-button__balance-value">${currentBalance.value}</span>
+        </span>
+        <span class="fw-wallet-button__caret">▾</span>
+      </span>
     </button>
   `;
 }
 
 function renderMobileConnected(root, state, cycleIndex, animate = false) {
   const currentState = getMobileCycleState(state, cycleIndex);
-  const animationClass = animate ? ' fw-wallet-mobile-button__content--animate' : '';
+  const animationClass = animate ? ' fw-wallet-mobile__text--animate' : '';
 
   root.innerHTML = `
-    <button type="button" class="fw-wallet-mobile-button fw-wallet-mobile-button--connected fw-wallet-mobile-button--${currentState.mode}">
-      <span class="fw-wallet-mobile-button__content${animationClass}">
+    <button type="button" class="fw-wallet-mobile" aria-label="Wallet actions">
+      <span class="fw-wallet-mobile__circle fw-wallet-mobile__circle--${currentState.mode}">
         ${
           currentState.icon
-            ? `<img class="fw-wallet-mobile-button__icon" src="${currentState.icon}" alt="${currentState.alt}" />`
-            : '<span class="fw-wallet-mobile-button__status"></span>'
+            ? `<img class="fw-wallet-mobile__icon" src="${currentState.icon}" alt="${currentState.alt}" />`
+            : '<span class="fw-wallet-mobile__status-dot fw-wallet-mobile__status-dot--connected"></span>'
         }
-        <span class="fw-wallet-mobile-button__label">${currentState.label}</span>
       </span>
+      <span class="fw-wallet-mobile__text${animationClass}">${currentState.label}</span>
     </button>
   `;
 }
