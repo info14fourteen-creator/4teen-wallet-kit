@@ -132,6 +132,11 @@ export function shouldAutoConnectWallet() {
     return false;
   }
 
+  // FoxWallet is kept on manual connect for stability.
+  if (snapshot.mobileWalletId === 'FoxWallet') {
+    return false;
+  }
+
   return true;
 }
 
@@ -142,11 +147,13 @@ export function resolveAutoWallet() {
     return {
       shouldAutoConnect: false,
       walletId: null,
-      reason: !snapshot.isWalletBrowser
-        ? 'not_wallet_browser'
-        : !snapshot.isMobile
-          ? 'desktop_environment'
-          : 'wallet_browser_not_resolved',
+      reason: snapshot.mobileWalletId === 'FoxWallet'
+        ? 'foxwallet_manual_connect_only'
+        : !snapshot.isWalletBrowser
+          ? 'not_wallet_browser'
+          : !snapshot.isMobile
+            ? 'desktop_environment'
+            : 'wallet_browser_not_resolved',
       ...snapshot
     };
   }
