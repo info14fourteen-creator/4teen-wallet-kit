@@ -1,4 +1,9 @@
 import './directBuy.css';
+import {
+  showSuccessNotice,
+  showErrorNotice,
+  showNeutralNotice
+} from '../../ui/noticeCenter.js';
 
 const ACTIVE_INSTANCES = new Map();
 const SUN = 1_000_000;
@@ -80,40 +85,6 @@ function parsePositiveNumber(value) {
   }
 
   return num;
-}
-
-function createTopNotice(root, message, { isError = false, txid = '' } = {}) {
-  let notice = root.querySelector('.fourteen-buy-top-notice');
-
-  if (!notice) {
-    notice = document.createElement('div');
-    notice.className = 'fourteen-buy-top-notice';
-    root.prepend(notice);
-  }
-
-  const safeMessage = escapeHtml(message || '');
-
-  notice.className = `fourteen-buy-top-notice ${isError ? 'fourteen-buy-top-notice--error' : 'fourteen-buy-top-notice--success'}`;
-  notice.innerHTML = txid
-    ? `
-      <div class="fourteen-buy-top-notice__text">${safeMessage}</div>
-      <a
-        class="fourteen-buy-top-notice__link"
-        href="https://tronscan.org/#/transaction/${txid}"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        ${escapeHtml(txid)}
-      </a>
-    `
-    : `<div class="fourteen-buy-top-notice__text">${safeMessage}</div>`;
-
-  notice.style.display = 'flex';
-
-  clearTimeout(notice._hideTimer);
-  notice._hideTimer = setTimeout(() => {
-    notice.style.display = 'none';
-  }, 10000);
 }
 
 function extractTxid(result) {
@@ -266,8 +237,7 @@ function computeEstimatedTokens(trxAmount, tokenPriceSun) {
 
 function buildPriceText(tokenPriceSun) {
   const trxPerToken = fromSun(tokenPriceSun);
-
-  return `Current price: 1 4TEEN = ${formatTrx(trxPerToken, 6)} TRX`;
+  return `Each 4TEEN token is currently purchased at ${formatTrx(trxPerToken, 6)} TRX.`;
 }
 
 export function mountDirectBuy({
@@ -300,8 +270,6 @@ export function mountDirectBuy({
 
   root.innerHTML = `
     <div class="fourteen-buy-widget">
-      <div class="fourteen-buy-top-notice" style="display:none"></div>
-
       <div class="fourteen-buy-shell">
         <div class="fourteen-buy-heading">
           <div class="fourteen-buy-title">${escapeHtml(title)}</div>
@@ -366,7 +334,6 @@ export function mountDirectBuy({
     </div>
   `;
 
-  const widgetEl = root.querySelector('.fourteen-buy-widget');
   const inputEl = root.querySelector('.fourteen-buy-input');
   const buttonEl = root.querySelector('.fourteen-buy-button');
   const statusEl = root.querySelector('.fourteen-buy-status');
@@ -382,11 +349,35 @@ export function mountDirectBuy({
     return !isDestroyed && document.body.contains(root);
   }
 
-  function setStatus(message = '', isError = false) {
+  function setStatus(message = '', isError = false, txid = '') {
     if (!statusEl) return;
 
-    statusEl.textContent = message || '';
+    const safeMessage = escapeHtml(message || '');
+
+    if (!message) {
+      statusEl.innerHTML = '';
+      statusEl.dataset.state = 'default';
+      return;
+    }
+
     statusEl.dataset.state = isError ? 'error' : 'default';
+
+    if (txid) {
+      statusEl.innerHTML = `
+        <span>${safeMessage}</span>
+        <a
+          class="fourteen-buy-status__link"
+          href="https://tronscan.org/#/transaction/${txid}"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          View on Tronscan
+        </a>
+      `;
+      return;
+    }
+
+    statusEl.innerHTML = `<span>${safeMessage}</span>`;
   }
 
   function syncEstimate() {
@@ -402,10 +393,6 @@ export function mountDirectBuy({
 
     buttonEl.disabled = isSubmitting || !connected || trxAmount <= 0;
     buttonEl.textContent = isSubmitting ? 'Waiting...' : buttonBuyText;
-
-    if (!connected) {
-      buttonEl.disabled = true;
-    }
 
     if (canBuy) {
       buttonEl.removeAttribute('aria-disabled');
@@ -428,6 +415,7 @@ export function mountDirectBuy({
 
   async function connectWallet() {
     if (typeof wallet.connect === 'function') {
+      showNeutralNotice('Opening wallet...', 5000);
       await wallet.connect();
       return;
     }
@@ -469,30 +457,17 @@ export function mountDirectBuy({
 
       const txid = extractTxid(result);
 
-      if (txid) {
-        setStatus('Transaction sent successfully.');
-        createTopNotice(widgetEl, 'Transaction sent successfully.', {
-          isError: false,
-          txid
-        });
-      } else {
-        setStatus('Transaction sent successfully.');
-        createTopNotice(widgetEl, 'Transaction sent successfully.', {
-          isError: false
-        });
-      }
+      showSuccessNotice('Transaction sent successfully.', 10000);
+      setStatus('Transaction sent successfully.', false, txid);
 
       inputEl.value = '';
       syncEstimate();
 
       await sleep(400);
-      setStatus('');
     } catch (error) {
       const message = normalizeError(error);
       setStatus(message, true);
-      createTopNotice(widgetEl, message, {
-        isError: true
-      });
+      showErrorNotice(message, 10000);
       throw error;
     } finally {
       isSubmitting = false;
