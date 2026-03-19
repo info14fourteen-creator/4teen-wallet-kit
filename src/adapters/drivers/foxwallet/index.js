@@ -180,11 +180,18 @@ async function tryProviderRequest(provider, method, params = []) {
 }
 
 async function requestFoxWalletAccounts(provider) {
+  const existing =
+    provider?.tronWeb?.defaultAddress?.base58 ||
+    provider?.defaultAddress?.base58 ||
+    null;
+
+  if (isUsableAddress(existing)) {
+    return existing;
+  }
+
   const methods = [
     ['tron_requestAccounts', []],
-    ['requestAccounts', []],
-    ['tron_requestAccounts', null],
-    ['requestAccounts', null]
+    ['requestAccounts', []]
   ];
 
   for (const [method, params] of methods) {
@@ -267,7 +274,7 @@ async function waitForFoxWalletAddress(adapter, provider, connectResult = null, 
   const {
     attempts = 20,
     intervalMs = 180,
-    requestAccountAt = [0, 1, 2, 4, 8, 12, 16]
+    requestAccountAt = [0]
   } = options;
 
   for (let i = 0; i < attempts; i++) {
@@ -327,7 +334,6 @@ async function readFoxWalletTrxBalance(address, provider) {
 
   for (const candidate of candidates) {
     try {
-      // Fox docs recommend using provider.tronWeb dynamically.
       if (typeof candidate?.tronWeb?.getBalance === 'function') {
         const balanceSun = await candidate.tronWeb.getBalance(address);
         const value = Number((Number(balanceSun || 0) / 1_000_000).toFixed(6));
@@ -446,7 +452,7 @@ export const foxWalletDriver = {
     const address = await waitForFoxWalletAddress(adapter, provider, connectResult, {
       attempts: isFoxWalletBrowser() ? 24 : 20,
       intervalMs: 180,
-      requestAccountAt: isFoxWalletBrowser() ? [0, 1, 2, 4, 8, 12, 16, 20] : [0, 2, 4, 8, 12, 16]
+      requestAccountAt: [0]
     });
 
     if (!isUsableAddress(address)) {
