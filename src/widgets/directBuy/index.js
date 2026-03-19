@@ -5,7 +5,7 @@ import {
   showNeutralNotice
 } from '../../ui/noticeCenter.js';
 
-const ACTIVE_INSTANCES = new Map();
+const ACTIVE_INSTANCES = new WeakMap();
 const SUN = 1_000_000;
 const DEFAULT_CONTRACT_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
 const DEFAULT_TOKEN_PRICE_SUN = 1_147_500;
@@ -130,7 +130,7 @@ function normalizeError(error) {
 }
 
 function getWalletSafe() {
-  return window.FourteenWallet || null;
+  return window.FourteenKit || window.FourteenWallet || null;
 }
 
 function getWalletStateSafe(wallet) {
@@ -164,7 +164,7 @@ function getWalletAddressSafe(wallet) {
 }
 
 function getActiveTronWeb(wallet) {
-  return wallet?.getTronWeb?.() || null;
+  return wallet?.getTronWeb?.() || wallet?.getState?.()?.tronWeb || null;
 }
 
 function buildContractAbi() {
@@ -240,35 +240,35 @@ function buildPriceText(tokenPriceSun) {
   return `Each 4TEEN token is currently purchased at ${formatTrx(trxPerToken, 6)} TRX.`;
 }
 
-export function mountDirectBuy({
-  rootId,
-  contractAddress = DEFAULT_CONTRACT_ADDRESS,
-  inputLabel = 'Enter TRX amount',
-  buttonBuyText = 'Buy Now',
-  title = 'Direct Buy',
-  subtitle = 'Buy locked 4TEEN directly from the contract.'
-}) {
-  const root = document.getElementById(rootId);
-
-  if (!root) {
-    throw new Error(`Direct buy root not found: ${rootId}`);
+export function mountDirectBuy(
+  target,
+  {
+    contractAddress = DEFAULT_CONTRACT_ADDRESS,
+    inputLabel = 'Enter TRX amount',
+    buttonBuyText = 'Buy Now',
+    title = 'Direct Buy',
+    subtitle = 'Buy locked 4TEEN directly from the contract.'
+  } = {}
+) {
+  if (!target) {
+    throw new Error('mountDirectBuy: target is required');
   }
 
   const wallet = getWalletSafe();
 
   if (!wallet) {
-    throw new Error('FourteenWallet is not loaded');
+    throw new Error('Fourteen wallet instance is not loaded');
   }
 
-  if (ACTIVE_INSTANCES.has(rootId)) {
+  if (ACTIVE_INSTANCES.has(target)) {
     try {
-      ACTIVE_INSTANCES.get(rootId).destroy();
+      ACTIVE_INSTANCES.get(target).destroy();
     } catch (error) {
       console.error('Failed to destroy previous direct buy instance:', error);
     }
   }
 
-  root.innerHTML = `
+  target.innerHTML = `
     <div class="fourteen-buy-widget">
       <div class="fourteen-buy-shell">
         <div class="fourteen-buy-heading">
@@ -334,11 +334,12 @@ export function mountDirectBuy({
     </div>
   `;
 
-  const inputEl = root.querySelector('.fourteen-buy-input');
-  const buttonEl = root.querySelector('.fourteen-buy-button');
-  const statusEl = root.querySelector('.fourteen-buy-status');
-  const estimateValueEl = root.querySelector('.fourteen-buy-estimate__value');
-  const priceInfoEl = root.querySelector('[data-buy-info="price"]');
+  const widgetEl = target.querySelector('.fourteen-buy-widget');
+  const inputEl = target.querySelector('.fourteen-buy-input');
+  const buttonEl = target.querySelector('.fourteen-buy-button');
+  const statusEl = target.querySelector('.fourteen-buy-status');
+  const estimateValueEl = target.querySelector('.fourteen-buy-estimate__value');
+  const priceInfoEl = target.querySelector('[data-buy-info="price"]');
 
   let isDestroyed = false;
   let isSubmitting = false;
@@ -346,7 +347,7 @@ export function mountDirectBuy({
   let walletUnsubscribe = null;
 
   function isAlive() {
-    return !isDestroyed && document.body.contains(root);
+    return !isDestroyed && document.body.contains(target);
   }
 
   function setStatus(message = '', isError = false, txid = '') {
@@ -491,7 +492,7 @@ export function mountDirectBuy({
   }
 
   function handleInput() {
-    let value = parsePositiveNumber(inputEl.value);
+    const value = parsePositiveNumber(inputEl.value);
 
     if (inputEl.value === '') {
       syncEstimate();
@@ -532,7 +533,7 @@ export function mountDirectBuy({
     });
   }
 
-  ACTIVE_INSTANCES.set(rootId, {
+  const instance = {
     destroy() {
       isDestroyed = true;
       buttonEl.removeEventListener('click', handleButtonClick);
@@ -542,12 +543,17 @@ export function mountDirectBuy({
         walletUnsubscribe?.();
       } catch (_) {}
     }
-  });
+  };
+
+  ACTIVE_INSTANCES.set(target, instance);
 
   refreshUI().catch((error) => {
     console.error('Initial direct buy UI refresh failed:', error);
     setStatus('Failed to initialize direct buy widget.', true);
+    if (widgetEl) {
+      showErrorNotice('Failed to initialize direct buy widget.', 10000);
+    }
   });
 
-  return ACTIVE_INSTANCES.get(rootId);
+  return instance;
 }
