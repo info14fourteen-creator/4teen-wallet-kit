@@ -6,5 +6,7 @@ export const WALLET_PRIORITY = [
   'bitget',
   'binance',
   'metamask',
+  'imtoken',
+  'foxwallet',
   'walletconnect'
 ];
