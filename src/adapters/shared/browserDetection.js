@@ -1,7 +1,8 @@
 import { getDriverById } from '../../adapters/registry/getDriverById.js';
 import { setWalletState } from '../../core/store/walletStore.js';
 import { openWalletPicker } from '../../ui/wallet/openWalletPicker.js';
-
+import { failWalletConnection } from '../session/failWalletConnection.js';
+import { finalizeWalletConnection } from '../session/finalizeWalletConnection.js';
 
 function isUsableAddress(value) {
   return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
