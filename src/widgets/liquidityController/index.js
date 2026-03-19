@@ -18,20 +18,15 @@ const DEFAULT_CONFIG = {
   infoText: `4TEEN runs a fully automated on-chain liquidity system.
 
 The Liquidity Controller smart contract accumulates TRX and executes daily liquidity distribution when conditions are met.
-
 Funds from token sales are routed directly into liquidity pools through on-chain execution.
-
 6.43% of the contract balance is deployed to liquidity every day during the lock period.
-
 All actions are executed via smart contracts and sent to JustMoney and Sun.io.
-
 Everything you see here is 100% on-chain:
 
-• LiquidityExecuted — confirmed liquidity distribution  
-• TRXReceived — incoming TRX from token sales  
+• Liquidity Executed — confirmed liquidity distribution  
+• TRX Received — incoming TRX from token sales  
 
 No backend. No manual control. No hidden logic.
-
 If it's shown here — it's on-chain and verifiable.`
 };
 
