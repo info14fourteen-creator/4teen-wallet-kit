@@ -273,8 +273,17 @@ export function mountDirectBuy(
       <div class="fourteen-buy-shell">
         <div class="fourteen-buy-heading">
           <div class="fourteen-buy-heading__text">
-            <div class="fourteen-buy-title">${escapeHtml(title)}</div>
-            <div class="fourteen-buy-subtitle">${escapeHtml(subtitle)}</div>
+            <div class="fourteen-buy-hero">
+  <div class="fourteen-buy-hero__bg"></div>
+
+  <h2 class="fourteen-buy-hero__title">
+    Buy <span>4teen</span> Directly
+  </h2>
+
+  <div class="fourteen-buy-hero__subtitle">
+    ${escapeHtml(subtitle)}
+  </div>
+</div>
           </div>
 
           <div class="fourteen-buy-info-toggle-wrap">
