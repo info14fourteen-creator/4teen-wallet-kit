@@ -16,15 +16,18 @@
 .fw-wallet-root {
   position: relative;
   display: inline-block;
+  width: 100%;
   font-family: Inter, Arial, Helvetica, sans-serif;
 }
 
-/* desktop buttons */
+/* desktop button */
 
 .fw-wallet-button {
+  width: 100%;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
   min-height: 40px;
   padding: 8px 12px;
   border-radius: var(--fw-radius);
@@ -60,6 +63,25 @@
 .fw-wallet-button:disabled {
   opacity: 0.72;
   cursor: default;
+}
+
+.fw-wallet-button__left,
+.fw-wallet-button__right {
+  display: inline-flex;
+  align-items: center;
+}
+
+.fw-wallet-button__left {
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+  justify-content: flex-start;
+}
+
+.fw-wallet-button__right {
+  gap: 8px;
+  flex: 0 0 auto;
+  justify-content: flex-end;
 }
 
 .fw-wallet-button--idle .fw-wallet-button__label {
@@ -121,17 +143,13 @@
 }
 
 .fw-wallet-button__address {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 12px;
   font-weight: 700;
   color: var(--fw-white);
   opacity: 0.92;
-}
-
-.fw-wallet-button__divider {
-  width: 1px;
-  height: 14px;
-  background: rgba(255, 255, 255, 0.08);
-  flex: 0 0 auto;
 }
 
 .fw-wallet-button__balance {
@@ -145,11 +163,6 @@
     opacity 0.28s ease,
     transform 0.28s ease,
     filter 0.28s ease;
-}
-
-.fw-wallet-button__balance--single {
-  min-width: 64px;
-  justify-content: flex-start;
 }
 
 .fw-wallet-button__balance--animate {
@@ -194,7 +207,6 @@
 }
 
 .fw-wallet-button__caret {
-  margin-left: 2px;
   font-size: 10px;
   color: rgba(255, 255, 255, 0.64);
 }
@@ -255,7 +267,6 @@
 .fw-wallet-button--compact {
   min-height: 34px;
   padding: 6px 10px;
-  gap: 6px;
 }
 
 .fw-wallet-button--compact .fw-wallet-button__label,
@@ -269,10 +280,6 @@
   height: 12px;
 }
 
-.fw-wallet-button--compact .fw-wallet-button__divider {
-  height: 12px;
-}
-
 .fw-wallet-button--standard {
   min-height: 40px;
 }
@@ -280,7 +287,6 @@
 .fw-wallet-button--hero {
   min-height: 48px;
   padding: 10px 14px;
-  gap: 10px;
   border-radius: 12px;
 }
 
@@ -295,19 +301,33 @@
   height: 16px;
 }
 
-.fw-wallet-button--hero .fw-wallet-button__divider {
-  height: 16px;
+/* mobile button */
+
+.fw-wallet-mobile {
+  width: 100%;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
 }
 
-/* mobile variant */
+.fw-wallet-mobile:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
 
-.fw-wallet-mobile-button {
+.fw-wallet-mobile__circle {
   width: 54px;
   height: 54px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
   border-radius: 50%;
   border: 1px solid rgba(255, 105, 0, 0.24);
   background: linear-gradient(
@@ -315,9 +335,7 @@
     rgba(38, 38, 38, 0.98) 0%,
     rgba(26, 26, 26, 0.98) 100%
   );
-  color: var(--fw-white);
   box-shadow: var(--fw-shadow);
-  cursor: pointer;
   transition:
     transform 0.18s ease,
     border-color 0.18s ease,
@@ -325,50 +343,74 @@
     background 0.18s ease;
 }
 
-.fw-wallet-mobile-button:hover {
+.fw-wallet-mobile:hover .fw-wallet-mobile__circle {
   transform: translateY(-1px);
 }
 
-.fw-wallet-mobile-button:active {
-  transform: translateY(0);
-}
-
-.fw-wallet-mobile-button:disabled {
-  opacity: 0.72;
-  cursor: default;
-}
-
-.fw-wallet-mobile-button--idle {
+.fw-wallet-mobile__circle--idle {
   border-color: rgba(255, 105, 0, 0.34);
 }
 
-.fw-wallet-mobile-button--connected {
+.fw-wallet-mobile__circle--connecting {
+  border-color: rgba(255, 105, 0, 0.55);
+}
+
+.fw-wallet-mobile__circle--connected {
   border-color: rgba(26, 224, 58, 0.28);
   background:
     radial-gradient(circle at top left, rgba(255, 105, 0, 0.12), transparent 35%),
     linear-gradient(180deg, rgba(34, 34, 34, 0.98) 0%, rgba(26, 26, 26, 0.98) 100%);
 }
 
-.fw-wallet-mobile-button--trx,
-.fw-wallet-mobile-button--fourteen {
+.fw-wallet-mobile__circle--trx,
+.fw-wallet-mobile__circle--fourteen {
   border-color: rgba(255, 105, 0, 0.32);
+  background:
+    radial-gradient(circle at top left, rgba(255, 105, 0, 0.12), transparent 35%),
+    linear-gradient(180deg, rgba(34, 34, 34, 0.98) 0%, rgba(26, 26, 26, 0.98) 100%);
 }
 
-.fw-wallet-mobile-button__content {
-  display: flex;
-  flex-direction: column;
+.fw-wallet-mobile__status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.fw-wallet-mobile__status-dot--idle {
+  background: var(--fw-orange);
+  box-shadow: 0 0 12px rgba(255, 105, 0, 0.75);
+}
+
+.fw-wallet-mobile__status-dot--connected {
+  background: var(--fw-green);
+  box-shadow: 0 0 10px rgba(26, 224, 58, 0.75);
+}
+
+.fw-wallet-mobile__icon {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+  display: block;
+}
+
+.fw-wallet-mobile__text {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  width: 100%;
-  height: 100%;
+  min-height: 12px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--fw-graphite);
 }
 
-.fw-wallet-mobile-button__content--animate {
-  animation: fw-mobile-cycle-swap 0.42s ease;
+.fw-wallet-mobile__text--animate {
+  animation: fw-mobile-text-swap 0.42s ease;
 }
 
-@keyframes fw-mobile-cycle-swap {
+@keyframes fw-mobile-text-swap {
   0% {
     opacity: 0;
     transform: translateY(4px) scale(0.97);
@@ -383,42 +425,19 @@
   }
 }
 
-.fw-wallet-mobile-button__dot,
-.fw-wallet-mobile-button__status {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--fw-orange);
-  box-shadow: 0 0 12px rgba(255, 105, 0, 0.75);
-}
-
-.fw-wallet-mobile-button__status {
-  background: var(--fw-green);
-  box-shadow: 0 0 10px rgba(26, 224, 58, 0.75);
-}
-
-.fw-wallet-mobile-button__icon {
-  width: 15px;
-  height: 15px;
-  object-fit: contain;
-  display: block;
-}
-
-.fw-wallet-mobile-button__label {
-  max-width: 42px;
-  text-align: center;
-  font-size: 9px;
-  line-height: 1.05;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  color: var(--fw-white);
+.fw-wallet-root:has(.fw-wallet-mobile) .fw-wallet-dropdown {
+  top: auto;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
 }
 
 @media (max-width: 640px) {
   .fw-wallet-button {
-    gap: 6px;
-    padding: 7px 10px;
     min-height: 38px;
+    padding: 7px 10px;
+    gap: 10px;
   }
 
   .fw-wallet-button__address {
@@ -442,13 +461,18 @@
     min-width: 180px;
   }
 
-  .fw-wallet-mobile-button {
+  .fw-wallet-root:has(.fw-wallet-mobile) .fw-wallet-dropdown {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+
+  .fw-wallet-mobile__circle {
     width: 52px;
     height: 52px;
   }
 
-  .fw-wallet-mobile-button__label {
-    max-width: 40px;
-    font-size: 8px;
+  .fw-wallet-mobile__text {
+    font-size: 9px;
   }
 }
