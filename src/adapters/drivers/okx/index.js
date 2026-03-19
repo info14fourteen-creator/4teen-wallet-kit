@@ -5,7 +5,6 @@ import {
   waitForAddress,
   tryRequestAccounts
 } from '../../shared/accountRequests.js';
-import { pickBestProvider } from '../../shared/providerResolver.js';
 import { readTrxBalance } from '../../shared/trxBalanceReader.js';
 import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
 
@@ -74,6 +73,23 @@ function resolveAdapters(appkit) {
   return [];
 }
 
+function isOkxTronProvider(target) {
+  const tronWeb = target?.tronWeb || target || null;
+
+  return !!(
+    tronWeb &&
+    (
+      target?.isOkxWallet ||
+      target?.isOKXWallet ||
+      target?.okxwallet ||
+      tronWeb?.isOkxWallet ||
+      tronWeb?.isOKXWallet ||
+      tronWeb?.walletName === 'OKX Wallet' ||
+      tronWeb?.wallet === 'OKX Wallet'
+    )
+  );
+}
+
 function getInjectedOkxProvider() {
   const win = getWindowSafe();
   if (!win) return null;
@@ -82,6 +98,10 @@ function getInjectedOkxProvider() {
   if (win.okxwallet) return win.okxwallet;
   if (win.okxWallet?.tronWeb) return win.okxWallet.tronWeb;
   if (win.okxWallet) return win.okxWallet;
+
+  if (isOkxTronProvider(win.tronLink?.tronWeb)) return win.tronLink.tronWeb;
+  if (isOkxTronProvider(win.tronLink)) return win.tronLink;
+  if (isOkxTronProvider(win.tronWeb)) return win.tronWeb;
 
   return null;
 }
@@ -95,12 +115,17 @@ function getResolvedProvider(appkit, adapter = null) {
   const injected = getInjectedOkxProvider();
   if (injected) return injected;
 
-  if (adapter) {
-    const picked = pickBestProvider(appkit, adapter, DRIVER_NAME);
-    if (picked) return picked;
-  }
+  const candidates = [
+    adapter?.provider,
+    adapter?.tronWeb,
+    adapter?.wallet,
+    adapter?.walletProvider,
+    adapter?.connector?.provider,
+    adapter?.connector?.wallet,
+    typeof appkit?.getWalletProvider === 'function' ? appkit.getWalletProvider() : null
+  ].filter(Boolean);
 
-  return null;
+  return candidates.find(isOkxTronProvider) || candidates[0] || null;
 }
 
 async function connectAdapter(adapter) {
@@ -155,9 +180,9 @@ function getSigningCapabilities(provider) {
     hasTransactionBuilder: typeof tronWeb?.transactionBuilder?.sendTrx === 'function',
     hasAddressToHex: typeof tronWeb?.address?.toHex === 'function',
     canSign: !!(
-      typeof provider?.request === 'function' ||
-      typeof provider?.send === 'function' ||
-      typeof tronWeb?.trx?.sign === 'function'
+      typeof tronWeb?.trx?.sign === 'function' &&
+      typeof tronWeb?.transactionBuilder?.sendTrx === 'function' &&
+      typeof tronWeb?.address?.toHex === 'function'
     )
   };
 }
@@ -230,8 +255,8 @@ export const okxDriver = {
   name: DRIVER_NAME,
   type: 'injected',
 
-  canHandle() {
-    return isOkxBrowser() || !!getInjectedOkxProvider();
+  canHandle(appkit) {
+    return !!getResolvedProvider(appkit, this.getAdapter(appkit)) || isOkxBrowser();
   },
 
   getAdapter(appkit) {
@@ -281,14 +306,6 @@ export const okxDriver = {
 
     if (!signing.canSign) {
       throw new Error('OKX Wallet signing capability is not available');
-    }
-
-    if (!signing.hasTransactionBuilder) {
-      throw new Error('OKX Wallet transaction builder is not available');
-    }
-
-    if (!signing.hasAddressToHex) {
-      throw new Error('OKX Wallet address codec is not available');
     }
 
     return {
@@ -345,14 +362,6 @@ export const okxDriver = {
 
     if (!signing.canSign) {
       throw new Error('OKX Wallet signing not available');
-    }
-
-    if (!signing.hasTransactionBuilder) {
-      throw new Error('OKX Wallet transaction builder is not available');
-    }
-
-    if (!signing.hasAddressToHex) {
-      throw new Error('OKX Wallet address codec is not available');
     }
 
     return {
