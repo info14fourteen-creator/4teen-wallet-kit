@@ -328,3 +328,46 @@
     gap: 4px;
   }
 }
+.fourteen-buy-hero {
+  position: relative;
+  margin-bottom: 20px;
+  padding: 8px 0 10px;
+}
+
+.fourteen-buy-hero__bg {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 150px;
+  height: 84px;
+  background: url('/assets/text_bg.svg') right bottom / contain no-repeat;
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.fourteen-buy-hero__title {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  color: #fff;
+}
+
+.fourteen-buy-hero__title span {
+  color: #ff6900;
+  text-shadow: 0 0 12px rgba(255, 105, 0, 0.25);
+}
+
+.fourteen-buy-hero__subtitle {
+  position: relative;
+  z-index: 1;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.68);
+}
