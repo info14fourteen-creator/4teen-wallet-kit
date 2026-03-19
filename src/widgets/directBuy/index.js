@@ -237,7 +237,7 @@ function computeEstimatedTokens(trxAmount, tokenPriceSun) {
 
 function buildPriceText(tokenPriceSun) {
   const trxPerToken = fromSun(tokenPriceSun);
-  return `Each 4TEEN token is currently purchased at ${formatTrx(trxPerToken, 6)} TRX.`;
+  return `Current price: 1 4TEEN = ${formatTrx(trxPerToken, 6)} TRX`;
 }
 
 export function mountDirectBuy(
@@ -245,9 +245,9 @@ export function mountDirectBuy(
   {
     contractAddress = DEFAULT_CONTRACT_ADDRESS,
     inputLabel = 'Enter TRX amount',
-    buttonBuyText = 'Buy Now',
+    buttonBuyText = 'Buy',
     title = 'Direct Buy',
-    subtitle = 'Buy 4TEEN directly from the contract.'
+    subtitle = 'Buy locked 4TEEN directly from the contract.'
   } = {}
 ) {
   if (!target) {
@@ -272,8 +272,45 @@ export function mountDirectBuy(
     <div class="fourteen-buy-widget">
       <div class="fourteen-buy-shell">
         <div class="fourteen-buy-heading">
-          <div class="fourteen-buy-title">${escapeHtml(title)}</div>
-          <div class="fourteen-buy-subtitle">${escapeHtml(subtitle)}</div>
+          <div class="fourteen-buy-heading__text">
+            <div class="fourteen-buy-title">${escapeHtml(title)}</div>
+            <div class="fourteen-buy-subtitle">${escapeHtml(subtitle)}</div>
+          </div>
+
+          <div class="fourteen-buy-info-toggle-wrap">
+            <button
+              type="button"
+              class="fourteen-buy-info-toggle"
+              aria-label="Show buy info"
+              aria-expanded="false"
+            >
+              i
+            </button>
+
+            <div class="fourteen-buy-popover" hidden>
+              <div class="fourteen-buy-popover__title">Buy Info</div>
+
+              <div class="fourteen-buy-popover__item">
+                <span class="fourteen-buy-popover__label">Price</span>
+                <span class="fourteen-buy-popover__value" data-buy-info="price">Loading current price...</span>
+              </div>
+
+              <div class="fourteen-buy-popover__item">
+                <span class="fourteen-buy-popover__label">Lock Period</span>
+                <span class="fourteen-buy-popover__value">Tokens bought directly are locked for 14 days and cannot be sold or transferred during this period.</span>
+              </div>
+
+              <div class="fourteen-buy-popover__item">
+                <span class="fourteen-buy-popover__label">Liquidity</span>
+                <span class="fourteen-buy-popover__value">90% of incoming TRX is routed into liquidity pools on Sun.io and JustMoney.</span>
+              </div>
+
+              <div class="fourteen-buy-popover__item">
+                <span class="fourteen-buy-popover__label">Resources & Fees</span>
+                <span class="fourteen-buy-popover__value">Around 9 TRX may be needed only if the wallet has no energy and bandwidth.</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="fourteen-buy-form">
@@ -306,30 +343,6 @@ export function mountDirectBuy(
 
           <div class="fourteen-buy-status" role="status" aria-live="polite"></div>
         </div>
-
-        <div class="fourteen-buy-info">
-          <div class="fourteen-buy-info__title">Buy Info</div>
-
-          <div class="fourteen-buy-info__item">
-            <span class="fourteen-buy-info__label">Price</span>
-            <span class="fourteen-buy-info__value" data-buy-info="price">Loading current price...</span>
-          </div>
-
-          <div class="fourteen-buy-info__item">
-            <span class="fourteen-buy-info__label">Lock Period</span>
-            <span class="fourteen-buy-info__value">Tokens bought directly are locked for 14 days and cannot be sold or transferred during this period.</span>
-          </div>
-
-          <div class="fourteen-buy-info__item">
-            <span class="fourteen-buy-info__label">Liquidity</span>
-            <span class="fourteen-buy-info__value">90% of incoming TRX is routed into liquidity pools on Sun.io and JustMoney.</span>
-          </div>
-
-          <div class="fourteen-buy-info__item">
-            <span class="fourteen-buy-info__label">Resources & Fees</span>
-            <span class="fourteen-buy-info__value">Around 9 TRX may be needed only if the wallet has no energy and bandwidth.</span>
-          </div>
-        </div>
       </div>
     </div>
   `;
@@ -340,6 +353,8 @@ export function mountDirectBuy(
   const statusEl = target.querySelector('.fourteen-buy-status');
   const estimateValueEl = target.querySelector('.fourteen-buy-estimate__value');
   const priceInfoEl = target.querySelector('[data-buy-info="price"]');
+  const infoToggleEl = target.querySelector('.fourteen-buy-info-toggle');
+  const popoverEl = target.querySelector('.fourteen-buy-popover');
 
   let isDestroyed = false;
   let isSubmitting = false;
@@ -348,6 +363,20 @@ export function mountDirectBuy(
 
   function isAlive() {
     return !isDestroyed && document.body.contains(target);
+  }
+
+  function closePopover() {
+    if (!popoverEl || !infoToggleEl) return;
+    popoverEl.hidden = true;
+    infoToggleEl.setAttribute('aria-expanded', 'false');
+  }
+
+  function togglePopover() {
+    if (!popoverEl || !infoToggleEl) return;
+
+    const nextHidden = !popoverEl.hidden;
+    popoverEl.hidden = nextHidden;
+    infoToggleEl.setAttribute('aria-expanded', nextHidden ? 'false' : 'true');
   }
 
   function setStatus(message = '', isError = false, txid = '') {
@@ -522,8 +551,20 @@ export function mountDirectBuy(
     setButtonState();
   }
 
+  function handleOutsideClick(event) {
+    if (!widgetEl?.contains(event.target)) {
+      closePopover();
+    }
+  }
+
   buttonEl.addEventListener('click', handleButtonClick);
   inputEl.addEventListener('input', handleInput);
+  infoToggleEl?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    togglePopover();
+  });
+
+  document.addEventListener('click', handleOutsideClick);
 
   if (typeof wallet.subscribe === 'function') {
     walletUnsubscribe = wallet.subscribe(() => {
@@ -538,6 +579,8 @@ export function mountDirectBuy(
       isDestroyed = true;
       buttonEl.removeEventListener('click', handleButtonClick);
       inputEl.removeEventListener('input', handleInput);
+      infoToggleEl?.removeEventListener('click', togglePopover);
+      document.removeEventListener('click', handleOutsideClick);
 
       try {
         walletUnsubscribe?.();
@@ -550,9 +593,7 @@ export function mountDirectBuy(
   refreshUI().catch((error) => {
     console.error('Initial direct buy UI refresh failed:', error);
     setStatus('Failed to initialize direct buy widget.', true);
-    if (widgetEl) {
-      showErrorNotice('Failed to initialize direct buy widget.', 10000);
-    }
+    showErrorNotice('Failed to initialize direct buy widget.', 10000);
   });
 
   return instance;
