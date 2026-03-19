@@ -105,15 +105,26 @@ function extractImTokenAddress(value) {
   }
 
   if (Array.isArray(value)) {
-    return extractImTokenAddress(value[0]);
+    for (const item of value) {
+      const nested = extractImTokenAddress(item);
+      if (nested) return nested;
+    }
+
+    return null;
   }
 
   if (typeof value === 'object') {
     return (
+      extractImTokenAddress(value.address) ||
+      extractImTokenAddress(value.selectedAddress) ||
+      extractImTokenAddress(value.publicKey) ||
       extractImTokenAddress(value.data) ||
       extractImTokenAddress(value.result) ||
       extractImTokenAddress(value.accounts) ||
-      extractImTokenAddress(value.address) ||
+      extractImTokenAddress(value.account) ||
+      extractImTokenAddress(value.object) ||
+      extractImTokenAddress(value.object?.address) ||
+      extractImTokenAddress(value.payload) ||
       extractImTokenAddress(value.defaultAddress?.base58) ||
       extractImTokenAddress(value.tronWeb?.defaultAddress?.base58) ||
       null
@@ -123,7 +134,7 @@ function extractImTokenAddress(value) {
   return null;
 }
 
-async function tryImTokenRequest(provider, method, params = []) {
+async function tryProviderRequest(provider, method, params = []) {
   if (!provider) {
     return null;
   }
@@ -143,7 +154,7 @@ async function tryImTokenRequest(provider, method, params = []) {
   return null;
 }
 
-async function requestImTokenAddress(provider) {
+async function requestImTokenAccounts(provider) {
   const methods = [
     ['tron_requestAccounts', []],
     ['requestAccounts', []],
@@ -152,7 +163,7 @@ async function requestImTokenAddress(provider) {
   ];
 
   for (const [method, params] of methods) {
-    const result = await tryImTokenRequest(provider, method, params || []);
+    const result = await tryProviderRequest(provider, method, params || []);
     const address = extractImTokenAddress(result);
 
     if (isUsableAddress(address)) {
@@ -184,9 +195,9 @@ async function waitForImTokenProvider(options = {}) {
 
 async function waitForImTokenAddress(provider, options = {}) {
   const {
-    attempts = 24,
+    attempts = 20,
     intervalMs = 180,
-    requestAt = [0, 1, 2, 4, 8, 12, 16, 20]
+    requestAccountAt = [0, 1, 2, 4, 8, 12, 16]
   } = options;
 
   for (let i = 0; i < attempts; i++) {
@@ -197,8 +208,8 @@ async function waitForImTokenAddress(provider, options = {}) {
       return directAddress;
     }
 
-    if (requestAt.includes(i)) {
-      const requestedAddress = await requestImTokenAddress(provider);
+    if (requestAccountAt.includes(i)) {
+      const requestedAddress = await requestImTokenAccounts(provider);
 
       if (isUsableAddress(requestedAddress)) {
         await forceBindTronWeb(provider, requestedAddress);
@@ -293,7 +304,7 @@ export const imTokenDriver = {
     const address = await waitForImTokenAddress(provider, {
       attempts: isImTokenBrowser() ? 24 : 20,
       intervalMs: 180,
-      requestAt: isImTokenBrowser() ? [0, 1, 2, 4, 8, 12, 16, 20] : [0, 2, 4, 8, 12, 16]
+      requestAccountAt: isImTokenBrowser() ? [0, 1, 2, 4, 8, 12, 16, 20] : [0, 2, 4, 8, 12, 16]
     });
 
     if (!isUsableAddress(address)) {
