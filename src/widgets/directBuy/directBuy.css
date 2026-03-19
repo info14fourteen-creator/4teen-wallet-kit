@@ -1,316 +1,183 @@
 :root {
-  --fourteen-buy-white: rgba(255, 255, 255, 0.96);
-  --fourteen-buy-white-soft: rgba(255, 255, 255, 0.74);
-  --fourteen-buy-white-faint: rgba(255, 255, 255, 0.54);
-  --fourteen-buy-dark: #101010;
-  --fourteen-buy-orange: rgb(255, 105, 0);
-  --fourteen-buy-orange-soft: rgba(255, 105, 0, 0.16);
-  --fourteen-buy-green: rgb(26, 224, 58);
-  --fourteen-buy-red: rgb(255, 48, 73);
-  --fourteen-buy-border: rgba(255, 255, 255, 0.12);
-  --fourteen-buy-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
-  --fourteen-buy-radius: 18px;
+  --fw-buy-bg: rgba(255, 255, 255, 0.04);
+  --fw-buy-border: rgba(255, 255, 255, 0.08);
+  --fw-buy-text: rgba(255, 255, 255, 0.92);
+  --fw-buy-muted: rgba(255, 255, 255, 0.55);
+  --fw-buy-accent: rgb(255, 105, 0);
+  --fw-buy-green: rgb(26, 224, 58);
+  --fw-buy-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --fw-buy-radius: 14px;
 }
 
-.fourteen-buy-widget {
-  position: relative;
+.fw-direct-buy {
   width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   font-family: Inter, Arial, Helvetica, sans-serif;
-  color: var(--fourteen-buy-white);
+  color: var(--fw-buy-text);
 }
 
-.fourteen-buy-top-notice {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: calc(100% + 14px);
-  z-index: 50;
-  display: none;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px 16px;
-  border-radius: 14px;
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(12px);
-}
+/* === INPUT BLOCK === */
 
-.fourteen-buy-top-notice--success {
-  background: rgba(14, 14, 14, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.fourteen-buy-top-notice--error {
-  background: rgba(96, 18, 26, 0.94);
-  border: 1px solid rgba(255, 48, 73, 0.25);
-}
-
-.fourteen-buy-top-notice__text {
-  font-size: 13px;
-  line-height: 1.45;
-  color: #fff;
-}
-
-.fourteen-buy-top-notice__link {
-  color: #ff8a3d;
-  text-decoration: underline;
-  word-break: break-all;
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.fourteen-buy-shell {
-  width: 100%;
-  padding: 22px;
-  border-radius: 22px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-  border: 1px solid var(--fourteen-buy-border);
-  box-shadow: var(--fourteen-buy-shadow);
-  backdrop-filter: blur(16px);
-}
-
-.fourteen-buy-heading {
+.fw-direct-buy__row {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 18px;
-}
-
-.fourteen-buy-title {
-  font-size: 24px;
-  font-weight: 800;
-  line-height: 1.1;
-  color: var(--fourteen-buy-white);
-}
-
-.fourteen-buy-subtitle {
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--fourteen-buy-white-soft);
-  max-width: 560px;
-}
-
-.fourteen-buy-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-
-.fourteen-buy-input-label {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  color: var(--fourteen-buy-white-soft);
-}
-
-.fourteen-buy-form-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
   align-items: stretch;
+  width: 100%;
+  border-radius: var(--fw-buy-radius);
+  background: var(--fw-buy-bg);
+  border: 1px solid var(--fw-buy-border);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  box-shadow: var(--fw-buy-shadow);
 }
 
-.fourteen-buy-input-wrap {
-  position: relative;
+.fw-direct-buy__input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fw-buy-text);
+}
+
+.fw-direct-buy__input::placeholder {
+  color: var(--fw-buy-muted);
+  font-weight: 500;
+}
+
+.fw-direct-buy__suffix {
   display: flex;
   align-items: center;
-}
-
-.fourteen-buy-input {
-  width: 100%;
-  min-height: 54px;
-  padding: 0 62px 0 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.92);
-  color: #111;
-  font-size: 18px;
+  padding: 0 14px;
+  font-size: 13px;
   font-weight: 700;
+  color: var(--fw-buy-muted);
+}
+
+/* === BUY BUTTON === */
+
+.fw-direct-buy__button {
+  border: none;
   outline: none;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s ease;
-}
-
-.fourteen-buy-input::placeholder {
-  color: rgba(17, 17, 17, 0.42);
-}
-
-.fourteen-buy-input:focus {
-  border-color: rgba(255, 105, 0, 0.65);
-  box-shadow: 0 0 0 4px rgba(255, 105, 0, 0.1);
-}
-
-.fourteen-buy-input-suffix {
-  position: absolute;
-  right: 16px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: rgba(17, 17, 17, 0.58);
-  pointer-events: none;
-}
-
-.fourteen-buy-button {
-  min-width: 148px;
   padding: 0 18px;
-  border: 0;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #ff8a3d 0%, var(--fourteen-buy-orange) 100%);
-  color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
+  color: white;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 105, 0, 0.95) 0%,
+    rgba(255, 105, 0, 0.8) 100%
+  );
   cursor: pointer;
-  box-shadow: 0 10px 26px rgba(255, 105, 0, 0.28);
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    opacity 0.18s ease;
+  transition: all 0.18s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.fourteen-buy-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 32px rgba(255, 105, 0, 0.34);
+.fw-direct-buy__button:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 120, 20, 1) 0%,
+    rgba(255, 105, 0, 0.9) 100%
+  );
 }
 
-.fourteen-buy-button:active {
-  transform: translateY(0);
+.fw-direct-buy__button:active {
+  transform: scale(0.98);
 }
 
-.fourteen-buy-button:disabled,
-.fourteen-buy-button[aria-disabled="true"] {
-  opacity: 0.58;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+.fw-direct-buy__button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
-.fourteen-buy-estimate {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  min-height: 22px;
+/* === RESULT (TOKENS) === */
+
+.fw-direct-buy__result {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fw-buy-muted);
+  display: flex;
+  justify-content: space-between;
 }
 
-.fourteen-buy-estimate__label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--fourteen-buy-white-faint);
-}
-
-.fourteen-buy-estimate__value {
-  font-size: 16px;
+.fw-direct-buy__result strong {
+  color: var(--fw-buy-text);
   font-weight: 800;
-  color: var(--fourteen-buy-white);
 }
 
-.fourteen-buy-estimate__token {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, 0.84);
-}
+/* === INFO BLOCK === */
 
-.fourteen-buy-status {
-  min-height: 18px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--fourteen-buy-white-soft);
-}
-
-.fourteen-buy-status[data-state="error"] {
-  color: #ffd4db;
-}
-
-.fourteen-buy-info {
+.fw-direct-buy__info {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--fw-buy-radius);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--fw-buy-border);
 }
 
-.fourteen-buy-info__title {
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  color: var(--fourteen-buy-white);
-}
-
-.fourteen-buy-info__item {
-  display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-}
-
-.fourteen-buy-info__label {
+.fw-direct-buy__info-item {
   font-size: 12px;
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.72);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.fourteen-buy-info__value {
-  font-size: 13px;
   line-height: 1.5;
-  color: var(--fourteen-buy-white-soft);
+  color: var(--fw-buy-muted);
 }
 
-@media (max-width: 860px) {
-  .fourteen-buy-shell {
-    padding: 18px;
-    border-radius: 18px;
-  }
-
-  .fourteen-buy-title {
-    font-size: 22px;
-  }
-
-  .fourteen-buy-form-row {
-    grid-template-columns: 1fr;
-  }
-
-  .fourteen-buy-button {
-    min-height: 50px;
-    width: 100%;
-  }
-
-  .fourteen-buy-info__item {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
+.fw-direct-buy__info-item strong {
+  color: var(--fw-buy-text);
+  font-weight: 700;
 }
 
-@media (max-width: 520px) {
-  .fourteen-buy-shell {
-    padding: 16px;
+/* === STATUS / TX === */
+
+.fw-direct-buy__status {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fw-buy-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fw-direct-buy__status--success {
+  color: var(--fw-buy-green);
+}
+
+.fw-direct-buy__status--error {
+  color: rgb(255, 80, 80);
+}
+
+.fw-direct-buy__link {
+  color: var(--fw-buy-accent);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.fw-direct-buy__link:hover {
+  text-decoration: underline;
+}
+
+/* === MOBILE === */
+
+@media (max-width: 640px) {
+  .fw-direct-buy__input {
+    font-size: 14px;
+    padding: 12px 14px;
   }
 
-  .fourteen-buy-title {
-    font-size: 20px;
-  }
-
-  .fourteen-buy-subtitle {
+  .fw-direct-buy__button {
+    padding: 0 14px;
     font-size: 12px;
   }
 
-  .fourteen-buy-input {
-    min-height: 50px;
-    font-size: 16px;
-  }
-
-  .fourteen-buy-estimate__value {
-    font-size: 15px;
-  }
-
-  .fourteen-buy-top-notice {
-    bottom: calc(100% + 10px);
+  .fw-direct-buy__info {
     padding: 12px 14px;
   }
 }
