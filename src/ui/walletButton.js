@@ -33,7 +33,7 @@ function formatNumber(value) {
   return num.toFixed(2);
 }
 
-function getCycleBalance(state, cycleIndex) {
+function getDesktopCycleBalance(state, cycleIndex) {
   if (cycleIndex === 1) {
     return {
       value: formatNumber(state.fourteenBalance),
@@ -48,6 +48,33 @@ function getCycleBalance(state, cycleIndex) {
     icon: trxIcon,
     alt: 'TRX',
     kind: 'trx'
+  };
+}
+
+function getMobileCycleState(state, cycleIndex) {
+  if (cycleIndex === 1) {
+    return {
+      label: formatNumber(state.trxBalance),
+      icon: trxIcon,
+      alt: 'TRX',
+      mode: 'trx'
+    };
+  }
+
+  if (cycleIndex === 2) {
+    return {
+      label: formatNumber(state.fourteenBalance),
+      icon: fourteenIcon,
+      alt: '4TEEN',
+      mode: 'fourteen'
+    };
+  }
+
+  return {
+    label: 'connected',
+    icon: null,
+    alt: '',
+    mode: 'connected'
   };
 }
 
@@ -93,10 +120,21 @@ function createDropdown({ onRefresh, onDisconnect }) {
 function getVariantClass(variant) {
   if (variant === 'compact') return 'fw-wallet-button--compact';
   if (variant === 'hero') return 'fw-wallet-button--hero';
+  if (variant === 'mobile') return 'fw-wallet-button--mobile';
   return 'fw-wallet-button--standard';
 }
 
 function renderIdle(root, variant) {
+  if (variant === 'mobile') {
+    root.innerHTML = `
+      <button type="button" class="fw-wallet-mobile-button fw-wallet-mobile-button--idle">
+        <span class="fw-wallet-mobile-button__dot"></span>
+        <span class="fw-wallet-mobile-button__label">connect</span>
+      </button>
+    `;
+    return;
+  }
+
   root.innerHTML = `
     <button type="button" class="fw-wallet-button fw-wallet-button--idle ${getVariantClass(variant)}">
       <span class="fw-wallet-button__wallet-dot"></span>
@@ -106,6 +144,16 @@ function renderIdle(root, variant) {
 }
 
 function renderConnecting(root, variant) {
+  if (variant === 'mobile') {
+    root.innerHTML = `
+      <button type="button" class="fw-wallet-mobile-button fw-wallet-mobile-button--connecting" disabled>
+        <span class="fw-wallet-spinner"></span>
+        <span class="fw-wallet-mobile-button__label">connecting</span>
+      </button>
+    `;
+    return;
+  }
+
   root.innerHTML = `
     <button type="button" class="fw-wallet-button fw-wallet-button--connecting ${getVariantClass(variant)}" disabled>
       <span class="fw-wallet-spinner"></span>
@@ -114,9 +162,9 @@ function renderConnecting(root, variant) {
   `;
 }
 
-function renderConnected(root, state, variant, cycleIndex, animate = false) {
+function renderDesktopConnected(root, state, variant, cycleIndex, animate = false) {
   const compact = variant === 'compact';
-  const currentBalance = getCycleBalance(state, cycleIndex);
+  const currentBalance = getDesktopCycleBalance(state, cycleIndex);
   const balanceAnimationClass = animate ? ' fw-wallet-button__balance--animate' : '';
 
   root.innerHTML = `
@@ -125,12 +173,39 @@ function renderConnected(root, state, variant, cycleIndex, animate = false) {
       <span class="fw-wallet-button__address">${state.shortAddress || ''}</span>
       ${compact ? '' : '<span class="fw-wallet-button__divider"></span>'}
       <span class="fw-wallet-button__balance fw-wallet-button__balance--single fw-wallet-button__balance--${currentBalance.kind}${balanceAnimationClass}">
-        <span class="fw-wallet-button__balance-value">${currentBalance.value}</span>
         <img class="fw-wallet-button__icon" src="${currentBalance.icon}" alt="${currentBalance.alt}" />
+        <span class="fw-wallet-button__balance-value">${currentBalance.value}</span>
       </span>
       <span class="fw-wallet-button__caret">▾</span>
     </button>
   `;
+}
+
+function renderMobileConnected(root, state, cycleIndex, animate = false) {
+  const currentState = getMobileCycleState(state, cycleIndex);
+  const animationClass = animate ? ' fw-wallet-mobile-button__content--animate' : '';
+
+  root.innerHTML = `
+    <button type="button" class="fw-wallet-mobile-button fw-wallet-mobile-button--connected fw-wallet-mobile-button--${currentState.mode}">
+      <span class="fw-wallet-mobile-button__content${animationClass}">
+        ${
+          currentState.icon
+            ? `<img class="fw-wallet-mobile-button__icon" src="${currentState.icon}" alt="${currentState.alt}" />`
+            : '<span class="fw-wallet-mobile-button__status"></span>'
+        }
+        <span class="fw-wallet-mobile-button__label">${currentState.label}</span>
+      </span>
+    </button>
+  `;
+}
+
+function renderConnected(root, state, variant, cycleIndex, animate = false) {
+  if (variant === 'mobile') {
+    renderMobileConnected(root, state, cycleIndex, animate);
+    return;
+  }
+
+  renderDesktopConnected(root, state, variant, cycleIndex, animate);
 }
 
 export function mountWalletButton(target, options = {}) {
@@ -180,7 +255,10 @@ export function mountWalletButton(target, options = {}) {
         return;
       }
 
-      cycleIndex = (cycleIndex + 1) % 2;
+      cycleIndex = variant === 'mobile'
+        ? (cycleIndex + 1) % 3
+        : (cycleIndex + 1) % 2;
+
       animateNextCycle = true;
       render(latestState);
     }, 3000);
@@ -271,7 +349,7 @@ export function mountWalletButton(target, options = {}) {
   }
 
   function bindDisconnected() {
-    const button = root.querySelector('.fw-wallet-button');
+    const button = root.querySelector('button');
 
     button?.addEventListener('click', async () => {
       await handleDisconnectedClick();
@@ -279,7 +357,7 @@ export function mountWalletButton(target, options = {}) {
   }
 
   function bindConnected() {
-    const button = root.querySelector('.fw-wallet-button');
+    const button = root.querySelector('button');
 
     button?.addEventListener('click', (e) => {
       e.stopPropagation();
