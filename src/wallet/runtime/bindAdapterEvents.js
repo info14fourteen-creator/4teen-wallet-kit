@@ -38,8 +38,12 @@ function matchesAdapter(adapter, target) {
   return target === adapterName || target === adapterId;
 }
 
+function getAdapterKey(adapter) {
+  return getAdapterId(adapter) || getAdapterName(adapter) || 'Wallet';
+}
+
 function applyConnectedAdapterState(adapter) {
-  const adapterKey = getAdapterId(adapter) || getAdapterName(adapter);
+  const adapterKey = getAdapterKey(adapter);
 
   setWalletState({
     activeWalletId: adapterKey,
@@ -76,22 +80,6 @@ function tryBindEvent(adapter, eventName, handler) {
   }
 }
 
-/**
- * Binds adapter events to runtime actions.
- *
- * @param {object} kit
- * @param {object} adapter
- * @param {object} options
- * @param {function():void} [options.onReadyStateChanged]
- * @param {function(adapter: any):void} [options.onConnected]
- * @param {function(adapter: any):void} [options.onDisconnected]
- * @param {function(adapter: any):void} [options.onAccountsChanged]
- * @param {function(number=):void} [options.scheduleRestore]
- * @param {function(number=):void} [options.scheduleAutoConnect]
- * @param {function():boolean} [options.isWalletBrowser]
- * @param {function():any} [options.resolveConnectedAdapter]
- * @param {function():void} [options.refreshAvailableWallets]
- */
 export function bindAdapterEvents(kit, adapter, options = {}) {
   const {
     onReadyStateChanged,
@@ -104,6 +92,45 @@ export function bindAdapterEvents(kit, adapter, options = {}) {
     resolveConnectedAdapter,
     refreshAvailableWallets
   } = options;
+
+  let lastConnectAt = 0;
+  let lastAccountsChangedAt = 0;
+  let lastDisconnectAt = 0;
+  let lastConnectedAdapterKey = null;
+  let lastAccountsAdapterKey = null;
+
+  function shouldIgnoreDuplicate(type, adapterLike, windowMs = 1200) {
+    const now = Date.now();
+    const adapterKey = getAdapterKey(adapterLike);
+
+    if (type === 'connect') {
+      const duplicate =
+        lastConnectedAdapterKey === adapterKey &&
+        now - lastConnectAt < windowMs;
+
+      lastConnectedAdapterKey = adapterKey;
+      lastConnectAt = now;
+      return duplicate;
+    }
+
+    if (type === 'accountsChanged') {
+      const duplicate =
+        lastAccountsAdapterKey === adapterKey &&
+        now - lastAccountsChangedAt < windowMs;
+
+      lastAccountsAdapterKey = adapterKey;
+      lastAccountsChangedAt = now;
+      return duplicate;
+    }
+
+    if (type === 'disconnect') {
+      const duplicate = now - lastDisconnectAt < windowMs;
+      lastDisconnectAt = now;
+      return duplicate;
+    }
+
+    return false;
+  }
 
   tryBindEvent(adapter, 'readyStateChanged', () => {
     safeCall(refreshAvailableWallets);
@@ -118,21 +145,41 @@ export function bindAdapterEvents(kit, adapter, options = {}) {
   tryBindEvent(adapter, 'connect', () => {
     const normalized = safeCall(resolveConnectedAdapter) || adapter;
 
+    if (shouldIgnoreDuplicate('connect', normalized, 1500)) {
+      return;
+    }
+
+    const state = getWalletState();
+    const normalizedKey = getAdapterKey(normalized);
+    const alreadySameAdapter =
+      state.connected &&
+      (state.activeWalletId === normalizedKey || state.selectedWalletId === normalizedKey);
+
     if (kit) {
       kit.connectedAdapter = normalized || adapter;
     }
 
     applyConnectedAdapterState(normalized || adapter);
-
     safeCall(refreshAvailableWallets);
-    safeCall(scheduleRestore, 100);
+
+    if (!alreadySameAdapter) {
+      safeCall(scheduleRestore, 100);
+    }
+
     safeCall(onConnected, normalized || adapter);
   });
 
   tryBindEvent(adapter, 'disconnect', () => {
+    if (shouldIgnoreDuplicate('disconnect', adapter, 1000)) {
+      return;
+    }
+
     clearConnectedAdapterStateIfMatches(adapter);
 
-    if (kit?.connectedAdapter && matchesAdapter(adapter, getAdapterId(kit.connectedAdapter) || getAdapterName(kit.connectedAdapter))) {
+    if (
+      kit?.connectedAdapter &&
+      matchesAdapter(adapter, getAdapterId(kit.connectedAdapter) || getAdapterName(kit.connectedAdapter))
+    ) {
       kit.connectedAdapter = null;
     }
 
@@ -147,7 +194,17 @@ export function bindAdapterEvents(kit, adapter, options = {}) {
   });
 
   tryBindEvent(adapter, 'accountsChanged', () => {
-    const normalized = safeCall(resolveConnectedAdapter) || null;
+    const normalized = safeCall(resolveConnectedAdapter) || adapter;
+
+    if (shouldIgnoreDuplicate('accountsChanged', normalized, 1500)) {
+      return;
+    }
+
+    const state = getWalletState();
+    const normalizedKey = getAdapterKey(normalized);
+    const alreadySameAdapter =
+      state.connected &&
+      (state.activeWalletId === normalizedKey || state.selectedWalletId === normalizedKey);
 
     if (kit) {
       kit.connectedAdapter = normalized;
@@ -161,7 +218,11 @@ export function bindAdapterEvents(kit, adapter, options = {}) {
     }
 
     safeCall(refreshAvailableWallets);
-    safeCall(scheduleRestore, 120);
+
+    if (!alreadySameAdapter) {
+      safeCall(scheduleRestore, 120);
+    }
+
     safeCall(onAccountsChanged, normalized || adapter);
   });
 }
