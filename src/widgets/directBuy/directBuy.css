@@ -17,7 +17,7 @@
 .fourteen-buy-widget {
   position: relative;
   width: 100%;
-  font-family: Inter, Arial, Helvetica, sans-serif;
+  font-family: TTNorm, Inter, Arial, Helvetica, sans-serif;
   color: var(--fourteen-buy-text);
 }
 
@@ -340,8 +340,11 @@
   bottom: 0;
   width: 150px;
   height: 84px;
-  background: url('/assets/text_bg.svg') right bottom / contain no-repeat;
-  opacity: 0.18;
+  background-image: url('../../assets/text_bg.svg');
+  background-position: right bottom;
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 0.22;
   pointer-events: none;
 }
 
