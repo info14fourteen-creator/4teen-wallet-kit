@@ -46,6 +46,17 @@ export function isTronLinkBrowser() {
   const ua = getUserAgent();
   const href = getLocationHref();
 
+  if (
+    !!win?.okxwallet ||
+    !!win?.okxWallet ||
+    ua.includes('okex/') ||
+    ua.includes('okapp/') ||
+    ua.includes('okx') ||
+    href.includes('utm_source=okx')
+  ) {
+    return false;
+  }
+
   return (
     href.includes('utm_source=tronlink') ||
     ua.includes('tronlink') ||
