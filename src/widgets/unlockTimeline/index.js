@@ -228,8 +228,8 @@ export function mountUnlockTimeline(target, config = {}) {
 
           <div class="fourteen-timeline-hero__text">
             <div class="fourteen-timeline-hero__title">
-              <span>Unlock</span> Timeline
-            </div>
+  Token <span>Unlock</span> Timeline
+</div>
             <div class="fourteen-timeline-hero__subtitle">${escapeHtml(subtitle)}</div>
           </div>
 
