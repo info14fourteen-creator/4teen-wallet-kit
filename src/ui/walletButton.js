@@ -38,14 +38,16 @@ function getCycleBalance(state, cycleIndex) {
     return {
       value: formatNumber(state.fourteenBalance),
       icon: fourteenIcon,
-      alt: '4TEEN'
+      alt: '4TEEN',
+      kind: 'fourteen'
     };
   }
 
   return {
     value: formatNumber(state.trxBalance),
     icon: trxIcon,
-    alt: 'TRX'
+    alt: 'TRX',
+    kind: 'trx'
   };
 }
 
@@ -112,16 +114,17 @@ function renderConnecting(root, variant) {
   `;
 }
 
-function renderConnected(root, state, variant, cycleIndex) {
+function renderConnected(root, state, variant, cycleIndex, animate = false) {
   const compact = variant === 'compact';
   const currentBalance = getCycleBalance(state, cycleIndex);
+  const balanceAnimationClass = animate ? ' fw-wallet-button__balance--animate' : '';
 
   root.innerHTML = `
     <button type="button" class="fw-wallet-button fw-wallet-button--connected ${getVariantClass(variant)}">
       <span class="fw-wallet-button__status-dot"></span>
       <span class="fw-wallet-button__address">${state.shortAddress || ''}</span>
       ${compact ? '' : '<span class="fw-wallet-button__divider"></span>'}
-      <span class="fw-wallet-button__balance fw-wallet-button__balance--single">
+      <span class="fw-wallet-button__balance fw-wallet-button__balance--single fw-wallet-button__balance--${currentBalance.kind}${balanceAnimationClass}">
         <span class="fw-wallet-button__balance-value">${currentBalance.value}</span>
         <img class="fw-wallet-button__icon" src="${currentBalance.icon}" alt="${currentBalance.alt}" />
       </span>
@@ -148,6 +151,7 @@ export function mountWalletButton(target, options = {}) {
   let connectInFlight = false;
   let cycleTimer = null;
   let cycleIndex = 0;
+  let animateNextCycle = false;
 
   function closeDropdown() {
     const existing = root.querySelector('.fw-wallet-dropdown');
@@ -162,6 +166,7 @@ export function mountWalletButton(target, options = {}) {
     }
 
     cycleIndex = 0;
+    animateNextCycle = false;
   }
 
   function startCycle() {
@@ -176,6 +181,7 @@ export function mountWalletButton(target, options = {}) {
       }
 
       cycleIndex = (cycleIndex + 1) % 2;
+      animateNextCycle = true;
       render(latestState);
     }, 3000);
   }
@@ -292,7 +298,8 @@ export function mountWalletButton(target, options = {}) {
     }
 
     if (state.connected) {
-      renderConnected(root, state, variant, cycleIndex);
+      renderConnected(root, state, variant, cycleIndex, animateNextCycle);
+      animateNextCycle = false;
       bindConnected();
       startCycle();
       return;
