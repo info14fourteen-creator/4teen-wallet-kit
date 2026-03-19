@@ -59,6 +59,13 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+.fourteen-timeline-hero__actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
 .fourteen-timeline-badge {
   flex: 0 0 auto;
   min-height: 24px;
@@ -73,6 +80,63 @@
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.fourteen-timeline-info-toggle-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.fourteen-timeline-info-toggle {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 0;
+  background: var(--fourteen-timeline-accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(255, 105, 0, 0.22);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
+}
+
+.fourteen-timeline-info-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(255, 105, 0, 0.28);
+  filter: brightness(1.03);
+}
+
+.fourteen-timeline-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(420px, 92vw);
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(15, 15, 15, 0.98);
+  border: 1px solid var(--fourteen-timeline-border);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
+  z-index: 40;
+  backdrop-filter: blur(14px);
+}
+
+.fourteen-timeline-popover__title {
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--fourteen-timeline-text);
+}
+
+.fourteen-timeline-popover__text {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--fourteen-timeline-text-soft);
 }
 
 .fourteen-timeline-topbar {
@@ -192,7 +256,7 @@
 }
 
 .fourteen-timeline-info-value--available {
-  color: #9ff0a0;
+  color: #b6ffb6;
 }
 
 .fourteen-timeline-info-subvalue {
@@ -461,8 +525,16 @@
     font-size: 11px;
   }
 
+  .fourteen-timeline-hero__actions {
+    gap: 8px;
+  }
+
   .fourteen-timeline-button {
     min-height: 46px;
     font-size: 11px;
+  }
+
+  .fourteen-timeline-popover {
+    width: min(320px, 94vw);
   }
 }
