@@ -6,7 +6,6 @@ import {
   waitForAddress,
   tryRequestAccounts
 } from '../../shared/accountRequests.js';
-import { pickBestProvider } from '../../shared/providerResolver.js';
 import { readTrxBalance } from '../../shared/trxBalanceReader.js';
 import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
 
@@ -74,12 +73,27 @@ function resolveAdapters(appkit) {
   return [];
 }
 
+function hasTronSigningCapability(target) {
+  const tronWeb = target?.tronWeb || target || null;
+
+  return !!(
+    typeof tronWeb?.trx?.sign === 'function' &&
+    typeof tronWeb?.transactionBuilder?.sendTrx === 'function' &&
+    typeof tronWeb?.address?.toHex === 'function'
+  );
+}
+
 function getInjectedMetaMaskProvider() {
   const win = getWindowSafe();
   if (!win) return null;
 
-  if (win.ethereum?.tronWeb) return win.ethereum.tronWeb;
-  if (win.ethereum?.isMetaMask) return win.ethereum;
+  if (hasTronSigningCapability(win.ethereum?.tronWeb)) {
+    return win.ethereum.tronWeb;
+  }
+
+  if (hasTronSigningCapability(win.ethereum)) {
+    return win.ethereum;
+  }
 
   return null;
 }
@@ -93,12 +107,17 @@ function getResolvedProvider(appkit, adapter = null) {
   const injected = getInjectedMetaMaskProvider();
   if (injected) return injected;
 
-  if (adapter) {
-    const picked = pickBestProvider(appkit, adapter, DRIVER_NAME);
-    if (picked) return picked;
-  }
+  const candidates = [
+    adapter?.provider,
+    adapter?.tronWeb,
+    adapter?.wallet,
+    adapter?.walletProvider,
+    adapter?.connector?.provider,
+    adapter?.connector?.wallet,
+    typeof appkit?.getWalletProvider === 'function' ? appkit.getWalletProvider() : null
+  ].filter(Boolean);
 
-  return null;
+  return candidates.find(hasTronSigningCapability) || candidates[0] || null;
 }
 
 async function connectAdapter(adapter) {
@@ -146,19 +165,18 @@ async function disconnectAdapter(adapter, provider = null) {
 function getSigningCapabilities(provider, tronWeb = null) {
   const resolvedTronWeb = tronWeb || provider?.tronWeb || provider || null;
 
+  const hasTronWebSign = typeof resolvedTronWeb?.trx?.sign === 'function';
+  const hasTransactionBuilder = typeof resolvedTronWeb?.transactionBuilder?.sendTrx === 'function';
+  const hasAddressToHex = typeof resolvedTronWeb?.address?.toHex === 'function';
+
   return {
     hasProviderRequest: typeof provider?.request === 'function',
     hasProviderSend: typeof provider?.send === 'function',
     hasProviderSign: typeof provider?.sign === 'function',
-    hasTronWebSign: typeof resolvedTronWeb?.trx?.sign === 'function',
-    hasTransactionBuilder: typeof resolvedTronWeb?.transactionBuilder?.sendTrx === 'function',
-    hasAddressToHex: typeof resolvedTronWeb?.address?.toHex === 'function',
-    canSign: !!(
-      typeof provider?.request === 'function' ||
-      typeof provider?.send === 'function' ||
-      typeof provider?.sign === 'function' ||
-      typeof resolvedTronWeb?.trx?.sign === 'function'
-    )
+    hasTronWebSign,
+    hasTransactionBuilder,
+    hasAddressToHex,
+    canSign: !!(hasTronWebSign && hasTransactionBuilder && hasAddressToHex)
   };
 }
 
@@ -211,7 +229,7 @@ async function readAddressFromProvider(provider) {
   );
 }
 
-function createMetaMaskTronWeb(provider, address) {
+function createReadonlyMetaMaskTronWeb(address) {
   const tronWeb = new TronWeb({
     fullHost: TRONGRID_FULL_HOST
   });
@@ -264,7 +282,7 @@ async function waitForMetaMaskProvider(appkit, adapter, options = {}) {
     const provider = getResolvedProvider(appkit, adapter);
     const address = resolveAddress(adapter, provider);
 
-    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign)) {
+    if (provider && (address || hasTronSigningCapability(provider) || hasTronSigningCapability(provider?.tronWeb))) {
       return provider;
     }
 
@@ -280,8 +298,8 @@ export const metaMaskDriver = {
   name: DRIVER_NAME,
   type: 'injected',
 
-  canHandle() {
-    return isMetaMaskBrowser() || !!getInjectedMetaMaskProvider();
+  canHandle(appkit) {
+    return !!getResolvedProvider(appkit, this.getAdapter(appkit)) || isMetaMaskBrowser();
   },
 
   getAdapter(appkit) {
@@ -324,16 +342,16 @@ export const metaMaskDriver = {
       throw new Error('MetaMask address not resolved');
     }
 
-    let tronWeb =
-      provider?.tronWeb ||
-      (provider?.trx?.sign ? provider : null) ||
+    const signingProvider =
+      hasTronSigningCapability(provider?.tronWeb) ? provider.tronWeb :
+      hasTronSigningCapability(provider) ? provider :
       null;
 
-    if (!tronWeb) {
-      tronWeb = createMetaMaskTronWeb(provider, address);
-    }
+    await forceBindTronWeb(signingProvider || provider, address);
 
-    await forceBindTronWeb(provider, address);
+    let tronWeb =
+      signingProvider ||
+      createReadonlyMetaMaskTronWeb(address);
 
     if (tronWeb && typeof tronWeb.setAddress === 'function') {
       try {
@@ -341,21 +359,19 @@ export const metaMaskDriver = {
       } catch (_) {}
     }
 
-    const finalProvider = await waitForMetaMaskProvider(appkit, adapter);
+    const signing = getSigningCapabilities(signingProvider || provider, tronWeb);
+
+    if (!signing.canSign) {
+      throw new Error('MetaMask does not expose TRON signing. Use TronLink, OKX, Trust, Bitget or WalletConnect for TRON transactions.');
+    }
 
     return {
       ok: true,
       walletId: DRIVER_NAME,
       walletName: DRIVER_NAME,
       address,
-      provider: finalProvider || provider,
-      tronWeb:
-        finalProvider?.tronWeb ||
-        (finalProvider?.trx?.sign ? finalProvider : null) ||
-        tronWeb ||
-        provider?.tronWeb ||
-        provider ||
-        null,
+      provider: signingProvider || provider,
+      tronWeb,
       adapter: adapter || null
     };
   },
@@ -396,34 +412,20 @@ export const metaMaskDriver = {
   getSigningState(appkit) {
     const provider = this.getProvider(appkit);
     const address = this.getAddress(appkit);
+
     const tronWeb =
-      provider?.tronWeb ||
-      (provider?.trx?.sign ? provider : null) ||
-      createMetaMaskTronWeb(provider, address);
+      hasTronSigningCapability(provider?.tronWeb) ? provider.tronWeb :
+      hasTronSigningCapability(provider) ? provider :
+      createReadonlyMetaMaskTronWeb(address);
 
     return getSigningCapabilities(provider, tronWeb);
   },
 
   async assertSigningReady(appkit) {
-    const provider = this.getProvider(appkit);
-    const address = this.getAddress(appkit);
-    const tronWeb =
-      provider?.tronWeb ||
-      (provider?.trx?.sign ? provider : null) ||
-      createMetaMaskTronWeb(provider, address);
-
-    const signing = getSigningCapabilities(provider, tronWeb);
+    const signing = this.getSigningState(appkit);
 
     if (!signing.canSign) {
-      throw new Error('MetaMask signing not available');
-    }
-
-    if (!signing.hasTransactionBuilder) {
-      throw new Error('MetaMask transaction builder is not available');
-    }
-
-    if (!signing.hasAddressToHex) {
-      throw new Error('MetaMask address codec is not available');
+      throw new Error('MetaMask does not provide TRON signing in this environment');
     }
 
     return {
