@@ -1,4 +1,4 @@
-import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
+import { isUsableAddress } from '../../shared/addressResolver.js';
 import { forceBindTronWeb } from '../../shared/accountRequests.js';
 import { readTrxBalance } from '../../shared/trxBalanceReader.js';
 import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
@@ -68,21 +68,12 @@ function resolveAdapters(appkit) {
 
 function getInjectedFoxWalletContainer() {
   const win = getWindowSafe();
-  if (!win) return null;
-
-  return win.foxwallet || null;
+  return win?.foxwallet || null;
 }
 
 function getInjectedFoxWalletProvider() {
   const win = getWindowSafe();
-  if (!win) return null;
-
-  return (
-    win.foxwallet?.tronLink ||
-    win.foxwallet?.tronWeb ||
-    win.foxwallet ||
-    null
-  );
+  return win?.foxwallet?.tronLink || null;
 }
 
 function isFoxWalletBrowser() {
@@ -96,6 +87,7 @@ function isFoxWalletBrowser() {
     href.includes('utm_source=foxwallet') ||
     ua.includes('foxwallet') ||
     ua.includes('fox wallet') ||
+    !!win?.foxwallet?.tronLink ||
     !!win?.foxwallet
   );
 }
@@ -107,7 +99,9 @@ function getCandidateAdapter(appkit) {
 
 function getResolvedProvider(appkit, adapter = null) {
   const injected = getInjectedFoxWalletProvider();
-  if (injected) return injected;
+  if (injected) {
+    return injected;
+  }
 
   const candidates = [
     adapter?.provider,
@@ -180,30 +174,8 @@ async function tryProviderRequest(provider, method, params = []) {
 }
 
 async function requestFoxWalletAccounts(provider) {
-  const existing =
-    provider?.tronWeb?.defaultAddress?.base58 ||
-    provider?.defaultAddress?.base58 ||
-    null;
-
-  if (isUsableAddress(existing)) {
-    return existing;
-  }
-
-  const methods = [
-    ['tron_requestAccounts', []],
-    ['requestAccounts', []]
-  ];
-
-  for (const [method, params] of methods) {
-    const result = await tryProviderRequest(provider, method, params || []);
-    const address = extractFoxWalletAddress(result);
-
-    if (isUsableAddress(address)) {
-      return address;
-    }
-  }
-
-  return null;
+  const result = await tryProviderRequest(provider, 'tron_requestAccounts', []);
+  return extractFoxWalletAddress(result);
 }
 
 async function connectAdapter(adapter) {
@@ -253,15 +225,21 @@ async function disconnectAdapter(adapter, provider = null) {
 async function waitForFoxWalletProvider(appkit, adapter, options = {}) {
   const {
     attempts = 16,
-    intervalMs = 120
+    intervalMs = 180
   } = options;
 
   for (let i = 0; i < attempts; i++) {
     const provider = getResolvedProvider(appkit, adapter);
-    const address = extractFoxWalletAddress(provider) || resolveAddress(adapter, provider);
 
-    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign)) {
+    if (provider?.ready) {
       return provider;
+    }
+
+    if (provider) {
+      await sleep(intervalMs);
+      if (provider?.ready) {
+        return provider;
+      }
     }
 
     await sleep(intervalMs);
@@ -270,17 +248,17 @@ async function waitForFoxWalletProvider(appkit, adapter, options = {}) {
   return getResolvedProvider(appkit, adapter);
 }
 
-async function waitForFoxWalletAddress(adapter, provider, connectResult = null, options = {}) {
+async function waitForFoxWalletAddress(provider, options = {}) {
   const {
     attempts = 20,
     intervalMs = 180,
-    requestAccountAt = [0]
+    requestAccountAt = [0, 1, 2, 4, 8, 12, 16]
   } = options;
 
   for (let i = 0; i < attempts; i++) {
     const directAddress =
-      extractFoxWalletAddress(connectResult) ||
-      resolveAddress(adapter, provider) ||
+      extractFoxWalletAddress(provider?.tronWeb?.defaultAddress?.base58) ||
+      extractFoxWalletAddress(provider?.defaultAddress?.base58) ||
       extractFoxWalletAddress(provider);
 
     if (isUsableAddress(directAddress)) {
@@ -303,6 +281,64 @@ async function waitForFoxWalletAddress(adapter, provider, connectResult = null, 
   return null;
 }
 
+function getFoxWalletActiveProvider(appkit, adapter = null) {
+  return getResolvedProvider(appkit, adapter) || getInjectedFoxWalletProvider();
+}
+
+function getFoxWalletDynamicTronWeb(appkit, adapter = null) {
+  const provider = getFoxWalletActiveProvider(appkit, adapter);
+  return provider?.tronWeb || provider || null;
+}
+
+async function readFoxWalletTrxBalance(appkit, adapter, address) {
+  const provider = getFoxWalletActiveProvider(appkit, adapter);
+  const tronWeb = getFoxWalletDynamicTronWeb(appkit, adapter);
+
+  if (!provider || !tronWeb) {
+    return {
+      ok: false,
+      value: null,
+      source: 'foxwallet_provider'
+    };
+  }
+
+  try {
+    if (typeof provider?.tronWeb?.getBalance === 'function') {
+      const balanceSun = await provider.tronWeb.getBalance(address);
+      const value = Number((Number(balanceSun || 0) / 1_000_000).toFixed(6));
+
+      if (Number.isFinite(value)) {
+        return {
+          ok: true,
+          value,
+          source: 'foxwallet_provider'
+        };
+      }
+    }
+  } catch (_) {}
+
+  try {
+    if (typeof tronWeb?.trx?.getBalance === 'function') {
+      const balanceSun = await tronWeb.trx.getBalance(address);
+      const value = Number((Number(balanceSun || 0) / 1_000_000).toFixed(6));
+
+      if (Number.isFinite(value)) {
+        return {
+          ok: true,
+          value,
+          source: 'foxwallet_tronweb'
+        };
+      }
+    }
+  } catch (_) {}
+
+  return {
+    ok: false,
+    value: null,
+    source: 'foxwallet_balance_unavailable'
+  };
+}
+
 function getSigningCapabilities(provider) {
   const tronWeb = provider?.tronWeb || provider || null;
 
@@ -320,62 +356,6 @@ function getSigningCapabilities(provider) {
       typeof tronWeb?.trx?.sign === 'function'
     )
   };
-}
-
-async function readFoxWalletTrxBalance(address, provider) {
-  const candidates = [
-    provider,
-    provider?.tronWeb,
-    getInjectedFoxWalletContainer()?.tronLink,
-    getInjectedFoxWalletContainer()?.tronLink?.tronWeb,
-    getInjectedFoxWalletContainer()?.tronWeb,
-    getInjectedFoxWalletProvider()
-  ].filter(Boolean);
-
-  for (const candidate of candidates) {
-    try {
-      if (typeof candidate?.tronWeb?.getBalance === 'function') {
-        const balanceSun = await candidate.tronWeb.getBalance(address);
-        const value = Number((Number(balanceSun || 0) / 1_000_000).toFixed(6));
-
-        if (Number.isFinite(value)) {
-          return {
-            ok: true,
-            value,
-            source: 'foxwallet_provider_tronweb'
-          };
-        }
-      }
-
-      if (typeof candidate?.getBalance === 'function') {
-        const balanceSun = await candidate.getBalance(address);
-        const value = Number((Number(balanceSun || 0) / 1_000_000).toFixed(6));
-
-        if (Number.isFinite(value)) {
-          return {
-            ok: true,
-            value,
-            source: 'foxwallet_getbalance'
-          };
-        }
-      }
-
-      if (typeof candidate?.trx?.getBalance === 'function') {
-        const balanceSun = await candidate.trx.getBalance(address);
-        const value = Number((Number(balanceSun || 0) / 1_000_000).toFixed(6));
-
-        if (Number.isFinite(value)) {
-          return {
-            ok: true,
-            value,
-            source: 'foxwallet_trx_getbalance'
-          };
-        }
-      }
-    } catch (_) {}
-  }
-
-  return { ok: false, value: null, source: null };
 }
 
 function subscribe(target, eventName, handler) {
@@ -424,52 +404,56 @@ export const foxWalletDriver = {
   },
 
   getAddress(appkit) {
-    const adapter = this.getAdapter(appkit);
-    const provider = this.getProvider(appkit);
+    const provider = getFoxWalletActiveProvider(appkit, this.getAdapter(appkit));
 
     return (
+      extractFoxWalletAddress(provider?.tronWeb?.defaultAddress?.base58) ||
+      extractFoxWalletAddress(provider?.defaultAddress?.base58) ||
       extractFoxWalletAddress(provider) ||
-      resolveAddress(adapter, provider) ||
       null
     );
   },
 
   async connect(appkit) {
     const adapter = this.getAdapter(appkit);
-    const connectResult = await connectAdapter(adapter);
+    await connectAdapter(adapter);
 
-    let provider = await waitForFoxWalletProvider(appkit, adapter);
+    const provider = await waitForFoxWalletProvider(appkit, adapter, {
+      attempts: isFoxWalletBrowser() ? 24 : 16,
+      intervalMs: 180
+    });
+
     const container = getInjectedFoxWalletContainer();
 
-    if (!provider && container) {
-      provider = container;
-    }
-
-    if (!provider) {
+    if (!provider && !container) {
       throw new Error('FoxWallet provider not found');
     }
 
-    const address = await waitForFoxWalletAddress(adapter, provider, connectResult, {
+    const activeProvider = provider || container?.tronLink || container;
+
+    if (!activeProvider?.ready) {
+      throw new Error('FoxWallet provider is not ready');
+    }
+
+    const address = await waitForFoxWalletAddress(activeProvider, {
       attempts: isFoxWalletBrowser() ? 24 : 20,
       intervalMs: 180,
-      requestAccountAt: [0]
+      requestAccountAt: isFoxWalletBrowser() ? [0, 1, 2, 4, 8, 12, 16, 20] : [0, 2, 4, 8, 12, 16]
     });
 
     if (!isUsableAddress(address)) {
       throw new Error('FoxWallet address not resolved');
     }
 
-    await forceBindTronWeb(provider, address);
-
-    const finalProvider = await waitForFoxWalletProvider(appkit, adapter);
+    await forceBindTronWeb(activeProvider, address);
 
     return {
       ok: true,
       walletId: DRIVER_NAME,
       walletName: DRIVER_NAME,
       address,
-      provider: finalProvider || provider,
-      tronWeb: finalProvider?.tronWeb || finalProvider || provider?.tronWeb || provider || null,
+      provider: activeProvider,
+      tronWeb: activeProvider?.tronWeb || activeProvider || null,
       adapter: adapter || null
     };
   },
@@ -484,17 +468,15 @@ export const foxWalletDriver = {
   },
 
   async readBalances(appkit, options = {}) {
-    const provider = this.getProvider(appkit) || getInjectedFoxWalletProvider();
+    const adapter = this.getAdapter(appkit);
     const address = options.address || this.getAddress(appkit);
 
     if (!isUsableAddress(address)) {
       throw new Error('FoxWallet balances: invalid address');
     }
 
-    const injectedResult = await readFoxWalletTrxBalance(address, provider);
-    const trxBalance = injectedResult.ok
-      ? injectedResult.value
-      : await readTrxBalance(address);
+    const trxResult = await readFoxWalletTrxBalance(appkit, adapter, address);
+    const trxBalance = trxResult.ok ? trxResult.value : await readTrxBalance(address);
 
     const tokenResult = await safeReadTokenBalance(
       address,
@@ -506,13 +488,14 @@ export const foxWalletDriver = {
       address,
       trxBalance,
       tokenBalance: tokenResult.value,
+      trxSource: trxResult.ok ? trxResult.source : 'readonly_fallback',
       tokenSource: tokenResult.source || null,
       tokenError: tokenResult.error?.message || null
     };
   },
 
   getSigningState(appkit) {
-    const provider = this.getProvider(appkit);
+    const provider = getFoxWalletActiveProvider(appkit, this.getAdapter(appkit));
     return getSigningCapabilities(provider);
   },
 
@@ -536,7 +519,7 @@ export const foxWalletDriver = {
 
   subscribe(appkit, handlers = {}) {
     const adapter = this.getAdapter(appkit);
-    const provider = this.getProvider(appkit);
+    const provider = getFoxWalletActiveProvider(appkit, adapter);
     const container = getInjectedFoxWalletContainer();
 
     const unsubs = [
