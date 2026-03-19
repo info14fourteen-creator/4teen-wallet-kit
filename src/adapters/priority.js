@@ -5,8 +5,8 @@ export const WALLET_PRIORITY = [
   'trust',
   'bitget',
   'binance',
-  'metamask',
   'imtoken',
   'foxwallet',
+  'metamask',
   'walletconnect'
 ];
