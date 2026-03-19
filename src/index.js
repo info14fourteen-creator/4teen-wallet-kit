@@ -1,582 +1,105 @@
-import './polyfills/node.js';
-import './ui/walletButton.css';
-import './ui/walletPicker.css';
-import './ui/noticeCenter.css';
+<script>
+(function () {
+  if (window.__FOURTEEN_BOOTSTRAP__) return;
+  window.__FOURTEEN_BOOTSTRAP__ = true;
 
-import { initWalletKit as initWalletKitInternal } from './wallet/services/initWalletKit.js';
-import { connectWallet } from './wallet/actions/connectWallet.js';
-import { disconnectWallet } from './wallet/actions/disconnectWallet.js';
-import { restoreWalletSession } from './wallet/actions/restoreWalletSession.js';
-import { refreshWalletBalances } from './wallet/actions/refreshWalletBalances.js';
+  const BASE = "https://info14fourteen-creator.github.io/4teen-wallet-kit";
+  const PROJECT_ID = "9939c89b9fce5af4c2c69f1835c5164b";
+  const BUILD = Date.now();
 
-import {
-  getWalletState,
-  setWalletState,
-  patchWalletState,
-  resetWalletState,
-  subscribeWalletState,
-  setWalletLifecycle,
-  setWalletIdentity,
-  setWalletAccount,
-  setWalletRuntime,
-  setWalletBalances,
-  setWalletUi,
-  setWalletError,
-  clearWalletError
-} from './core/store/walletStore.js';
-
-import {
-  shortenAddress,
-  isHexAddress as isHexWalletAddress,
-  isTronAddress,
-  isUsableAddress as isUsableWalletAddress,
-  normalizeAddress as normalizeWalletAddress,
-  extractAddressFromPayload as extractWalletAddressFromPayload
-} from './core/utils/address.js';
-
-import { openWalletPicker } from './ui/wallet/openWalletPicker.js';
-import { mountWalletButton } from './ui/walletButton.js';
-import { mountDirectBuy } from './widgets/directBuy/index.js';
-
-import {
-  initDebugOverlay,
-  debugOverlayLog,
-  showDebugOverlay,
-  hideDebugOverlay
-} from './debug/debugOverlay.js';
-
-import {
-  showNotice,
-  hideNotice,
-  showSuccessNotice,
-  showErrorNotice,
-  showNeutralNotice
-} from './ui/noticeCenter.js';
-
-import { createWalletAdapters } from './adapters/createAdapters.js';
-
-import {
-  isOkxBrowser,
-  isBinanceBrowser,
-  isTronLinkBrowser,
-  isTrustWalletBrowser as isTrustBrowser,
-  isMetaMaskBrowser,
-  isTokenPocketBrowser,
-  isBitgetBrowser,
-  isImTokenBrowser,
-  isFoxWalletBrowser,
-  detectBrowserWalletName,
-  isWalletBrowser,
-  getBrowserDetectionSnapshot
-} from './adapters/shared/browserDetection.js';
-
-import {
-  isUsableAddress,
-  isHexAddress,
-  normalizeAddress,
-  extractAddressFromPayload,
-  resolveAddress,
-  readAddressFromAdapter
-} from './adapters/shared/addressResolver.js';
-
-import {
-  getProviderCandidates,
-  providerMatchesWallet,
-  pickBestProvider
-} from './adapters/shared/providerResolver.js';
-
-import {
-  tryProviderRequest,
-  tryRequestAccounts,
-  forceBindTronWeb,
-  waitForAddress,
-  requestTronLinkAccounts
-} from './adapters/shared/accountRequests.js';
-
-import {
-  createReadonlyTronWeb,
-  getDefaultReadonlyTronWeb
-} from './adapters/shared/createReadonlyTronWeb.js';
-
-import {
-  readTrxBalance,
-  safeReadTrxBalance
-} from './adapters/shared/trxBalanceReader.js';
-
-import {
-  readTokenBalance,
-  readTokenBalanceViaTrigger,
-  safeReadTokenBalance
-} from './adapters/shared/tokenBalanceReader.js';
-
-import {
-  getSigningReadiness,
-  assertSigningCapability,
-  getResolvedSigningProvider,
-  getResolvedSigningTronWeb,
-  getSigningCapabilities
-} from './adapters/shared/signingReadiness.js';
-
-import {
-  pickWalletAdapter,
-  getWalletAdapterById,
-  listWalletAdapters
-} from './adapters/registry/pickWalletAdapter.js';
-
-import {
-  getWalletRegistry,
-  WALLET_REGISTRY
-} from './adapters/registry/walletRegistry.js';
-
-import {
-  getAvailableDrivers,
-  listAvailableDriverIds
-} from './adapters/registry/getAvailableDrivers.js';
-
-import { getDriverMap } from './adapters/registry/getDriverMap.js';
-
-import {
-  getWalletById,
-  getDriverIdByWallet,
-  getDriverById
-} from './adapters/registry/getDriverById.js';
-
-import {
-  createTronLinkDriver,
-  tronLinkDriver
-} from './adapters/drivers/tronlink/index.js';
-
-import {
-  createOkxDriver,
-  okxDriver
-} from './adapters/drivers/okx/index.js';
-
-import {
-  createBinanceDriver,
-  binanceDriver
-} from './adapters/drivers/binance/index.js';
-
-import {
-  createTokenPocketDriver,
-  tokenPocketDriver
-} from './adapters/drivers/tokenpocket/index.js';
-
-import {
-  createBitgetDriver,
-  bitgetDriver
-} from './adapters/drivers/bitget/index.js';
-
-import {
-  createTrustDriver,
-  trustDriver
-} from './adapters/drivers/trust/index.js';
-
-import {
-  createMetaMaskDriver,
-  metaMaskDriver
-} from './adapters/drivers/metamask/index.js';
-
-import {
-  createImTokenDriver,
-  imTokenDriver
-} from './adapters/drivers/imtoken/index.js';
-
-import {
-  createFoxWalletDriver,
-  foxWalletDriver
-} from './adapters/drivers/foxwallet/index.js';
-
-import {
-  createWalletConnectDriver,
-  walletConnectDriver
-} from './adapters/drivers/walletconnect/index.js';
-
-import { bindAdapterEvents } from './wallet/runtime/bindAdapterEvents.js';
-import { waitAdaptersReady } from './wallet/runtime/waitAdaptersReady.js';
-import { refreshAvailableWallets } from './wallet/runtime/refreshAvailableWallets.js';
-import { buildWalletKitRuntime } from './wallet/runtime/buildWalletKitRuntime.js';
-import { createWalletScheduler } from './wallet/runtime/walletScheduler.js';
-import {
-  resolveAutoWallet,
-  shouldAutoConnectWallet,
-  getWalletEnvironmentSnapshot
-} from './wallet/runtime/resolveAutoWallet.js';
-
-import { createWalletManager } from './wallet/core/walletManager.js';
-
-import { finalizeWalletConnection } from './wallet/session/finalizeWalletConnection.js';
-import { failWalletConnection } from './wallet/session/failWalletConnection.js';
-
-import { refreshAllBalances } from './services/balances/refreshAllBalances.js';
-
-import {
-  collectWalletDiagnostics,
-  runWalletDiagnostics,
-  printWalletDiagnostics,
-  printAndRunWalletDiagnostics
-} from './diagnostics/walletDiagnostics.js';
-
-import {
-  assertWalletSigning,
-  printWalletSigningDiagnostics
-} from './diagnostics/assertWalletSigning.js';
-
-let appkit = null;
-let tronAdapter = null;
-let initPromise = null;
-let startupSessionPromise = null;
-
-async function runStartupSessionFlow(appkitInstance) {
-  if (!appkitInstance) {
-    return {
-      ok: false,
-      started: false,
-      reason: 'missing_appkit'
-    };
-  }
-
-  const autoWallet = resolveAutoWallet();
-
-  if (autoWallet.shouldAutoConnect && autoWallet.walletId) {
-    try {
-      const result = await connectWallet(appkitInstance, autoWallet.walletId);
-
-      if (result?.ok) {
-        return {
-          ok: true,
-          started: true,
-          mode: 'auto_connect',
-          walletId: autoWallet.walletId,
-          result
-        };
+  function loadCSS(url) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`link[href^="${url.split("?")[0]}"]`)) {
+        return resolve();
       }
-    } catch (error) {
-      console.warn('[4TEEN] startup auto connect failed', error);
+
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = url;
+      link.onload = resolve;
+      link.onerror = reject;
+      document.head.appendChild(link);
+    });
+  }
+
+  function loadScript(url) {
+    return new Promise((resolve, reject) => {
+      if (window.FourteenConnect) return resolve();
+
+      const existing = document.querySelector(`script[src^="${url.split("?")[0]}"]`);
+      if (existing) {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error("Failed to load existing script: " + url)), { once: true });
+        return;
+      }
+
+      const s = document.createElement("script");
+      s.src = url;
+      s.async = true;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error("Failed to load script: " + url));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function bootstrap() {
+    await loadCSS(`${BASE}/4teen-wallet-kit.css?v=${BUILD}`);
+    await loadScript(`${BASE}/fourteen-connect.umd.js?v=${BUILD}`);
+
+    if (!window.FourteenConnect) {
+      throw new Error("window.FourteenConnect is missing");
     }
-  }
 
-  try {
-    const result = await restoreWalletSession(appkitInstance);
-
-    return {
-      ok: !!result?.ok,
-      started: true,
-      mode: 'restore',
-      walletId: null,
-      result
-    };
-  } catch (error) {
-    console.error('[4TEEN] restoreWalletSession failed', error);
-
-    return {
-      ok: false,
-      started: true,
-      mode: 'restore',
-      walletId: null,
-      error
-    };
-  }
-}
-
-async function ensureInitialized(projectId) {
-  if (appkit) {
-    return { appkit, tronAdapter };
-  }
-
-  if (!initPromise) {
-    initPromise = initWalletKitInternal({ projectId })
-      .then((result) => {
-        appkit = result?.appkit || null;
-        tronAdapter = result?.tronAdapter || null;
-
-        console.log('[4TEEN] initFourteenConnect', {
-          hasAppkit: !!appkit,
-          hasTronAdapter: !!tronAdapter
-        });
-
-        if (appkit && !startupSessionPromise) {
-          startupSessionPromise = runStartupSessionFlow(appkit).finally(() => {
-            startupSessionPromise = null;
-          });
-        }
-
-        if (!appkit) {
-          console.error('[4TEEN] initWalletKit did not return appkit');
-        }
-
-        return { appkit, tronAdapter };
-      })
-      .catch((error) => {
-        initPromise = null;
-        throw error;
+    if (!window.FourteenKit) {
+      window.FourteenKit = window.FourteenConnect.initFourteenConnect({
+        projectId: PROJECT_ID
       });
+    }
+
+    document.querySelectorAll("[data-fourteen-wallet]").forEach((slot) => {
+      if (slot.dataset.fourteenMounted === "1") return;
+
+      const variant = slot.getAttribute("data-variant") || "standard";
+
+      window.FourteenConnect.mountWalletButton(slot, {
+        variant,
+        onConnectClick: async (walletId) => {
+          await window.FourteenKit.connect(walletId);
+          await new Promise((resolve) => setTimeout(resolve, 600));
+          await window.FourteenKit.refreshBalances();
+        },
+        onRefresh: async () => {
+          await window.FourteenKit.refreshBalances();
+        },
+        onDisconnect: async () => {
+          await window.FourteenKit.disconnect();
+        }
+      });
+
+      slot.dataset.fourteenMounted = "1";
+    });
+
+    document.querySelectorAll("[data-fourteen-buy]").forEach((slot) => {
+      if (slot.dataset.fourteenMounted === "1") return;
+
+      window.FourteenConnect.mountDirectBuy(slot);
+
+      slot.dataset.fourteenMounted = "1";
+    });
+
+    console.log("[4TEEN] Wallet kit ready");
   }
 
-  return initPromise;
-}
-
-export function initFourteenConnect({ projectId }) {
-  void ensureInitialized(projectId);
-
-  return {
-    connect: async (walletId = null) => {
-      const { appkit } = await ensureInitialized(projectId);
-      return connectWallet(appkit, walletId);
-    },
-
-    disconnect: async () => {
-      const { appkit } = await ensureInitialized(projectId);
-      return disconnectWallet(appkit);
-    },
-
-    restore: async () => {
-      const { appkit } = await ensureInitialized(projectId);
-      return restoreWalletSession(appkit);
-    },
-
-    refreshBalances: async (options = {}) => {
-      const { appkit } = await ensureInitialized(projectId);
-      return refreshWalletBalances(appkit, options);
-    },
-
-    refreshAllBalances: async () => {
-      return refreshAllBalances();
-    },
-
-    getState: () => getWalletState(),
-
-    subscribe: (listener) => subscribeWalletState(listener),
-
-    getAppkit: () => appkit,
-
-    getTronAdapter: () => tronAdapter
-  };
-}
-
-export const diagnostics = {
-  collectWalletDiagnostics,
-  runWalletDiagnostics,
-  printWalletDiagnostics,
-  printAndRunWalletDiagnostics,
-  assertWalletSigning,
-  printWalletSigningDiagnostics
-};
-
-export { initWalletKitInternal as initWalletKit };
-
-export { connectWallet };
-export { disconnectWallet };
-export { restoreWalletSession };
-export { refreshWalletBalances };
-
-export {
-  getWalletState,
-  setWalletState,
-  patchWalletState,
-  resetWalletState,
-  subscribeWalletState,
-  setWalletLifecycle,
-  setWalletIdentity,
-  setWalletAccount,
-  setWalletRuntime,
-  setWalletBalances,
-  setWalletUi,
-  setWalletError,
-  clearWalletError
-};
-
-export {
-  shortenAddress,
-  isHexWalletAddress,
-  isTronAddress,
-  isUsableWalletAddress,
-  normalizeWalletAddress,
-  extractWalletAddressFromPayload
-};
-
-export { openWalletPicker };
-
-export {
-  mountWalletButton,
-  mountDirectBuy,
-  initDebugOverlay,
-  debugOverlayLog,
-  showDebugOverlay,
-  hideDebugOverlay
-};
-
-export {
-  showNotice,
-  hideNotice,
-  showSuccessNotice,
-  showErrorNotice,
-  showNeutralNotice
-};
-
-export { createWalletAdapters };
-
-export {
-  isOkxBrowser,
-  isBinanceBrowser,
-  isTronLinkBrowser,
-  isTrustBrowser,
-  isMetaMaskBrowser,
-  isTokenPocketBrowser,
-  isBitgetBrowser,
-  isImTokenBrowser,
-  isFoxWalletBrowser,
-  detectBrowserWalletName,
-  isWalletBrowser,
-  getBrowserDetectionSnapshot
-};
-
-export {
-  isUsableAddress,
-  isHexAddress,
-  normalizeAddress,
-  extractAddressFromPayload,
-  resolveAddress,
-  readAddressFromAdapter
-};
-
-export {
-  getProviderCandidates,
-  providerMatchesWallet,
-  pickBestProvider
-};
-
-export {
-  tryProviderRequest,
-  tryRequestAccounts,
-  forceBindTronWeb,
-  waitForAddress,
-  requestTronLinkAccounts
-};
-
-export {
-  createReadonlyTronWeb,
-  getDefaultReadonlyTronWeb
-};
-
-export {
-  readTrxBalance,
-  safeReadTrxBalance
-};
-
-export {
-  readTokenBalance,
-  readTokenBalanceViaTrigger,
-  safeReadTokenBalance
-};
-
-export {
-  getSigningReadiness,
-  assertSigningCapability,
-  getResolvedSigningProvider,
-  getResolvedSigningTronWeb,
-  getSigningCapabilities
-};
-
-export {
-  pickWalletAdapter,
-  getWalletAdapterById,
-  listWalletAdapters
-};
-
-export {
-  getWalletRegistry,
-  WALLET_REGISTRY
-};
-
-export {
-  getAvailableDrivers,
-  listAvailableDriverIds
-};
-
-export { getDriverMap };
-
-export {
-  getWalletById,
-  getDriverIdByWallet,
-  getDriverById
-};
-
-export {
-  createTronLinkDriver,
-  tronLinkDriver
-};
-
-export {
-  createOkxDriver,
-  okxDriver
-};
-
-export {
-  createBinanceDriver,
-  binanceDriver
-};
-
-export {
-  createTokenPocketDriver,
-  tokenPocketDriver
-};
-
-export {
-  createBitgetDriver,
-  bitgetDriver
-};
-
-export {
-  createTrustDriver,
-  trustDriver
-};
-
-export {
-  createMetaMaskDriver,
-  metaMaskDriver
-};
-
-export {
-  createImTokenDriver,
-  imTokenDriver
-};
-
-export {
-  createFoxWalletDriver,
-  foxWalletDriver
-};
-
-export {
-  createWalletConnectDriver,
-  walletConnectDriver
-};
-
-export { bindAdapterEvents };
-export { waitAdaptersReady };
-export { refreshAvailableWallets };
-export { buildWalletKitRuntime };
-export { createWalletScheduler };
-export {
-  resolveAutoWallet,
-  shouldAutoConnectWallet,
-  getWalletEnvironmentSnapshot
-};
-
-export { createWalletManager };
-
-export { finalizeWalletConnection };
-export { failWalletConnection };
-
-export { refreshAllBalances };
-
-export {
-  collectWalletDiagnostics,
-  runWalletDiagnostics,
-  printWalletDiagnostics,
-  printAndRunWalletDiagnostics
-};
-
-export {
-  assertWalletSigning,
-  printWalletSigningDiagnostics
-};
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      bootstrap().catch((error) => {
+        console.error("[4TEEN] Wallet bootstrap failed:", error);
+      });
+    }, { once: true });
+  } else {
+    bootstrap().catch((error) => {
+      console.error("[4TEEN] Wallet bootstrap failed:", error);
+    });
+  }
+})();
+</script>
