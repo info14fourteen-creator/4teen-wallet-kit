@@ -1,4 +1,4 @@
-import { isUsableAddress, resolveAddress } from '../../shared/addressResolver.js';
+import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
 import { forceBindTronWeb } from '../../shared/accountRequests.js';
 import { readTrxBalance } from '../../shared/trxBalanceReader.js';
 import { safeReadTokenBalance } from '../../shared/tokenBalanceReader.js';
@@ -66,12 +66,20 @@ function resolveAdapters(appkit) {
   return [];
 }
 
+function getInjectedFoxWalletContainer() {
+  const win = getWindowSafe();
+  if (!win) return null;
+
+  return win.foxwallet || null;
+}
+
 function getInjectedFoxWalletProvider() {
   const win = getWindowSafe();
   if (!win) return null;
 
   return (
     win.foxwallet?.tronLink ||
+    win.foxwallet?.tronWeb ||
     win.foxwallet ||
     null
   );
@@ -111,12 +119,6 @@ function getResolvedProvider(appkit, adapter = null) {
     typeof appkit?.getWalletProvider === 'function' ? appkit.getWalletProvider() : null
   ].filter(Boolean);
 
-  for (const provider of candidates) {
-    if (provider === injected) {
-      return provider;
-    }
-  }
-
   return candidates[0] || null;
 }
 
@@ -128,17 +130,26 @@ function extractFoxWalletAddress(value) {
   }
 
   if (Array.isArray(value)) {
-    return extractFoxWalletAddress(value[0]);
+    for (const item of value) {
+      const nested = extractFoxWalletAddress(item);
+      if (nested) return nested;
+    }
+
+    return null;
   }
 
   if (typeof value === 'object') {
     return (
+      extractFoxWalletAddress(value.address) ||
+      extractFoxWalletAddress(value.selectedAddress) ||
+      extractFoxWalletAddress(value.publicKey) ||
       extractFoxWalletAddress(value.data) ||
       extractFoxWalletAddress(value.result) ||
       extractFoxWalletAddress(value.accounts) ||
-      extractFoxWalletAddress(value.address) ||
+      extractFoxWalletAddress(value.account) ||
       extractFoxWalletAddress(value.object) ||
       extractFoxWalletAddress(value.object?.address) ||
+      extractFoxWalletAddress(value.payload) ||
       extractFoxWalletAddress(value.defaultAddress?.base58) ||
       extractFoxWalletAddress(value.tronWeb?.defaultAddress?.base58) ||
       null
@@ -148,7 +159,7 @@ function extractFoxWalletAddress(value) {
   return null;
 }
 
-async function tryFoxWalletRequest(provider, method, params = []) {
+async function tryProviderRequest(provider, method, params = []) {
   if (!provider) {
     return null;
   }
@@ -168,7 +179,7 @@ async function tryFoxWalletRequest(provider, method, params = []) {
   return null;
 }
 
-async function requestFoxWalletAddress(provider) {
+async function requestFoxWalletAccounts(provider) {
   const methods = [
     ['tron_requestAccounts', []],
     ['requestAccounts', []],
@@ -177,7 +188,7 @@ async function requestFoxWalletAddress(provider) {
   ];
 
   for (const [method, params] of methods) {
-    const result = await tryFoxWalletRequest(provider, method, params || []);
+    const result = await tryProviderRequest(provider, method, params || []);
     const address = extractFoxWalletAddress(result);
 
     if (isUsableAddress(address)) {
@@ -201,7 +212,9 @@ async function connectAdapter(adapter) {
     if (
       message.includes('already connected') ||
       message.includes('session currently connected') ||
-      message.includes('connection already open')
+      message.includes('connection already open') ||
+      message.includes('wallet not found') ||
+      message.includes('not ready')
     ) {
       return null;
     }
@@ -232,14 +245,15 @@ async function disconnectAdapter(adapter, provider = null) {
 
 async function waitForFoxWalletProvider(appkit, adapter, options = {}) {
   const {
-    attempts = 18,
-    intervalMs = 180
+    attempts = 16,
+    intervalMs = 120
   } = options;
 
   for (let i = 0; i < attempts; i++) {
     const provider = getResolvedProvider(appkit, adapter);
+    const address = extractFoxWalletAddress(provider) || resolveAddress(adapter, provider);
 
-    if (provider) {
+    if (provider && (address || provider?.trx?.sign || provider?.tronWeb?.trx?.sign)) {
       return provider;
     }
 
@@ -251,25 +265,24 @@ async function waitForFoxWalletProvider(appkit, adapter, options = {}) {
 
 async function waitForFoxWalletAddress(adapter, provider, connectResult = null, options = {}) {
   const {
-    attempts = 24,
+    attempts = 20,
     intervalMs = 180,
-    requestAt = [0, 1, 2, 4, 8, 12, 16, 20]
+    requestAccountAt = [0, 1, 2, 4, 8, 12, 16]
   } = options;
 
   for (let i = 0; i < attempts; i++) {
     const directAddress =
       extractFoxWalletAddress(connectResult) ||
       resolveAddress(adapter, provider) ||
-      extractFoxWalletAddress(provider) ||
-      null;
+      extractFoxWalletAddress(provider);
 
     if (isUsableAddress(directAddress)) {
       await forceBindTronWeb(provider, directAddress);
       return directAddress;
     }
 
-    if (requestAt.includes(i)) {
-      const requestedAddress = await requestFoxWalletAddress(provider);
+    if (requestAccountAt.includes(i)) {
+      const requestedAddress = await requestFoxWalletAccounts(provider);
 
       if (isUsableAddress(requestedAddress)) {
         await forceBindTronWeb(provider, requestedAddress);
@@ -352,8 +365,8 @@ export const foxWalletDriver = {
     const provider = this.getProvider(appkit);
 
     return (
-      resolveAddress(adapter, provider) ||
       extractFoxWalletAddress(provider) ||
+      resolveAddress(adapter, provider) ||
       null
     );
   },
@@ -361,7 +374,13 @@ export const foxWalletDriver = {
   async connect(appkit) {
     const adapter = this.getAdapter(appkit);
     const connectResult = await connectAdapter(adapter);
-    const provider = await waitForFoxWalletProvider(appkit, adapter);
+
+    let provider = await waitForFoxWalletProvider(appkit, adapter);
+    const container = getInjectedFoxWalletContainer();
+
+    if (!provider && container) {
+      provider = container;
+    }
 
     if (!provider) {
       throw new Error('FoxWallet provider not found');
@@ -370,7 +389,7 @@ export const foxWalletDriver = {
     const address = await waitForFoxWalletAddress(adapter, provider, connectResult, {
       attempts: isFoxWalletBrowser() ? 24 : 20,
       intervalMs: 180,
-      requestAt: isFoxWalletBrowser() ? [0, 1, 2, 4, 8, 12, 16, 20] : [0, 2, 4, 8, 12, 16]
+      requestAccountAt: isFoxWalletBrowser() ? [0, 1, 2, 4, 8, 12, 16, 20] : [0, 2, 4, 8, 12, 16]
     });
 
     if (!isUsableAddress(address)) {
@@ -379,13 +398,15 @@ export const foxWalletDriver = {
 
     await forceBindTronWeb(provider, address);
 
+    const finalProvider = await waitForFoxWalletProvider(appkit, adapter);
+
     return {
       ok: true,
       walletId: DRIVER_NAME,
       walletName: DRIVER_NAME,
       address,
-      provider,
-      tronWeb: provider?.tronWeb || provider || null,
+      provider: finalProvider || provider,
+      tronWeb: finalProvider?.tronWeb || finalProvider || provider?.tronWeb || provider || null,
       adapter: adapter || null
     };
   },
@@ -449,7 +470,7 @@ export const foxWalletDriver = {
   subscribe(appkit, handlers = {}) {
     const adapter = this.getAdapter(appkit);
     const provider = this.getProvider(appkit);
-    const win = getWindowSafe();
+    const container = getInjectedFoxWalletContainer();
 
     const unsubs = [
       subscribe(adapter, 'connect', handlers.onConnect),
@@ -459,12 +480,12 @@ export const foxWalletDriver = {
       subscribe(provider, 'accountsChanged', handlers.onAccountsChanged),
       subscribe(provider, 'disconnect', handlers.onDisconnect),
       subscribe(provider, 'connect', handlers.onConnect),
-      subscribe(win?.foxwallet, 'accountsChanged', handlers.onAccountsChanged),
-      subscribe(win?.foxwallet, 'disconnect', handlers.onDisconnect),
-      subscribe(win?.foxwallet, 'connect', handlers.onConnect),
-      subscribe(win?.foxwallet?.tronLink, 'accountsChanged', handlers.onAccountsChanged),
-      subscribe(win?.foxwallet?.tronLink, 'disconnect', handlers.onDisconnect),
-      subscribe(win?.foxwallet?.tronLink, 'connect', handlers.onConnect)
+      subscribe(container, 'accountsChanged', handlers.onAccountsChanged),
+      subscribe(container, 'disconnect', handlers.onDisconnect),
+      subscribe(container, 'connect', handlers.onConnect),
+      subscribe(container?.tronLink, 'accountsChanged', handlers.onAccountsChanged),
+      subscribe(container?.tronLink, 'disconnect', handlers.onDisconnect),
+      subscribe(container?.tronLink, 'connect', handlers.onConnect)
     ];
 
     return () => {
