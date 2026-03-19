@@ -166,7 +166,8 @@ function getSigningCapabilities(provider, tronWeb = null) {
   const resolvedTronWeb = tronWeb || provider?.tronWeb || provider || null;
 
   const hasTronWebSign = typeof resolvedTronWeb?.trx?.sign === 'function';
-  const hasTransactionBuilder = typeof resolvedTronWeb?.transactionBuilder?.sendTrx === 'function';
+  const hasTransactionBuilder = typeof resolvedTronWeb?.transactionBuilder?.triggerSmartContract === 'function' ||
+    typeof resolvedTronWeb?.transactionBuilder?.sendTrx === 'function';
   const hasAddressToHex = typeof resolvedTronWeb?.address?.toHex === 'function';
 
   return {
@@ -229,10 +230,45 @@ async function readAddressFromProvider(provider) {
   );
 }
 
-function createReadonlyMetaMaskTronWeb(address) {
+function createBoundTronWeb(provider, address) {
   const tronWeb = new TronWeb({
     fullHost: TRONGRID_FULL_HOST
   });
+
+  if (provider) {
+    tronWeb.setPrivateKey = () => {};
+
+    tronWeb.trx.sign = async (transaction) => {
+      if (provider?.trx?.sign) {
+        return provider.trx.sign(transaction);
+      }
+
+      if (provider?.tronWeb?.trx?.sign) {
+        return provider.tronWeb.trx.sign(transaction);
+      }
+
+      if (typeof provider?.request === 'function') {
+        const signed = await provider.request({
+          method: 'tron_signTransaction',
+          params: [transaction]
+        });
+
+        if (signed) {
+          return signed;
+        }
+      }
+
+      if (typeof provider?.send === 'function') {
+        const signed = await provider.send('tron_signTransaction', [transaction]);
+
+        if (signed) {
+          return signed;
+        }
+      }
+
+      throw new Error('MetaMask TRON signing is not available');
+    };
+  }
 
   if (isUsableAddress(address)) {
     try {
@@ -242,7 +278,8 @@ function createReadonlyMetaMaskTronWeb(address) {
     try {
       tronWeb.defaultAddress = {
         ...tronWeb.defaultAddress,
-        base58: address
+        base58: address,
+        hex: tronWeb.address.toHex(address)
       };
     } catch (_) {}
   }
@@ -342,16 +379,14 @@ export const metaMaskDriver = {
       throw new Error('MetaMask address not resolved');
     }
 
-    const signingProvider =
+    const directSigningTronWeb =
       hasTronSigningCapability(provider?.tronWeb) ? provider.tronWeb :
       hasTronSigningCapability(provider) ? provider :
       null;
 
-    await forceBindTronWeb(signingProvider || provider, address);
+    const tronWeb = directSigningTronWeb || createBoundTronWeb(provider, address);
 
-    let tronWeb =
-      signingProvider ||
-      createReadonlyMetaMaskTronWeb(address);
+    await forceBindTronWeb(tronWeb, address);
 
     if (tronWeb && typeof tronWeb.setAddress === 'function') {
       try {
@@ -359,10 +394,10 @@ export const metaMaskDriver = {
       } catch (_) {}
     }
 
-    const signing = getSigningCapabilities(signingProvider || provider, tronWeb);
+    const signing = getSigningCapabilities(provider, tronWeb);
 
     if (!signing.canSign) {
-      throw new Error('MetaMask does not expose TRON signing. Use TronLink, OKX, Trust, Bitget or WalletConnect for TRON transactions.');
+      throw new Error('MetaMask does not provide TRON signing in this environment');
     }
 
     return {
@@ -370,7 +405,7 @@ export const metaMaskDriver = {
       walletId: DRIVER_NAME,
       walletName: DRIVER_NAME,
       address,
-      provider: signingProvider || provider,
+      provider,
       tronWeb,
       adapter: adapter || null
     };
@@ -416,7 +451,7 @@ export const metaMaskDriver = {
     const tronWeb =
       hasTronSigningCapability(provider?.tronWeb) ? provider.tronWeb :
       hasTronSigningCapability(provider) ? provider :
-      createReadonlyMetaMaskTronWeb(address);
+      createBoundTronWeb(provider, address);
 
     return getSigningCapabilities(provider, tronWeb);
   },
@@ -426,6 +461,14 @@ export const metaMaskDriver = {
 
     if (!signing.canSign) {
       throw new Error('MetaMask does not provide TRON signing in this environment');
+    }
+
+    if (!signing.hasTransactionBuilder) {
+      throw new Error('MetaMask transaction builder is not available');
+    }
+
+    if (!signing.hasAddressToHex) {
+      throw new Error('MetaMask address codec is not available');
     }
 
     return {
