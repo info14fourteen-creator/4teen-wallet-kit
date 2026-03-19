@@ -19,6 +19,27 @@ const DEFAULT_CONFIG = {
     'When you buy 4TEEN, your tokens are created and automatically locked for 14 days. This protects the market from instant sell-offs and gives early holders a fair, stable entry. The timeline on the right displays every one of your purchases, showing the exact unlock date in GMT, a live countdown, and your current Locked/Unlocked status.\n\nEach row includes a direct link to the on-chain transaction on Tronscan, so you can always verify the data yourself — block time, amount received, and event ID. As soon as the 14-day period ends, the status updates automatically and your tokens become freely tradable, with no action required from your side.\n\nThis gives you complete clarity: you always know when your tokens unlock, how close you are to the next release, and where to check everything on the blockchain.'
 };
 
+const TIMELINE_CONTRACT_ABI = [
+  {
+    constant: true,
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint256' }],
+    payable: false,
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    constant: true,
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'lockedBalanceOf',
+    outputs: [{ name: '', type: 'uint256' }],
+    payable: false,
+    stateMutability: 'view',
+    type: 'function'
+  }
+];
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -190,8 +211,12 @@ export function mountUnlockTimeline(target, config = {}) {
     <div class="fourteen-timeline-widget">
       <div class="fourteen-timeline-shell">
         <div class="fourteen-timeline-hero">
+          <div class="fourteen-timeline-hero__bg"></div>
+
           <div class="fourteen-timeline-hero__text">
-            <div class="fourteen-timeline-hero__title">${escapeHtml(title)}</div>
+            <div class="fourteen-timeline-hero__title">
+              <span>Unlock</span> Timeline
+            </div>
             <div class="fourteen-timeline-hero__subtitle">${escapeHtml(subtitle)}</div>
           </div>
 
@@ -509,13 +534,13 @@ export function mountUnlockTimeline(target, config = {}) {
     }
 
     const userAddress = tronWeb.defaultAddress.base58;
-    const contract = await tronWeb.contract().at(contractAddress);
+    const contract = await tronWeb.contract(TIMELINE_CONTRACT_ABI, contractAddress);
 
     const totalRaw = await contract.balanceOf(userAddress).call();
     const lockedRaw = await contract.lockedBalanceOf(userAddress).call();
 
-    const total = parseFloat(totalRaw.toString()) / Math.pow(10, decimals);
-    const locked = parseFloat(lockedRaw.toString()) / Math.pow(10, decimals);
+    const total = parseFloat(totalRaw?.toString?.() || '0') / Math.pow(10, decimals);
+    const locked = parseFloat(lockedRaw?.toString?.() || '0') / Math.pow(10, decimals);
     const available = Math.max(0, total - locked);
 
     balances = {
@@ -636,7 +661,12 @@ export function mountUnlockTimeline(target, config = {}) {
     buttonEl.classList.add('connected');
     buttonEl.textContent = 'Connected';
 
-    await getBalances();
+    try {
+      await getBalances();
+    } catch (error) {
+      console.error('[4TEEN] unlockTimeline getBalances failed', error);
+      balances = { total: 0, locked: 0, available: 0 };
+    }
 
     try {
       const rate = await fetchSwapRate(1);
@@ -651,7 +681,8 @@ export function mountUnlockTimeline(target, config = {}) {
         rates.qsiToTrx = '—';
         rates.qsiToUsd = '—';
       }
-    } catch (_) {
+    } catch (error) {
+      console.error('[4TEEN] unlockTimeline fetchSwapRate failed', error);
       rates.qsiToTrx = '—';
       rates.qsiToUsd = '—';
     }
@@ -662,6 +693,8 @@ export function mountUnlockTimeline(target, config = {}) {
       await getFilteredContractEvents();
       setStatus('');
     } catch (error) {
+      console.error('[4TEEN] unlockTimeline events failed', error);
+
       if (String(error?.message || '').includes('429')) {
         setStatus('Unlock events are temporarily rate-limited. Please try again in a few moments.', true);
       } else {
