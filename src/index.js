@@ -37,6 +37,7 @@ import {
 import { openWalletPicker } from './ui/wallet/openWalletPicker.js';
 import { mountWalletButton } from './ui/walletButton.js';
 import { mountDirectBuy } from './widgets/directBuy/index.js';
+import { mountUnlockTimeline } from './widgets/unlockTimeline/index.js';
 
 import {
   initDebugOverlay,
@@ -404,6 +405,7 @@ export {
   showDebugOverlay,
   hideDebugOverlay
 };
+export { mountUnlockTimeline };
 
 export {
   showNotice,
