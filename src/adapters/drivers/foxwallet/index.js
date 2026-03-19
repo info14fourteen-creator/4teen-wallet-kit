@@ -7,6 +7,10 @@ const DRIVER_ID = 'foxwallet';
 const DRIVER_NAME = 'FoxWallet';
 const FOURTEEN_TOKEN_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
 
+let connectPromise = null;
+let lastConnectedAddress = null;
+let lastConnectedAt = 0;
+
 function getWindowSafe() {
   return typeof window !== 'undefined' ? window : null;
 }
@@ -248,18 +252,23 @@ async function waitForFoxWalletProvider(appkit, adapter, options = {}) {
   return getResolvedProvider(appkit, adapter);
 }
 
+function getDirectConnectedAddress(provider) {
+  return (
+    extractFoxWalletAddress(provider?.tronWeb?.defaultAddress?.base58) ||
+    extractFoxWalletAddress(provider?.defaultAddress?.base58) ||
+    extractFoxWalletAddress(provider)
+  );
+}
+
 async function waitForFoxWalletAddress(provider, options = {}) {
   const {
-    attempts = 20,
+    attempts = 12,
     intervalMs = 180,
-    requestAccountAt = [0, 1, 2, 4, 8, 12, 16]
+    requestAccountAt = [0, 2, 4, 8]
   } = options;
 
   for (let i = 0; i < attempts; i++) {
-    const directAddress =
-      extractFoxWalletAddress(provider?.tronWeb?.defaultAddress?.base58) ||
-      extractFoxWalletAddress(provider?.defaultAddress?.base58) ||
-      extractFoxWalletAddress(provider);
+    const directAddress = getDirectConnectedAddress(provider);
 
     if (isUsableAddress(directAddress)) {
       await forceBindTronWeb(provider, directAddress);
@@ -283,11 +292,6 @@ async function waitForFoxWalletAddress(provider, options = {}) {
 
 function getFoxWalletActiveProvider(appkit, adapter = null) {
   return getResolvedProvider(appkit, adapter) || getInjectedFoxWalletProvider();
-}
-
-function getFoxWalletDynamicTronWeb(appkit, adapter = null) {
-  const provider = getFoxWalletActiveProvider(appkit, adapter);
-  return provider?.tronWeb || null;
 }
 
 async function readFoxWalletTrxBalance(appkit, adapter, address) {
@@ -396,62 +400,97 @@ export const foxWalletDriver = {
 
   getAddress(appkit) {
     const provider = getFoxWalletActiveProvider(appkit, this.getAdapter(appkit));
-
-    return (
-      extractFoxWalletAddress(provider?.tronWeb?.defaultAddress?.base58) ||
-      extractFoxWalletAddress(provider?.defaultAddress?.base58) ||
-      extractFoxWalletAddress(provider) ||
-      null
-    );
+    return getDirectConnectedAddress(provider);
   },
 
   async connect(appkit) {
-    const adapter = this.getAdapter(appkit);
-    await connectAdapter(adapter);
-
-    const provider = await waitForFoxWalletProvider(appkit, adapter, {
-      attempts: isFoxWalletBrowser() ? 24 : 16,
-      intervalMs: 180
-    });
-
-    const container = getInjectedFoxWalletContainer();
-
-    if (!provider && !container) {
-      throw new Error('FoxWallet provider not found');
+    if (connectPromise) {
+      return connectPromise;
     }
 
-    const activeProvider = provider || container?.tronLink || container;
+    connectPromise = (async () => {
+      const adapter = this.getAdapter(appkit);
+      await connectAdapter(adapter);
 
-    if (!activeProvider?.ready) {
-      throw new Error('FoxWallet provider is not ready');
+      const provider = await waitForFoxWalletProvider(appkit, adapter, {
+        attempts: isFoxWalletBrowser() ? 20 : 16,
+        intervalMs: 180
+      });
+
+      const container = getInjectedFoxWalletContainer();
+
+      if (!provider && !container) {
+        throw new Error('FoxWallet provider not found');
+      }
+
+      const activeProvider = provider || container?.tronLink || container;
+
+      if (!activeProvider?.ready) {
+        throw new Error('FoxWallet provider is not ready');
+      }
+
+      const alreadyConnectedAddress = getDirectConnectedAddress(activeProvider);
+      const now = Date.now();
+
+      if (
+        isUsableAddress(alreadyConnectedAddress) &&
+        lastConnectedAddress === alreadyConnectedAddress &&
+        now - lastConnectedAt < 10000
+      ) {
+        await forceBindTronWeb(activeProvider, alreadyConnectedAddress);
+
+        return {
+          ok: true,
+          walletId: DRIVER_NAME,
+          walletName: DRIVER_NAME,
+          address: alreadyConnectedAddress,
+          provider: activeProvider,
+          tronWeb: activeProvider?.tronWeb || activeProvider || null,
+          adapter: adapter || null
+        };
+      }
+
+      const address = isUsableAddress(alreadyConnectedAddress)
+        ? alreadyConnectedAddress
+        : await waitForFoxWalletAddress(activeProvider, {
+            attempts: isFoxWalletBrowser() ? 12 : 10,
+            intervalMs: 180,
+            requestAccountAt: [0, 2, 4, 8]
+          });
+
+      if (!isUsableAddress(address)) {
+        throw new Error('FoxWallet address not resolved');
+      }
+
+      await forceBindTronWeb(activeProvider, address);
+
+      lastConnectedAddress = address;
+      lastConnectedAt = Date.now();
+
+      return {
+        ok: true,
+        walletId: DRIVER_NAME,
+        walletName: DRIVER_NAME,
+        address,
+        provider: activeProvider,
+        tronWeb: activeProvider?.tronWeb || activeProvider || null,
+        adapter: adapter || null
+      };
+    })();
+
+    try {
+      return await connectPromise;
+    } finally {
+      connectPromise = null;
     }
-
-    const address = await waitForFoxWalletAddress(activeProvider, {
-      attempts: isFoxWalletBrowser() ? 24 : 20,
-      intervalMs: 180,
-      requestAccountAt: isFoxWalletBrowser() ? [0, 1, 2, 4, 8, 12, 16, 20] : [0, 2, 4, 8, 12, 16]
-    });
-
-    if (!isUsableAddress(address)) {
-      throw new Error('FoxWallet address not resolved');
-    }
-
-    await forceBindTronWeb(activeProvider, address);
-
-    return {
-      ok: true,
-      walletId: DRIVER_NAME,
-      walletName: DRIVER_NAME,
-      address,
-      provider: activeProvider,
-      tronWeb: activeProvider?.tronWeb || activeProvider || null,
-      adapter: adapter || null
-    };
   },
 
   async disconnect(appkit) {
     const adapter = this.getAdapter(appkit);
     const provider = this.getProvider(appkit);
+
+    lastConnectedAddress = null;
+    lastConnectedAt = 0;
 
     await disconnectAdapter(adapter, provider);
 
