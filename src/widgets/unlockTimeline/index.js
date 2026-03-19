@@ -2,6 +2,22 @@ import './unlockTimeline.css';
 
 const ACTIVE_INSTANCES = new WeakMap();
 
+const DEFAULT_CONFIG = {
+    infoTitle: 'About Timeline',
+  infoText: 'When you buy 4TEEN, your tokens are created and automatically locked for 14 days. This protects the market from instant sell-offs and gives early holders a fair, stable entry. The timeline on the right displays every one of your purchases, showing the exact unlock date in GMT, a live countdown, and your current Locked/Unlocked status.\n\nEach row includes a direct link to the on-chain transaction on Tronscan, so you can always verify the data yourself — block time, amount received, and event ID. As soon as the 14-day period ends, the status updates automatically and your tokens become freely tradable, with no action required from your side.\n\nThis gives you complete clarity: you always know when your tokens unlock, how close you are to the next release, and where to check everything on the blockchain.',
+  contractAddress: 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A',
+  apiKey: 'd4fcb4c1-89d8-4651-9e34-11dd7848789b',
+  decimals: 6,
+  unlockDays: 14,
+  apiUrl: 'https://rot.endjgfsv.link/swap/router',
+  toToken: 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
+  typeList: 'SUNSWAP_V3',
+  connectText: 'Connect Wallet',
+  swapUrl: 'https://4teen.me/sw',
+  title: 'Unlock Timeline',
+  subtitle: 'Track your locked 4TEEN releases'
+};
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -128,22 +144,21 @@ function isConnectedSafe(wallet) {
   return !!state?.connected && !!state?.address;
 }
 
-export function mountUnlockTimeline(
-  target,
-  {
+export function mountUnlockTimeline(target, config = {}) {
+  const {
     contractAddress,
     apiKey,
-    decimals = 6,
-    unlockDays = 14,
-    apiUrl = 'https://rot.endjgfsv.link/swap/router',
-    toToken = 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
-    typeList = 'SUNSWAP_V3',
-    connectText = 'Connect Wallet',
-    swapUrl = 'https://4teen.me/sw',
-    title = 'Unlock Timeline',
-    subtitle = 'Track your locked 4TEEN releases'
-  } = {}
-) {
+    decimals,
+    unlockDays,
+    apiUrl,
+    toToken,
+    typeList,
+    connectText,
+    swapUrl,
+    title,
+    subtitle
+  } = { ...DEFAULT_CONFIG, ...config };
+
   if (!target) {
     throw new Error('mountUnlockTimeline: target is required');
   }
