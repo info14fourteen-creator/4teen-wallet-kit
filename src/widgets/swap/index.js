@@ -2,6 +2,11 @@ import { getSwapQuotes } from './services/quotes.js';
 import { executeSwapRoute } from './services/swapExecution.js';
 import './swap.css';
 import { mountWalletButton } from '../../ui/walletButton.js';
+import {
+  showNeutralNotice,
+  showSuccessNotice,
+  showErrorNotice
+} from '../../ui/noticeCenter.js';
 
 import sunioLogo from '../../assets/sunio_swap.svg';
 import justmoneyLogo from '../../assets/justmoney_swap.svg';
@@ -369,6 +374,7 @@ export function mountSwap(target, config = {}) {
   let resizeListenerBound = false;
   let selectedTarget = tokenOutDefault;
   let currentRoutes = [];
+  let isSwapPending = false;
 
   function isAlive() {
     return !isDestroyed && document.body.contains(target);
@@ -482,6 +488,14 @@ export function mountSwap(target, config = {}) {
     });
   }
 
+  function updateSwapButtonsDisabledState() {
+    const disabled = isSwapPending || !isConnectedSafe(wallet);
+
+    Array.from(routesListEl.querySelectorAll('[data-role="swap-route-button"]')).forEach((button) => {
+      button.disabled = disabled;
+    });
+  }
+
   async function buildRoutes() {
     const amount = parsePositiveNumber(amountInputEl?.value);
 
@@ -548,9 +562,9 @@ export function mountSwap(target, config = {}) {
                 class="fourteen-swap-route-card__action"
                 data-role="swap-route-button"
                 data-route-id="${escapeHtml(route.id)}"
-                ${isConnectedSafe(wallet) ? '' : 'disabled'}
+                ${isConnectedSafe(wallet) && !isSwapPending ? '' : 'disabled'}
               >
-                Swap
+                ${isSwapPending ? 'Processing...' : 'Swap'}
               </button>
             </div>
 
@@ -592,6 +606,8 @@ export function mountSwap(target, config = {}) {
       button.addEventListener('click', handleRouteSwapClick);
     });
 
+    updateSwapButtonsDisabledState();
+
     const best = currentRoutes[0];
     if (best) {
       setStatus(`Best route: ${best.providerName} · ${formatNumber(getDisplayedReceive(best), estimateDecimals)} ${best.toToken}`);
@@ -607,20 +623,28 @@ export function mountSwap(target, config = {}) {
   }
 
   function handleAmountInput() {
+    if (isSwapPending) return;
+
     syncQuotes().catch((error) => {
       console.error('[4TEEN] swap quotes failed', error);
       setStatus('Failed to load routes.', true);
+      showErrorNotice('Failed to load routes.');
     });
   }
 
   function handleSlippageChange() {
+    if (isSwapPending) return;
+
     syncQuotes().catch((error) => {
       console.error('[4TEEN] swap slippage refresh failed', error);
       setStatus('Failed to refresh routes.', true);
+      showErrorNotice('Failed to refresh routes.');
     });
   }
 
   function handleTargetClick(event) {
+    if (isSwapPending) return;
+
     const button = event.currentTarget;
     const token = button.getAttribute('data-token');
 
@@ -634,10 +658,36 @@ export function mountSwap(target, config = {}) {
     syncQuotes().catch((error) => {
       console.error('[4TEEN] swap target refresh failed', error);
       setStatus('Failed to refresh routes.', true);
+      showErrorNotice('Failed to refresh routes.');
     });
   }
 
+  function handleExecutionProgress(progress) {
+    const message = progress?.message || '';
+
+    if (!message) {
+      return;
+    }
+
+    setStatus(message);
+
+    if (
+      progress.step === 'checking-allowance' ||
+      progress.step === 'approval-submitted' ||
+      progress.step === 'approval-confirmed' ||
+      progress.step === 'approval-skipped' ||
+      progress.step === 'swap-submitting' ||
+      progress.step === 'swap-submitted'
+    ) {
+      showNeutralNotice(message, 2600);
+    }
+  }
+
   async function handleRouteSwapClick(event) {
+    if (isSwapPending) {
+      return;
+    }
+
     const routeId = event.currentTarget?.getAttribute('data-route-id');
     const route = currentRoutes.find((item) => item.id === routeId);
     const amountIn = parsePositiveNumber(amountInputEl?.value);
@@ -645,22 +695,28 @@ export function mountSwap(target, config = {}) {
 
     if (!route) {
       setStatus('Route not found.', true);
+      showErrorNotice('Route not found.');
       return;
     }
 
     if (!isConnectedSafe(wallet)) {
       setStatus('Connect wallet first.', true);
+      showErrorNotice('Connect wallet first.');
       return;
     }
 
     if (!amountIn || amountIn <= 0) {
       setStatus('Enter amount first.', true);
+      showErrorNotice('Enter amount first.');
       return;
     }
 
-    try {
-      setStatus(`Preparing ${route.providerName} swap...`);
+    isSwapPending = true;
+    updateSwapButtonsDisabledState();
+    setStatus(`Preparing ${route.providerName} swap...`);
+    showNeutralNotice(`Preparing ${route.providerName} swap...`, 2200);
 
+    try {
       const result = await executeSwapRoute({
         wallet,
         route,
@@ -668,18 +724,39 @@ export function mountSwap(target, config = {}) {
         slippage,
         inputTokenAddress: tokenAddresses['4TEEN'],
         inputTokenDecimals: 6,
-        outputTokenDecimals: 6
+        outputTokenDecimals: 6,
+        onProgress: handleExecutionProgress
       });
 
+      if (result?.cancelled) {
+        setStatus('Transaction cancelled by user.', true);
+        showErrorNotice('Transaction cancelled by user.', 3200);
+        return;
+      }
+
       if (result?.ok) {
-        setStatus('Swap sent successfully.');
+        const successMessage = result?.unwrapTxid
+          ? 'Swap completed. TRX received.'
+          : `Swap completed. ${route.toToken} received.`;
+
+        setStatus(successMessage);
+        showSuccessNotice(successMessage, 4200);
+
+        await refreshBalancesSafe();
         return;
       }
 
       setStatus(result?.message || 'Swap execution is not ready yet.', true);
+      showErrorNotice(result?.message || 'Swap execution is not ready yet.');
     } catch (error) {
       console.error('[4TEEN] swap execution failed', error);
-      setStatus(error?.message || 'Swap execution failed.', true);
+      const message = error?.message || 'Swap execution failed.';
+      setStatus(message, true);
+      showErrorNotice(message, 4200);
+    } finally {
+      isSwapPending = false;
+      updateSwapButtonsDisabledState();
+      renderRoutes();
     }
   }
 
@@ -688,10 +765,7 @@ export function mountSwap(target, config = {}) {
 
     syncEmbeddedWalletUi();
     updateWalletLabel();
-
-    Array.from(routesListEl.querySelectorAll('[data-role="swap-route-button"]')).forEach((button) => {
-      button.disabled = !isConnectedSafe(wallet);
-    });
+    updateSwapButtonsDisabledState();
   }
 
   function handleResize() {
@@ -754,6 +828,7 @@ export function mountSwap(target, config = {}) {
   syncQuotes().catch((error) => {
     console.error('[4TEEN] initial swap quotes failed', error);
     setStatus('Failed to load routes.', true);
+    showErrorNotice('Failed to load routes.');
   });
 
   return instance;
