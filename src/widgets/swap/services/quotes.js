@@ -3,19 +3,29 @@ import { getSunioQuotes } from '../providers/sunio.js';
 export async function getSwapQuotes({
   amountIn,
   targetToken,
-  slippage,
-  routeCount,
-  baseRates
+  fromTokenAddress,
+  tokenAddresses,
+  inputDecimals = 6,
+  outputDecimals = 6,
+  routeCount = 3,
+  typeList,
+  calculationServiceUrl
 } = {}) {
   const allRoutes = [
     ...(await getSunioQuotes({
       amountIn,
       targetToken,
-      slippage,
+      fromTokenAddress,
+      tokenAddresses,
+      inputDecimals,
+      outputDecimals,
       routeCount,
-      baseRates
+      typeList,
+      calculationServiceUrl
     }))
   ];
 
-  return allRoutes.sort((a, b) => Number(b.receive || 0) - Number(a.receive || 0));
+  return allRoutes.sort(
+    (a, b) => Number(b.expectedOut || 0) - Number(a.expectedOut || 0)
+  );
 }
