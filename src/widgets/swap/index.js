@@ -39,12 +39,17 @@ const DEFAULT_CONFIG = {
   subtitle: 'Compare routes and swap 4TEEN efficiently',
   badgeText: 'SUN.IO',
   infoTitle: 'How swap routing works',
-  infoText:
-    'SUN Smart Router finds the best swap routes across the TRON network in real time — optimizing price, reducing slippage, and routing through the most efficient liquidity pools.
+  infoText: `
+SUN Smart Router finds the best swap routes across the TRON network in real time — optimizing price, reducing slippage, and routing through the most efficient liquidity pools.
+
 This module intentionally focuses on two outputs only: TRX and USDT.
+
 Why? Simplicity and control.
+
 If you want full flexibility — swap to TRX and bridge anywhere, or move into USDT and access the entire market from there.
-Fast. Transparent. On-chain.',
+
+Fast. Transparent. On-chain.
+`,
   routeCount: 3,
   defaultOutputKey: 'TRX',
   defaultSlippageBps: 300,
