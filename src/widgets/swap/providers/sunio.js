@@ -561,6 +561,60 @@ export async function getSunioQuotes({
     .sort((a, b) => Number(b.expectedOut || 0) - Number(a.expectedOut || 0));
 }
 
+export async function waitForSunioTransactionConfirmation({
+  wallet,
+  txid,
+  timeoutMs = 120000,
+  pollIntervalMs = 1500
+} = {}) {
+  const tronWeb = getTronWebSafe(wallet);
+
+  if (!tronWeb) {
+    throw new Error('SUN.io confirmation: tronWeb is not available');
+  }
+
+  if (!txid || typeof txid !== 'string') {
+    throw new Error('SUN.io confirmation: txid is required');
+  }
+
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const info = await tronWeb.trx.getTransactionInfo(txid);
+
+      if (info && Object.keys(info).length > 0) {
+        const receiptResult = info?.receipt?.result;
+
+        if (receiptResult === 'SUCCESS') {
+          return {
+            ok: true,
+            txid,
+            info
+          };
+        }
+
+        if (receiptResult && receiptResult !== 'SUCCESS') {
+          throw new Error(`Transaction failed: ${receiptResult}`);
+        }
+      }
+    } catch (error) {
+      const message = String(error?.message || '');
+
+      if (
+        !message.includes('Transaction not found') &&
+        !message.includes('does not exist')
+      ) {
+        throw error;
+      }
+    }
+
+    await wait(pollIntervalMs);
+  }
+
+  throw new Error('Transaction confirmation timeout');
+}
+
 export async function ensureSunioApproval({
   wallet,
   tokenAddress,
@@ -617,13 +671,13 @@ export async function ensureSunioApproval({
     .send({
       feeLimit,
       callValue: 0,
-      shouldPollResponse: true
+      shouldPollResponse: false
     });
 
   return {
     ok: true,
     required: true,
-    approved: true,
+    approved: false,
     txid,
     spenderAddress,
     allowanceRaw: allowanceRaw.toString(),
@@ -746,10 +800,17 @@ export async function executeSunioSwap({
       .send({
         feeLimit,
         callValue: 0,
-        shouldPollResponse: true
+        shouldPollResponse: false
       });
 
     console.log('[SUN SWAP TXID]', txid);
+
+    await waitForSunioTransactionConfirmation({
+      wallet,
+      txid,
+      timeoutMs: 120000,
+      pollIntervalMs: 1500
+    });
 
     let unwrapTxid = null;
     let unwrappedAmountRaw = '0';
@@ -757,7 +818,7 @@ export async function executeSunioSwap({
     if (shouldUnwrap) {
       let wtrxBalanceAfter = wtrxBalanceBefore;
 
-      for (let i = 0; i < 8; i += 1) {
+      for (let i = 0; i < 10; i += 1) {
         await wait(700);
         wtrxBalanceAfter = await getTokenBalanceRaw(
           tronWeb,
@@ -791,8 +852,15 @@ export async function executeSunioSwap({
           .send({
             feeLimit,
             callValue: 0,
-            shouldPollResponse: true
+            shouldPollResponse: false
           });
+
+        await waitForSunioTransactionConfirmation({
+          wallet,
+          txid: unwrapTxid,
+          timeoutMs: 120000,
+          pollIntervalMs: 1500
+        });
 
         console.log('[SUN SWAP UNWRAP TXID]', unwrapTxid);
         unwrappedAmountRaw = unwrapAmountRaw.toString();
