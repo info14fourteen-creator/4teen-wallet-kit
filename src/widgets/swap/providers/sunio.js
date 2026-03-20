@@ -613,19 +613,35 @@ export async function executeSunioSwap({
 
   const router = await tronWeb.contract(SMART_ROUTER_ABI, smartRouterAddress);
 
-  const txid = await router
-    .swapExactInput(
-      route.path,
-      route.poolVersion,
-      route.versionLen.map((v) => String(v)),
-      route.fees.map((v) => Number(v)),
-      swapData
-    )
-    .send({
-      feeLimit,
-      callValue: 0,
-      shouldPollResponse: true
-    });
+console.log('[SUN SWAP ROUTE RAW]', route);
+
+console.log('[SUN SWAP PAYLOAD]', {
+  path: route.path,
+  poolVersion: route.poolVersion,
+  versionLen: route.versionLen,
+  fees: route.fees,
+  swapData,
+  smartRouterAddress,
+  inputTokenAddress,
+  amountIn,
+  slippage,
+  outputTokenDecimals,
+  resolvedOutputDecimals
+});
+
+const txid = await router
+  .swapExactInput(
+    route.path,
+    route.poolVersion,
+    route.versionLen.map((v) => String(v)),
+    route.fees.map((v) => Number(v)),
+    swapData
+  )
+  .send({
+    feeLimit,
+    callValue: 0,
+    shouldPollResponse: true
+  });
 
   return {
     ok: true,
