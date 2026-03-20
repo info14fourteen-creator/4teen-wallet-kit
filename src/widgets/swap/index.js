@@ -27,11 +27,11 @@ const DEFAULT_CONFIG = {
   estimateDecimals: 2,
   routeCount: 3,
   tokenAddresses: {
-  '4TEEN': 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A',
-  'TRX': 'TRX',
-  'WTRX': 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
-  'USDT': 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
-},
+    '4TEEN': 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A',
+    'TRX': 'TRX',
+    'WTRX': 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
+    'USDT': 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
+  },
   mockBaseRates: {
     TRX: 1.0,
     USDT: 0.122
@@ -148,6 +148,21 @@ function formatNumber(value, digits = 2) {
   return num.toFixed(digits);
 }
 
+function getDisplayedReceive(route) {
+  return Number(route?.expectedOut ?? route?.receive ?? 0);
+}
+
+function getDisplayedMinReceived(route, slippagePercent) {
+  if (route?.minReceived != null) {
+    return Number(route.minReceived || 0);
+  }
+
+  const receive = getDisplayedReceive(route);
+  const safeSlippage = Number.parseFloat(slippagePercent || '0') || 0;
+
+  return receive * (1 - safeSlippage / 100);
+}
+
 function createRoutePathHtml(route) {
   const fromMeta = TOKEN_META[route.fromToken] || TOKEN_META['4TEEN'];
   const toMeta = TOKEN_META[route.toToken] || TOKEN_META['TRX'];
@@ -176,8 +191,6 @@ function createRoutePathHtml(route) {
   `;
 }
 
-
-
 export function mountSwap(target, config = {}) {
   const {
     title,
@@ -193,7 +206,7 @@ export function mountSwap(target, config = {}) {
     slippageOptions,
     estimateDecimals,
     routeCount,
-    mockBaseRates
+    tokenAddresses
   } = { ...DEFAULT_CONFIG, ...config };
 
   if (!target) {
@@ -470,17 +483,21 @@ export function mountSwap(target, config = {}) {
   }
 
   async function buildRoutes() {
-  const amount = parsePositiveNumber(amountInputEl?.value);
-  const slippage = slippageSelectEl?.value || defaultSlippage;
+    const amount = parsePositiveNumber(amountInputEl?.value);
 
-  currentRoutes = await getSwapQuotes({
-    amountIn: amount,
-    targetToken: selectedTarget,
-    slippage,
-    routeCount,
-    baseRates: mockBaseRates
-  });
-}
+    currentRoutes = await getSwapQuotes({
+      amountIn: amount,
+      targetToken: selectedTarget,
+      fromTokenAddress: tokenAddresses['4TEEN'],
+      tokenAddresses: {
+        WTRX: tokenAddresses['WTRX'],
+        USDT: tokenAddresses['USDT']
+      },
+      inputDecimals: 6,
+      outputDecimals: 6,
+      routeCount
+    });
+  }
 
   function renderEstimate() {
     const bestRoute = currentRoutes[0] || null;
@@ -490,7 +507,7 @@ export function mountSwap(target, config = {}) {
     estimateLogoEl.alt = toMeta.symbol;
     estimateSymbolEl.textContent = toMeta.symbol;
     estimateValueEl.textContent = bestRoute
-      ? formatNumber(bestRoute.receive, estimateDecimals)
+      ? formatNumber(getDisplayedReceive(bestRoute), estimateDecimals)
       : formatNumber(0, estimateDecimals);
   }
 
@@ -507,18 +524,23 @@ export function mountSwap(target, config = {}) {
       return;
     }
 
+    const currentSlippage = slippageSelectEl?.value || defaultSlippage;
+
     routesListEl.innerHTML = currentRoutes
       .map((route) => {
+        const displayedReceive = getDisplayedReceive(route);
+        const displayedMinReceived = getDisplayedMinReceived(route, currentSlippage);
+
         return `
           <div class="fourteen-swap-route-card">
             <div class="fourteen-swap-route-card__left">
               <div class="fourteen-swap-route-card__eyebrow">You receive</div>
               <div class="fourteen-swap-route-card__receive">
-                ${escapeHtml(formatNumber(route.receive, estimateDecimals))} ${escapeHtml(route.toToken)}
+                ${escapeHtml(formatNumber(displayedReceive, estimateDecimals))} ${escapeHtml(route.toToken)}
               </div>
 
               <div class="fourteen-swap-route-card__min">
-                Min received ${escapeHtml(formatNumber(route.minReceived, estimateDecimals))} ${escapeHtml(route.toToken)}
+                Min received ${escapeHtml(formatNumber(displayedMinReceived, estimateDecimals))} ${escapeHtml(route.toToken)}
               </div>
 
               <button
@@ -548,17 +570,17 @@ export function mountSwap(target, config = {}) {
 
               <div class="fourteen-swap-route-card__detail">
                 <div class="fourteen-swap-route-card__label">Route</div>
-                <div class="fourteen-swap-route-card__value">${escapeHtml(route.routeLabel)}</div>
+                <div class="fourteen-swap-route-card__value">${escapeHtml(route.routeLabel || PROVIDER_META[route.provider]?.name || route.providerName)}</div>
               </div>
 
               <div class="fourteen-swap-route-card__detail">
                 <div class="fourteen-swap-route-card__label">Execution</div>
-                <div class="fourteen-swap-route-card__value">${escapeHtml(route.executionLabel)}</div>
+                <div class="fourteen-swap-route-card__value">${escapeHtml(route.executionLabel ?? '—')}</div>
               </div>
 
               <div class="fourteen-swap-route-card__detail">
                 <div class="fourteen-swap-route-card__label">Impact</div>
-                <div class="fourteen-swap-route-card__value">${escapeHtml(route.impactLabel)}</div>
+                <div class="fourteen-swap-route-card__value">${escapeHtml(route.impactLabel ?? '—')}</div>
               </div>
             </div>
           </div>
@@ -572,31 +594,31 @@ export function mountSwap(target, config = {}) {
 
     const best = currentRoutes[0];
     if (best) {
-      setStatus(`Best route: ${best.providerName} · ${formatNumber(best.receive, estimateDecimals)} ${best.toToken}`);
+      setStatus(`Best route: ${best.providerName} · ${formatNumber(getDisplayedReceive(best), estimateDecimals)} ${best.toToken}`);
     } else {
       setStatus('');
     }
   }
 
   async function syncQuotes() {
-  await buildRoutes();
-  renderEstimate();
-  renderRoutes();
-}
+    await buildRoutes();
+    renderEstimate();
+    renderRoutes();
+  }
 
   function handleAmountInput() {
-  syncQuotes().catch((error) => {
-    console.error('[4TEEN] swap quotes failed', error);
-    setStatus('Failed to load routes.', true);
-  });
-}
+    syncQuotes().catch((error) => {
+      console.error('[4TEEN] swap quotes failed', error);
+      setStatus('Failed to load routes.', true);
+    });
+  }
 
   function handleSlippageChange() {
-  syncQuotes().catch((error) => {
-    console.error('[4TEEN] swap slippage refresh failed', error);
-    setStatus('Failed to refresh routes.', true);
-  });
-}
+    syncQuotes().catch((error) => {
+      console.error('[4TEEN] swap slippage refresh failed', error);
+      setStatus('Failed to refresh routes.', true);
+    });
+  }
 
   function handleTargetClick(event) {
     const button = event.currentTarget;
@@ -608,56 +630,58 @@ export function mountSwap(target, config = {}) {
 
     selectedTarget = token;
     updateTargetButtons();
+
     syncQuotes().catch((error) => {
-  console.error('[4TEEN] swap target refresh failed', error);
-  setStatus('Failed to refresh routes.', true);
-});
+      console.error('[4TEEN] swap target refresh failed', error);
+      setStatus('Failed to refresh routes.', true);
+    });
   }
 
   async function handleRouteSwapClick(event) {
-  const routeId = event.currentTarget?.getAttribute('data-route-id');
-  const route = currentRoutes.find((item) => item.id === routeId);
-  const amountIn = parsePositiveNumber(amountInputEl?.value);
-  const slippage = slippageSelectEl?.value || defaultSlippage;
+    const routeId = event.currentTarget?.getAttribute('data-route-id');
+    const route = currentRoutes.find((item) => item.id === routeId);
+    const amountIn = parsePositiveNumber(amountInputEl?.value);
+    const slippage = slippageSelectEl?.value || defaultSlippage;
 
-  if (!route) {
-    setStatus('Route not found.', true);
-    return;
-  }
-
-  if (!isConnectedSafe(wallet)) {
-    setStatus('Connect wallet first.', true);
-    return;
-  }
-
-  if (!amountIn || amountIn <= 0) {
-    setStatus('Enter amount first.', true);
-    return;
-  }
-
-  try {
-    setStatus(`Preparing ${route.providerName} swap...`);
-
-    const result = await executeSwapRoute({
-      wallet,
-      route,
-      amountIn,
-      slippage,
-      tokenAddress: DEFAULT_CONFIG.tokenAddresses['4TEEN'],
-      spenderAddress: null
-    });
-
-    if (result?.ok) {
-      setStatus('Swap sent successfully.');
+    if (!route) {
+      setStatus('Route not found.', true);
       return;
     }
 
-    setStatus(result?.message || 'Swap execution is not ready yet.', true);
-  } catch (error) {
-    console.error('[4TEEN] swap execution failed', error);
-    setStatus(error?.message || 'Swap execution failed.', true);
+    if (!isConnectedSafe(wallet)) {
+      setStatus('Connect wallet first.', true);
+      return;
+    }
+
+    if (!amountIn || amountIn <= 0) {
+      setStatus('Enter amount first.', true);
+      return;
+    }
+
+    try {
+      setStatus(`Preparing ${route.providerName} swap...`);
+
+      const result = await executeSwapRoute({
+        wallet,
+        route,
+        amountIn,
+        slippage,
+        inputTokenAddress: tokenAddresses['4TEEN'],
+        inputTokenDecimals: 6,
+        outputTokenDecimals: 6
+      });
+
+      if (result?.ok) {
+        setStatus('Swap sent successfully.');
+        return;
+      }
+
+      setStatus(result?.message || 'Swap execution is not ready yet.', true);
+    } catch (error) {
+      console.error('[4TEEN] swap execution failed', error);
+      setStatus(error?.message || 'Swap execution failed.', true);
+    }
   }
-}
 
   function handleWalletUpdate() {
     if (!isAlive()) return;
@@ -726,10 +750,11 @@ export function mountSwap(target, config = {}) {
   updateTargetButtons();
   syncEmbeddedWalletUi();
   updateWalletLabel();
+
   syncQuotes().catch((error) => {
-  console.error('[4TEEN] initial swap quotes failed', error);
-  setStatus('Failed to load routes.', true);
-});
+    console.error('[4TEEN] initial swap quotes failed', error);
+    setStatus('Failed to load routes.', true);
+  });
 
   return instance;
 }
