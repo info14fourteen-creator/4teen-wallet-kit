@@ -40,8 +40,11 @@ const DEFAULT_CONFIG = {
   badgeText: 'SUN.IO',
   infoTitle: 'How swap routing works',
   infoText:
-    'This swap module compares multiple on-chain routes for converting 4TEEN into supported output tokens. You can review the expected output, estimated minimum received, route path, and swap impact before execution.\n\nThe first version uses SUN.io routing logic and is designed to expand later with additional providers such as JustMoney and LiquidMesh.\n\nAll swaps are executed directly from your connected wallet.',
-  mobileConnectHint: 'Tap connect below to continue.',
+    'SUN Smart Router finds the best swap routes across the TRON network in real time — optimizing price, reducing slippage, and routing through the most efficient liquidity pools.
+This module intentionally focuses on two outputs only: TRX and USDT.
+Why? Simplicity and control.
+If you want full flexibility — swap to TRX and bridge anywhere, or move into USDT and access the entire market from there.
+Fast. Transparent. On-chain.',
   routeCount: 3,
   defaultOutputKey: 'TRX',
   defaultSlippageBps: 300,
@@ -232,8 +235,8 @@ export function mountSwap(target, config = {}) {
 
           <div class="fourteen-swap-hero__text">
             <div class="fourteen-swap-hero__title">
-              Token <span>Swap</span> Router
-            </div>
+  Swap <span>4TEEN</span> to TRX/USDT
+</div>
             <div class="fourteen-swap-hero__subtitle">${escapeHtml(subtitle)}</div>
           </div>
 
