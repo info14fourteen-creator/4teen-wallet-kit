@@ -1,61 +1,65 @@
 import './swap.css';
 import { mountWalletButton } from '../../ui/walletButton.js';
-import {
-  showSuccessNotice,
-  showErrorNotice,
-  showNeutralNotice
-} from '../../ui/noticeCenter.js';
-import {
-  getSunSwapRoutes,
-  executeSunSwapRoute
-} from './providers/sunio.js';
+
+import sunioLogo from '../../assets/sunio_swap.svg';
+import justmoneyLogo from '../../assets/justmoney_swap.svg';
+import trxLogo from '../../assets/trx_swap.svg';
+import fourteenLogo from '../../assets/4teen_swap.svg';
+import usdtLogo from '../../assets/usdt_swap.svg';
+import swapArrowsLogo from '../../assets/swap_arrows.svg';
 
 const ACTIVE_INSTANCES = new WeakMap();
 
 const DEFAULT_CONFIG = {
-  inputToken: {
-    key: '4TEEN',
-    symbol: '4TEEN',
-    address: 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A',
-    decimals: 6
-  },
-
-  outputTokens: [
-    {
-      key: 'TRX',
-      symbol: 'TRX',
-      address: 'TRX',
-      decimals: 6
-    },
-    {
-      key: 'USDT',
-      symbol: 'USDT',
-      address: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
-      decimals: 6
-    }
-  ],
-
-  title: 'Token Swap Router',
+  title: 'Swap 4TEEN to TRX/USDT',
   subtitle: 'Compare routes and swap 4TEEN efficiently',
-  badgeText: 'SUN.IO',
-  infoTitle: 'How swap routing works',
-  infoText: `
-SUN Smart Router finds the best swap routes across the TRON network in real time — optimizing price, reducing slippage, and routing through the most efficient liquidity pools.
-
-This module intentionally focuses on two outputs only: TRX and USDT.
-
-Why? Simplicity and control.
-
-If you want full flexibility — swap to TRX and bridge anywhere, or move into USDT and access the entire market from there.
-
-Fast. Transparent. On-chain.
-`,
+  infoTitle: 'How route comparison works',
+  infoText:
+    'This widget compares available swap routes and ranks them from the highest possible output to the lowest. The estimate updates automatically as you type and changes depending on the token you select.\n\nEach route card shows the expected output, minimum received after slippage, route path, fee label, and provider source. As new routing providers are added, they will automatically be included, ranked, and displayed here.\n\nFor now, the module is prepared for a live routing backend and already uses the final visual structure that future on-chain integrations will plug into.',
+  mobileConnectHint: 'Tap connect below to continue.',
+  sourceLabel: 'SUN.io',
+  tokenInSymbol: '4TEEN',
+  tokenOutDefault: 'TRX',
+  tokenOutOptions: ['TRX', 'USDT'],
+  defaultSlippage: '3.00',
+  slippageOptions: ['0.50', '1.00', '3.00'],
+  estimateDecimals: 2,
   routeCount: 3,
-  defaultOutputKey: 'TRX',
-  defaultSlippageBps: 300,
-  slippageOptionsBps: [100, 300, 500, 1000],
-  amountPlaceholder: '0.00',
-  emptyRoutesText: 'Enter a 4TEEN amount to load swap routes.'
+  tokenAddresses: {
+    '4TEEN': 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A',
+    'TRX': 'TRX',
+    'USDT': 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf'
+  },
+  mockBaseRates: {
+    TRX: 1.0,
+    USDT: 0.122
+  }
+};
+
+const TOKEN_META = {
+  '4TEEN': {
+    symbol: '4TEEN',
+    logo: fourteenLogo
+  },
+  'TRX': {
+    symbol: 'TRX',
+    logo: trxLogo
+  },
+  'USDT': {
+    symbol: 'USDT',
+    logo: usdtLogo
+  }
+};
+
+const PROVIDER_META = {
+  sunio: {
+    name: 'SUN.io',
+    logo: sunioLogo
+  },
+  justmoney: {
+    name: 'JustMoney',
+    logo: justmoneyLogo
+  }
 };
 
 function escapeHtml(value) {
@@ -67,65 +71,8 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
-function formatAmount(value, digits = 6) {
-  const num = Number(value || 0);
-
-  if (!Number.isFinite(num)) {
-    return '0.000000';
-  }
-
-  return num.toFixed(digits);
-}
-
-function formatCompact(value) {
-  const num = Number(value || 0);
-
-  if (!Number.isFinite(num)) {
-    return '0.00';
-  }
-
-  const abs = Math.abs(num);
-
-  if (abs >= 1_000_000_000) {
-    return `${(num / 1_000_000_000).toFixed(2)}b`;
-  }
-
-  if (abs >= 1_000_000) {
-    return `${(num / 1_000_000).toFixed(2)}m`;
-  }
-
-  if (abs >= 1_000) {
-    return `${(num / 1_000).toFixed(2)}k`;
-  }
-
-  return num.toFixed(2);
-}
-
-function parsePositiveNumber(value) {
-  const normalized = String(value ?? '').replace(',', '.').trim();
-  const num = Number.parseFloat(normalized);
-
-  if (!Number.isFinite(num) || num <= 0) {
-    return 0;
-  }
-
-  return num;
-}
-
-function shortenAddress(address) {
-  if (!address || typeof address !== 'string') return '';
-  if (address.length <= 12) return address;
-  return `${address.slice(0, 6)}...${address.slice(-6)}`;
-}
-
-function isMobileViewport() {
-  if (typeof window === 'undefined') return false;
-
-  if (typeof window.matchMedia === 'function') {
-    return window.matchMedia('(max-width: 640px)').matches;
-  }
-
-  return window.innerWidth <= 640;
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getWalletSafe() {
@@ -146,17 +93,6 @@ function getWalletStateSafe(wallet) {
   return null;
 }
 
-function getTronWebSafe(wallet) {
-  if (!wallet) return null;
-
-  if (typeof wallet.getTronWeb === 'function') {
-    return wallet.getTronWeb();
-  }
-
-  const state = getWalletStateSafe(wallet);
-  return state?.tronWeb || null;
-}
-
 function getConnectedAddress(wallet) {
   const state = getWalletStateSafe(wallet);
 
@@ -173,45 +109,145 @@ function isConnectedSafe(wallet) {
   return !!state?.connected && !!state?.address;
 }
 
-function getOutputToken(outputTokens, key) {
-  return outputTokens.find((token) => token.key === key) || outputTokens[0] || null;
+function shortenAddress(address) {
+  if (!address || typeof address !== 'string') return '';
+  if (address.length <= 12) return address;
+  return `${address.slice(0, 6)}...${address.slice(-6)}`;
 }
 
-function formatSlippageLabel(bps) {
-  return `${(Number(bps || 0) / 100).toFixed(2)}%`;
+function isMobileViewport() {
+  if (typeof window === 'undefined') return false;
+
+  if (typeof window.matchMedia === 'function') {
+    return window.matchMedia('(max-width: 640px)').matches;
+  }
+
+  return window.innerWidth <= 640;
 }
 
-function normalizeRoute(route, index = 0) {
-  return {
-    id: route?.id || `route-${index + 1}`,
-    provider: route?.provider || 'SUN.io',
-    routeLabel: route?.routeLabel || '4TEEN → Route',
-    amountOut: route?.amountOut ?? '0',
-    minReceived: route?.minReceived ?? '0',
-    priceImpact: route?.priceImpact ?? '—',
-    feeText: route?.feeText ?? '—',
-    pathText: route?.pathText || route?.routeLabel || '—',
-    metaText: route?.metaText || 'Direct contract',
-    executionData: route?.executionData || null
-  };
+function parsePositiveNumber(value) {
+  const normalized = String(value ?? '').replace(',', '.').trim();
+  const num = Number.parseFloat(normalized);
+
+  if (!Number.isFinite(num) || num <= 0) {
+    return 0;
+  }
+
+  return num;
+}
+
+function formatNumber(value, digits = 2) {
+  const num = Number(value || 0);
+
+  if (!Number.isFinite(num)) {
+    return (0).toFixed(digits);
+  }
+
+  return num.toFixed(digits);
+}
+
+function createRoutePathHtml(route) {
+  const fromMeta = TOKEN_META[route.fromToken] || TOKEN_META['4TEEN'];
+  const toMeta = TOKEN_META[route.toToken] || TOKEN_META['TRX'];
+
+  const viaParts = Array.isArray(route.via) ? route.via : [];
+  const viaHtml = viaParts.length
+    ? `<span class="fourteen-swap-route-card__path-via">${escapeHtml(viaParts.join(' / '))}</span>`
+    : '';
+
+  return `
+    <div class="fourteen-swap-route-card__path-line">
+      <img class="fourteen-swap-route-card__token-logo" src="${fromMeta.logo}" alt="${escapeHtml(fromMeta.symbol)}" />
+      <span class="fourteen-swap-route-card__token-symbol">${escapeHtml(fromMeta.symbol)}</span>
+
+      <span class="fourteen-swap-route-card__path-arrow">→</span>
+
+      ${viaHtml ? `<span class="fourteen-swap-route-card__via-wrap">${viaHtml}<span class="fourteen-swap-route-card__path-arrow">→</span></span>` : ''}
+
+      <img class="fourteen-swap-route-card__token-logo" src="${toMeta.logo}" alt="${escapeHtml(toMeta.symbol)}" />
+      <span class="fourteen-swap-route-card__token-symbol">${escapeHtml(toMeta.symbol)}</span>
+    </div>
+  `;
+}
+
+function buildMockRoutes(amountIn, targetToken, baseRates, slippageValue, routeCount) {
+  if (!amountIn || amountIn <= 0) {
+    return [];
+  }
+
+  const baseRate = Number(baseRates?.[targetToken] || 0);
+
+  if (!Number.isFinite(baseRate) || baseRate <= 0) {
+    return [];
+  }
+
+  const safeSlippage = Number.parseFloat(slippageValue || '3') || 3;
+
+  const templates = [
+    {
+      id: 'sun-direct',
+      provider: 'sunio',
+      providerName: 'SUN.io',
+      routeLabel: 'Direct · needs live quote',
+      feeLabel: 'Best direct',
+      pathHint: [],
+      qualityFactor: 1.0
+    },
+    {
+      id: 'sun-optimized',
+      provider: 'sunio',
+      providerName: 'SUN.io',
+      routeLabel: 'Optimized · best price',
+      feeLabel: 'Optimized route',
+      pathHint: ['WTRX'],
+      qualityFactor: 0.992
+    },
+    {
+      id: 'sun-stable',
+      provider: 'sunio',
+      providerName: 'SUN.io',
+      routeLabel: 'Stable · protected route',
+      feeLabel: 'Protected path',
+      pathHint: targetToken === 'USDT' ? ['TRX'] : ['USDT'],
+      qualityFactor: 0.983
+    }
+  ].slice(0, Math.max(1, routeCount || 3));
+
+  return templates
+    .map((template) => {
+      const receive = amountIn * baseRate * template.qualityFactor;
+      const minReceived = receive * (1 - safeSlippage / 100);
+
+      return {
+        ...template,
+        fromToken: '4TEEN',
+        toToken: targetToken,
+        receive,
+        minReceived,
+        impactLabel: '—',
+        providerLogo: PROVIDER_META[template.provider]?.logo || sunioLogo
+      };
+    })
+    .sort((a, b) => b.receive - a.receive);
 }
 
 export function mountSwap(target, config = {}) {
   const {
-    inputToken,
-    outputTokens,
     title,
     subtitle,
-    badgeText,
     infoTitle,
     infoText,
     mobileConnectHint,
+    sourceLabel,
+    tokenInSymbol,
+    tokenOutDefault,
+    tokenOutOptions,
+    defaultSlippage,
+    slippageOptions,
+    estimateDecimals,
     routeCount,
-    defaultOutputKey,
-    defaultSlippageBps,
-    slippageOptionsBps,
-    amountPlaceholder,
-    emptyRoutesText
+    tokenAddresses,
+    mockBaseRates
   } = { ...DEFAULT_CONFIG, ...config };
 
   if (!target) {
@@ -230,8 +266,6 @@ export function mountSwap(target, config = {}) {
     } catch (_) {}
   }
 
-  const initialOutputToken = getOutputToken(outputTokens, defaultOutputKey);
-
   target.innerHTML = `
     <div class="fourteen-swap-widget">
       <div class="fourteen-swap-shell">
@@ -240,13 +274,13 @@ export function mountSwap(target, config = {}) {
 
           <div class="fourteen-swap-hero__text">
             <div class="fourteen-swap-hero__title">
-  Swap <span>4TEEN</span> to TRX/USDT
-</div>
+              Swap <span>4TEEN</span> to TRX/USDT
+            </div>
             <div class="fourteen-swap-hero__subtitle">${escapeHtml(subtitle)}</div>
           </div>
 
           <div class="fourteen-swap-hero__actions">
-            <div class="fourteen-swap-badge">${escapeHtml(badgeText)}</div>
+            <div class="fourteen-swap-badge">${escapeHtml(sourceLabel)}</div>
 
             <div class="fourteen-swap-info-toggle-wrap">
               <button
@@ -278,89 +312,103 @@ export function mountSwap(target, config = {}) {
         </div>
 
         <div class="fourteen-swap-form">
-          <div class="fourteen-swap-form-grid">
-            <div class="fourteen-swap-field">
-              <div class="fourteen-swap-field__label">From</div>
-              <div class="fourteen-swap-fixed-token">
-                <span class="fourteen-swap-fixed-token__symbol">${escapeHtml(inputToken.symbol)}</span>
-                <span class="fourteen-swap-fixed-token__address">${escapeHtml(shortenAddress(inputToken.address))}</span>
-              </div>
-            </div>
+          <div class="fourteen-swap-form__meta-row">
+            <div class="fourteen-swap-form__meta-label">Amount tokens to swap</div>
 
-            <div class="fourteen-swap-field">
-              <div class="fourteen-swap-field__label">Amount</div>
-              <div class="fourteen-swap-amount-wrap">
-                <input
-                  class="fourteen-swap-amount-input"
-                  data-role="amount-input"
-                  type="number"
-                  step="0.000001"
-                  min="0"
-                  inputmode="decimal"
-                  placeholder="${escapeHtml(amountPlaceholder)}"
-                />
-                <span class="fourteen-swap-amount-suffix">${escapeHtml(inputToken.symbol)}</span>
-              </div>
-            </div>
-
-            <div class="fourteen-swap-field">
-              <div class="fourteen-swap-field__label">To</div>
-              <div class="fourteen-swap-output-list" data-role="output-list">
-                ${outputTokens.map((token) => `
-                  <button
-                    class="fourteen-swap-output-chip ${token.key === initialOutputToken?.key ? 'is-active' : ''}"
-                    type="button"
-                    data-output-key="${escapeHtml(token.key)}"
-                  >
-                    ${escapeHtml(token.symbol)}
-                  </button>
-                `).join('')}
-              </div>
-            </div>
-
-            <div class="fourteen-swap-field">
-              <div class="fourteen-swap-field__label">Slippage</div>
-              <select class="fourteen-swap-select" data-role="slippage-select">
-                ${slippageOptionsBps.map((bps) => `
-                  <option value="${bps}" ${bps === defaultSlippageBps ? 'selected' : ''}>${escapeHtml(formatSlippageLabel(bps))}</option>
+            <div class="fourteen-swap-form__slippage-wrap">
+              <label class="fourteen-swap-form__meta-label" for="fourteen-swap-slippage">Slippage</label>
+              <select class="fourteen-swap-slippage" id="fourteen-swap-slippage" data-role="slippage-select">
+                ${slippageOptions.map((item) => `
+                  <option value="${escapeHtml(item)}" ${String(item) === String(defaultSlippage) ? 'selected' : ''}>
+                    ${escapeHtml(item)}%
+                  </option>
                 `).join('')}
               </select>
             </div>
           </div>
-        </div>
 
-        <div class="fourteen-swap-status" data-role="status" role="status" aria-live="polite"></div>
+          <div class="fourteen-swap-input-wrap">
+            <input
+              class="fourteen-swap-input"
+              type="number"
+              step="0.000001"
+              min="0"
+              inputmode="decimal"
+              placeholder="0.00"
+              data-role="amount-input"
+            />
+            <div class="fourteen-swap-input__suffix">
+              <img class="fourteen-swap-input__token-logo" src="${fourteenLogo}" alt="4TEEN" />
+              <span>${escapeHtml(tokenInSymbol)}</span>
+            </div>
+          </div>
+
+          <div class="fourteen-swap-form__meta-row fourteen-swap-form__meta-row--estimate">
+            <div class="fourteen-swap-form__meta-label">Estimate</div>
+
+            <div class="fourteen-swap-target-switch" data-role="target-switch">
+              ${tokenOutOptions.map((symbol) => {
+                const meta = TOKEN_META[symbol];
+                const active = symbol === tokenOutDefault;
+
+                return `
+                  <button
+                    type="button"
+                    class="fourteen-swap-target-switch__button ${active ? 'is-active' : ''}"
+                    data-role="target-button"
+                    data-token="${escapeHtml(symbol)}"
+                    aria-pressed="${active ? 'true' : 'false'}"
+                  >
+                    <img class="fourteen-swap-target-switch__logo" src="${meta.logo}" alt="${escapeHtml(symbol)}" />
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <div class="fourteen-swap-estimate-wrap">
+            <div class="fourteen-swap-estimate">
+              <div class="fourteen-swap-estimate__value" data-role="estimate-value">0.00</div>
+              <div class="fourteen-swap-estimate__suffix">
+                <img class="fourteen-swap-estimate__token-logo" src="${trxLogo}" alt="TRX" data-role="estimate-logo" />
+                <span data-role="estimate-symbol">${escapeHtml(tokenOutDefault)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div class="fourteen-swap-routes-head">
-          <div class="fourteen-swap-routes-title">Available Routes</div>
-          <div class="fourteen-swap-routes-subtitle" data-role="routes-subtitle">${escapeHtml(emptyRoutesText)}</div>
+          <div class="fourteen-swap-routes-head__title">Available Routes</div>
+          <div class="fourteen-swap-routes-head__subtitle" data-role="routes-summary">0 routes found via ${escapeHtml(sourceLabel)}</div>
         </div>
 
-        <div class="fourteen-swap-routes" data-role="routes"></div>
+        <div class="fourteen-swap-routes" data-role="routes-list"></div>
+
+        <div class="fourteen-swap-status" data-role="status" role="status" aria-live="polite"></div>
       </div>
     </div>
   `;
 
   const walletInfoEl = target.querySelector('[data-role="wallet-label"]');
-  const embeddedWalletButtonEl = target.querySelector('[data-role="embedded-wallet-button"]');
-  const mobileConnectHintEl = target.querySelector('[data-role="mobile-connect-hint"]');
   const infoToggleEl = target.querySelector('[data-role="swap-info-toggle"]');
   const popoverEl = target.querySelector('[data-role="swap-popover"]');
+  const embeddedWalletButtonEl = target.querySelector('[data-role="embedded-wallet-button"]');
+  const mobileConnectHintEl = target.querySelector('[data-role="mobile-connect-hint"]');
   const amountInputEl = target.querySelector('[data-role="amount-input"]');
   const slippageSelectEl = target.querySelector('[data-role="slippage-select"]');
-  const outputListEl = target.querySelector('[data-role="output-list"]');
+  const targetButtons = Array.from(target.querySelectorAll('[data-role="target-button"]'));
+  const estimateValueEl = target.querySelector('[data-role="estimate-value"]');
+  const estimateSymbolEl = target.querySelector('[data-role="estimate-symbol"]');
+  const estimateLogoEl = target.querySelector('[data-role="estimate-logo"]');
+  const routesSummaryEl = target.querySelector('[data-role="routes-summary"]');
+  const routesListEl = target.querySelector('[data-role="routes-list"]');
   const statusEl = target.querySelector('[data-role="status"]');
-  const routesEl = target.querySelector('[data-role="routes"]');
-  const routesSubtitleEl = target.querySelector('[data-role="routes-subtitle"]');
 
   let isDestroyed = false;
   let walletUnsubscribe = null;
   let embeddedWalletUnmount = null;
   let resizeListenerBound = false;
-  let isQuoting = false;
-  let isSwapping = false;
-
-  let currentOutputKey = initialOutputToken?.key || 'TRX';
+  let selectedTarget = tokenOutDefault;
   let currentRoutes = [];
 
   function isAlive() {
@@ -431,11 +479,9 @@ export function mountSwap(target, config = {}) {
 
     if (mobile) {
       unmountEmbeddedWalletButton();
-
       if (mobileConnectHintEl) {
         mobileConnectHintEl.hidden = connected;
       }
-
       return;
     }
 
@@ -452,7 +498,7 @@ export function mountSwap(target, config = {}) {
       onConnectClick: async (walletId) => {
         if (typeof wallet.connect === 'function') {
           await wallet.connect(walletId);
-          await new Promise((resolve) => setTimeout(resolve, 450));
+          await wait(450);
           await refreshBalancesSafe();
         }
       },
@@ -467,153 +513,160 @@ export function mountSwap(target, config = {}) {
     });
   }
 
-  function renderEmptyRoutes(message) {
-    currentRoutes = [];
-    routesEl.innerHTML = `
-      <div class="fourteen-swap-empty">
-        ${escapeHtml(message)}
-      </div>
-    `;
-  }
+  function updateTargetButtons() {
+    targetButtons.forEach((button) => {
+      const token = button.getAttribute('data-token');
+      const active = token === selectedTarget;
 
-  function buildRouteCard(route) {
-    return `
-      <div class="fourteen-swap-route-card" data-route-id="${escapeHtml(route.id)}">
-        <div class="fourteen-swap-route-card__top">
-          <div>
-            <div class="fourteen-swap-route-card__provider">${escapeHtml(route.provider)}</div>
-            <div class="fourteen-swap-route-card__label">${escapeHtml(route.routeLabel)}</div>
-          </div>
-
-          <div class="fourteen-swap-route-card__badge">${escapeHtml(route.metaText)}</div>
-        </div>
-
-        <div class="fourteen-swap-route-card__grid">
-          <div class="fourteen-swap-route-card__item">
-            <div class="fourteen-swap-route-card__item-label">You receive</div>
-            <div class="fourteen-swap-route-card__item-value">
-              ${escapeHtml(formatCompact(route.amountOut))} ${escapeHtml(getOutputToken(outputTokens, currentOutputKey)?.symbol || '')}
-            </div>
-          </div>
-
-          <div class="fourteen-swap-route-card__item">
-            <div class="fourteen-swap-route-card__item-label">Min received</div>
-            <div class="fourteen-swap-route-card__item-value">
-              ${escapeHtml(formatCompact(route.minReceived))} ${escapeHtml(getOutputToken(outputTokens, currentOutputKey)?.symbol || '')}
-            </div>
-          </div>
-
-          <div class="fourteen-swap-route-card__item">
-            <div class="fourteen-swap-route-card__item-label">Fee</div>
-            <div class="fourteen-swap-route-card__item-value">${escapeHtml(route.feeText)}</div>
-          </div>
-
-          <div class="fourteen-swap-route-card__item">
-            <div class="fourteen-swap-route-card__item-label">Impact</div>
-            <div class="fourteen-swap-route-card__item-value">${escapeHtml(route.priceImpact)}</div>
-          </div>
-        </div>
-
-        <div class="fourteen-swap-route-card__path">
-          <span class="fourteen-swap-route-card__path-label">Path</span>
-          <span class="fourteen-swap-route-card__path-value">${escapeHtml(route.pathText)}</span>
-        </div>
-
-        <button
-          class="fourteen-swap-route-card__action"
-          type="button"
-          data-role="swap-route-button"
-          data-route-id="${escapeHtml(route.id)}"
-          ${isSwapping ? 'disabled' : ''}
-        >
-          Swap via ${escapeHtml(route.provider)}
-        </button>
-      </div>
-    `;
-  }
-
-  function renderRoutes(routes) {
-    currentRoutes = routes.map((route, index) => normalizeRoute(route, index));
-
-    if (!currentRoutes.length) {
-      renderEmptyRoutes('No routes found for the selected amount.');
-      return;
-    }
-
-    routesEl.innerHTML = currentRoutes.map(buildRouteCard).join('');
-
-    routesEl.querySelectorAll('[data-role="swap-route-button"]').forEach((button) => {
-      button.addEventListener('click', async () => {
-        const routeId = button.getAttribute('data-route-id');
-        await handleSwap(routeId);
-      });
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
   }
 
-  async function refreshQuotes() {
-    if (isQuoting || isSwapping) {
+  function buildRoutes() {
+    const amount = parsePositiveNumber(amountInputEl?.value);
+    const slippage = slippageSelectEl?.value || defaultSlippage;
+
+    currentRoutes = buildMockRoutes(
+      amount,
+      selectedTarget,
+      mockBaseRates,
+      slippage,
+      routeCount
+    );
+  }
+
+  function renderEstimate() {
+    const bestRoute = currentRoutes[0] || null;
+    const toMeta = TOKEN_META[selectedTarget] || TOKEN_META['TRX'];
+
+    estimateLogoEl.src = toMeta.logo;
+    estimateLogoEl.alt = toMeta.symbol;
+    estimateSymbolEl.textContent = toMeta.symbol;
+    estimateValueEl.textContent = bestRoute
+      ? formatNumber(bestRoute.receive, estimateDecimals)
+      : formatNumber(0, estimateDecimals);
+  }
+
+  function renderRoutes() {
+    const count = currentRoutes.length;
+    routesSummaryEl.textContent = `${count} ${count === 1 ? 'route' : 'routes'} found via ${sourceLabel}`;
+
+    if (!count) {
+      routesListEl.innerHTML = `
+        <div class="fourteen-swap-routes-empty">
+          Enter an amount to preview available routes.
+        </div>
+      `;
       return;
     }
 
-    const amount = parsePositiveNumber(amountInputEl.value);
-    const outputToken = getOutputToken(outputTokens, currentOutputKey);
-    const tronWeb = getTronWebSafe(wallet);
+    routesListEl.innerHTML = currentRoutes
+      .map((route, index) => {
+        return `
+          <div class="fourteen-swap-route-card">
+            <div class="fourteen-swap-route-card__left">
+              <div class="fourteen-swap-route-card__eyebrow">You receive</div>
+              <div class="fourteen-swap-route-card__receive">
+                ${escapeHtml(formatNumber(route.receive, estimateDecimals))} ${escapeHtml(route.toToken)}
+              </div>
 
-    if (!amount || !outputToken) {
-      routesSubtitleEl.textContent = emptyRoutesText;
-      renderEmptyRoutes(emptyRoutesText);
+              <div class="fourteen-swap-route-card__min">
+                Min received ${escapeHtml(formatNumber(route.minReceived, estimateDecimals))} ${escapeHtml(route.toToken)}
+              </div>
+
+              <button
+                type="button"
+                class="fourteen-swap-route-card__action"
+                data-role="swap-route-button"
+                data-route-id="${escapeHtml(route.id)}"
+                ${isConnectedSafe(wallet) ? '' : 'disabled'}
+              >
+                Swap
+              </button>
+            </div>
+
+            <div class="fourteen-swap-route-card__middle">
+              <img class="fourteen-swap-route-card__middle-icon" src="${swapArrowsLogo}" alt="Swap arrows" />
+            </div>
+
+            <div class="fourteen-swap-route-card__right">
+              <div class="fourteen-swap-route-card__provider">
+                <img class="fourteen-swap-route-card__provider-logo" src="${route.providerLogo}" alt="${escapeHtml(route.providerName)}" />
+              </div>
+
+              <div class="fourteen-swap-route-card__detail">
+                <div class="fourteen-swap-route-card__label">Path</div>
+                <div class="fourteen-swap-route-card__value">
+                  ${createRoutePathHtml(route)}
+                </div>
+              </div>
+
+              <div class="fourteen-swap-route-card__detail">
+                <div class="fourteen-swap-route-card__label">Route</div>
+                <div class="fourteen-swap-route-card__value">${escapeHtml(route.routeLabel)}</div>
+              </div>
+
+              <div class="fourteen-swap-route-card__detail">
+                <div class="fourteen-swap-route-card__label">Fee</div>
+                <div class="fourteen-swap-route-card__value">${escapeHtml(route.feeLabel)}</div>
+              </div>
+
+              <div class="fourteen-swap-route-card__detail">
+                <div class="fourteen-swap-route-card__label">Impact</div>
+                <div class="fourteen-swap-route-card__value">${escapeHtml(route.impactLabel)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+
+    Array.from(routesListEl.querySelectorAll('[data-role="swap-route-button"]')).forEach((button) => {
+      button.addEventListener('click', handleRouteSwapClick);
+    });
+
+    const best = currentRoutes[0];
+    if (best) {
+      setStatus(`Best route: ${best.providerName} · ${formatNumber(best.receive, estimateDecimals)} ${best.toToken}`);
+    } else {
       setStatus('');
-      return;
-    }
-
-    if (!tronWeb) {
-      routesSubtitleEl.textContent = 'Connect wallet to load routes.';
-      renderEmptyRoutes('Connect wallet to load routes.');
-      return;
-    }
-
-    try {
-      isQuoting = true;
-      setStatus('Loading routes...');
-      showNeutralNotice('Loading swap routes...', 3000);
-
-      const routes = await getSunSwapRoutes({
-        tronWeb,
-        amountIn: amount,
-        inputToken,
-        outputToken,
-        routeCount,
-        slippageBps: Number(slippageSelectEl.value || defaultSlippageBps),
-        config
-      });
-
-      routesSubtitleEl.textContent = `${routes.length} route${routes.length === 1 ? '' : 's'} found via SUN.io`;
-      renderRoutes(routes);
-      setStatus('');
-    } catch (error) {
-      console.error('[4TEEN] refreshQuotes failed', error);
-      routesSubtitleEl.textContent = 'Failed to load routes.';
-      renderEmptyRoutes('Could not load swap routes right now.');
-      setStatus(error?.message || 'Failed to load swap routes.', true);
-    } finally {
-      isQuoting = false;
     }
   }
 
-  async function handleSwap(routeId) {
-    if (isSwapping) {
+  function syncQuotes() {
+    buildRoutes();
+    renderEstimate();
+    renderRoutes();
+  }
+
+  function handleAmountInput() {
+    syncQuotes();
+  }
+
+  function handleSlippageChange() {
+    syncQuotes();
+  }
+
+  function handleTargetClick(event) {
+    const button = event.currentTarget;
+    const token = button.getAttribute('data-token');
+
+    if (!token || token === selectedTarget) {
       return;
     }
 
-    const route = currentRoutes.find((item) => item.id === routeId);
-    const tronWeb = getTronWebSafe(wallet);
-    const recipient = getConnectedAddress(wallet);
-    const amount = parsePositiveNumber(amountInputEl.value);
-    const outputToken = getOutputToken(outputTokens, currentOutputKey);
-    const slippageBps = Number(slippageSelectEl.value || defaultSlippageBps);
+    selectedTarget = token;
+    updateTargetButtons();
+    syncQuotes();
+  }
 
-    if (!route || !tronWeb || !recipient || !amount || !outputToken) {
-      setStatus('Swap data is incomplete.', true);
+  async function handleRouteSwapClick(event) {
+    const routeId = event.currentTarget?.getAttribute('data-route-id');
+    const route = currentRoutes.find((item) => item.id === routeId);
+
+    if (!route) {
+      setStatus('Route not found.', true);
       return;
     }
 
@@ -622,61 +675,17 @@ export function mountSwap(target, config = {}) {
       return;
     }
 
-    try {
-      isSwapping = true;
-      setStatus('Preparing swap...');
-      showNeutralNotice('Preparing swap...', 4000);
-      renderRoutes(currentRoutes);
-
-      const result = await executeSunSwapRoute({
-        tronWeb,
-        route,
-        amountIn: amount,
-        inputToken,
-        outputToken,
-        recipient,
-        slippageBps,
-        config
-      });
-
-      setStatus('Swap submitted successfully.');
-      showSuccessNotice('Swap submitted successfully.', 6000);
-
-      await refreshBalancesSafe();
-      await refreshQuotes();
-
-      return result;
-    } catch (error) {
-      console.error('[4TEEN] handleSwap failed', error);
-      const message = error?.message || 'Swap failed.';
-      setStatus(message, true);
-      showErrorNotice(message, 7000);
-    } finally {
-      isSwapping = false;
-      renderRoutes(currentRoutes);
-    }
-  }
-
-  async function syncWidgetState() {
-    syncEmbeddedWalletUi();
-    updateWalletLabel();
-
-    if (!isConnectedSafe(wallet)) {
-      routesSubtitleEl.textContent = 'Connect wallet to load routes.';
-      renderEmptyRoutes('Connect wallet to load routes.');
-      setStatus('');
-      return;
-    }
-
-    await refreshQuotes();
+    setStatus(`Swap execution for ${route.providerName} will be connected next.`);
   }
 
   function handleWalletUpdate() {
     if (!isAlive()) return;
 
-    syncWidgetState().catch((error) => {
-      console.error('[4TEEN] swap sync failed', error);
-      setStatus('Failed to refresh swap widget.', true);
+    syncEmbeddedWalletUi();
+    updateWalletLabel();
+
+    Array.from(routesListEl.querySelectorAll('[data-role="swap-route-button"]')).forEach((button) => {
+      button.disabled = !isConnectedSafe(wallet);
     });
   }
 
@@ -685,41 +694,13 @@ export function mountSwap(target, config = {}) {
     syncEmbeddedWalletUi();
   }
 
-  function handleAmountInput() {
-    refreshQuotes().catch((error) => {
-      console.error('[4TEEN] amount input refresh failed', error);
-    });
-  }
-
-  function handleSlippageChange() {
-    refreshQuotes().catch((error) => {
-      console.error('[4TEEN] slippage refresh failed', error);
-    });
-  }
-
-  function handleOutputClick(event) {
-    const button = event.target.closest('[data-output-key]');
-    if (!button) return;
-
-    const nextKey = button.getAttribute('data-output-key');
-    if (!nextKey || nextKey === currentOutputKey) return;
-
-    currentOutputKey = nextKey;
-
-    outputListEl.querySelectorAll('[data-output-key]').forEach((item) => {
-      item.classList.toggle('is-active', item.getAttribute('data-output-key') === currentOutputKey);
-    });
-
-    refreshQuotes().catch((error) => {
-      console.error('[4TEEN] output switch refresh failed', error);
-    });
-  }
-
-  amountInputEl.addEventListener('input', handleAmountInput);
-  slippageSelectEl.addEventListener('change', handleSlippageChange);
-  outputListEl.addEventListener('click', handleOutputClick);
   infoToggleEl?.addEventListener('click', togglePopover);
   document.addEventListener('click', handleOutsideClick);
+  amountInputEl?.addEventListener('input', handleAmountInput);
+  slippageSelectEl?.addEventListener('change', handleSlippageChange);
+  targetButtons.forEach((button) => {
+    button.addEventListener('click', handleTargetClick);
+  });
 
   if (typeof window !== 'undefined' && !resizeListenerBound) {
     window.addEventListener('resize', handleResize);
@@ -735,11 +716,18 @@ export function mountSwap(target, config = {}) {
       isDestroyed = true;
       unmountEmbeddedWalletButton();
 
-      amountInputEl.removeEventListener('input', handleAmountInput);
-      slippageSelectEl.removeEventListener('change', handleSlippageChange);
-      outputListEl.removeEventListener('click', handleOutputClick);
       infoToggleEl?.removeEventListener('click', togglePopover);
       document.removeEventListener('click', handleOutsideClick);
+      amountInputEl?.removeEventListener('input', handleAmountInput);
+      slippageSelectEl?.removeEventListener('change', handleSlippageChange);
+
+      targetButtons.forEach((button) => {
+        button.removeEventListener('click', handleTargetClick);
+      });
+
+      Array.from(routesListEl.querySelectorAll('[data-role="swap-route-button"]')).forEach((button) => {
+        button.removeEventListener('click', handleRouteSwapClick);
+      });
 
       if (resizeListenerBound && typeof window !== 'undefined') {
         window.removeEventListener('resize', handleResize);
@@ -754,7 +742,10 @@ export function mountSwap(target, config = {}) {
 
   ACTIVE_INSTANCES.set(target, instance);
 
-  handleWalletUpdate();
+  updateTargetButtons();
+  syncEmbeddedWalletUi();
+  updateWalletLabel();
+  syncQuotes();
 
   return instance;
 }
