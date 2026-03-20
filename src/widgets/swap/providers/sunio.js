@@ -408,6 +408,21 @@ function extractContractError(error) {
   return tryDecodeHexMessage(String(message || '')) || 'Swap execution failed';
 }
 
+function isTransientNetworkError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+
+  return (
+    message.includes('network error') ||
+    message.includes('failed to fetch') ||
+    message.includes('fetch failed') ||
+    message.includes('timeout') ||
+    message.includes('request failed') ||
+    message.includes('socket hang up') ||
+    message.includes('connection') ||
+    message.includes('disconnected')
+  );
+}
+
 function shouldAutoUnwrapWtrx(route) {
   if (!route || route.toToken !== 'TRX') {
     return false;
@@ -578,6 +593,7 @@ export async function waitForSunioTransactionConfirmation({
   }
 
   const startedAt = Date.now();
+  let lastKnownError = null;
 
   while (Date.now() - startedAt < timeoutMs) {
     try {
@@ -602,14 +618,23 @@ export async function waitForSunioTransactionConfirmation({
       const message = String(error?.message || '');
 
       if (
-        !message.includes('Transaction not found') &&
-        !message.includes('does not exist')
+        message.includes('Transaction not found') ||
+        message.includes('does not exist') ||
+        isTransientNetworkError(error)
       ) {
-        throw error;
+        lastKnownError = error;
+        await wait(pollIntervalMs);
+        continue;
       }
+
+      throw error;
     }
 
     await wait(pollIntervalMs);
+  }
+
+  if (lastKnownError && isTransientNetworkError(lastKnownError)) {
+    throw new Error('Network error while waiting for transaction confirmation');
   }
 
   throw new Error('Transaction confirmation timeout');
@@ -820,11 +845,14 @@ export async function executeSunioSwap({
 
       for (let i = 0; i < 10; i += 1) {
         await wait(700);
-        wtrxBalanceAfter = await getTokenBalanceRaw(
-          tronWeb,
-          SUNIO_TOKEN_ADDRESSES.WTRX,
-          owner
-        );
+
+        try {
+          wtrxBalanceAfter = await getTokenBalanceRaw(
+            tronWeb,
+            SUNIO_TOKEN_ADDRESSES.WTRX,
+            owner
+          );
+        } catch (_) {}
 
         if (wtrxBalanceAfter > wtrxBalanceBefore) {
           break;
