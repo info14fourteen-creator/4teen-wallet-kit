@@ -4,7 +4,7 @@ const PROVIDER_ID = 'sunio';
 const PROVIDER_NAME = 'SUN.io';
 
 export const SUNIO_MAINNET_DEFAULTS = {
-  smartRouterAddress: 'TCFNp179Lg46D16zKoumd4Poa2WFFdtqYj',
+  smartRouterAddress: 'TGnC7LMji8hBpyvZt1TTEJhVpAZ5HFyJ3r',
   calculationServiceUrl: 'https://rot.endjgfsv.link/swap/router',
   feeLimit: 200_000_000,
   deadlineSeconds: 60 * 20,
