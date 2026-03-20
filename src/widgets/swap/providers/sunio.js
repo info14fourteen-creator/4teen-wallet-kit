@@ -312,6 +312,31 @@ function normalizePoolFees(poolFees = [], pathLength = 0) {
   return normalized;
 }
 
+function ensureTronWebAddress(tronWeb, address) {
+  if (!tronWeb || !isUsableAddress(address)) {
+    return;
+  }
+
+  try {
+    if (typeof tronWeb.setAddress === 'function') {
+      tronWeb.setAddress(address);
+    }
+  } catch (_) {}
+
+  try {
+    const hex =
+      typeof tronWeb?.address?.toHex === 'function'
+        ? tronWeb.address.toHex(address)
+        : undefined;
+
+    tronWeb.defaultAddress = {
+      ...(tronWeb.defaultAddress || {}),
+      base58: address,
+      ...(hex ? { hex } : {})
+    };
+  } catch (_) {}
+}
+
 function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
   const tokens = Array.isArray(apiRoute?.tokens) ? apiRoute.tokens : [];
   const symbols = Array.isArray(apiRoute?.symbols) ? apiRoute.symbols : [];
@@ -477,6 +502,8 @@ export async function ensureSunioApproval({
     throw new Error('SUN.io approval: spenderAddress is invalid');
   }
 
+  ensureTronWebAddress(tronWeb, owner);
+
   const resolvedDecimals =
     Number.isFinite(Number(tokenDecimals))
       ? Number(tokenDecimals)
@@ -552,6 +579,7 @@ export async function executeSunioSwap({
   }
 
   assertExecutableRoute(route);
+  ensureTronWebAddress(tronWeb, to);
 
   const amountInRaw = decimalToRaw(amountIn, inputTokenDecimals);
   const slippageBps = parseSlippageBps(slippage);
