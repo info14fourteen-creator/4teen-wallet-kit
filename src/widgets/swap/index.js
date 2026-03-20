@@ -27,10 +27,11 @@ const DEFAULT_CONFIG = {
   estimateDecimals: 2,
   routeCount: 3,
   tokenAddresses: {
-    '4TEEN': 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A',
-    'TRX': 'TRX',
-    'USDT': 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf'
-  },
+  '4TEEN': 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A',
+  'TRX': 'TRX',
+  'WTRX': 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
+  'USDT': 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
+},
   mockBaseRates: {
     TRX: 1.0,
     USDT: 0.122
