@@ -1,11 +1,21 @@
 import { getSunioQuotes } from '../providers/sunio.js';
-import { getJustmoneyQuotes } from '../providers/justmoney.js';
 
-export async function getSwapQuotes(params) {
-  const routes = [
-    ...(await getSunioQuotes(params)),
-    ...(await getJustmoneyQuotes(params))
+export async function getSwapQuotes({
+  amountIn,
+  targetToken,
+  slippage,
+  routeCount,
+  baseRates
+} = {}) {
+  const allRoutes = [
+    ...(await getSunioQuotes({
+      amountIn,
+      targetToken,
+      slippage,
+      routeCount,
+      baseRates
+    }))
   ];
 
-  return routes.sort((a, b) => Number(b.receive || 0) - Number(a.receive || 0));
+  return allRoutes.sort((a, b) => Number(b.receive || 0) - Number(a.receive || 0));
 }
