@@ -6,7 +6,6 @@ import justmoneyLogo from '../../assets/justmoney_swap.svg';
 import trxLogo from '../../assets/trx_swap.svg';
 import fourteenLogo from '../../assets/4teen_swap.svg';
 import usdtLogo from '../../assets/usdt_swap.svg';
-import swapArrowsLogo from '../../assets/swap_arrows.svg';
 
 const ACTIVE_INSTANCES = new WeakMap();
 
@@ -15,7 +14,7 @@ const DEFAULT_CONFIG = {
   subtitle: 'Compare routes and swap 4TEEN efficiently',
   infoTitle: 'How route comparison works',
   infoText:
-    'This widget compares available swap routes and ranks them from the highest possible output to the lowest. The estimate updates automatically as you type and changes depending on the token you select.\n\nEach route card shows the expected output, minimum received after slippage, route path, fee label, and provider source. As new routing providers are added, they will automatically be included, ranked, and displayed here.\n\nFor now, the module is prepared for a live routing backend and already uses the final visual structure that future on-chain integrations will plug into.',
+    'This widget compares available swap routes and ranks them from the highest possible output to the lowest. The estimate updates automatically as you type and changes depending on the token you select.\n\nEach route card shows the expected output, minimum received after slippage, route path, execution type, and provider source. As new routing providers are added, they will automatically be included, ranked, and displayed here.\n\nFor now, the module is prepared for a live routing backend and already uses the final visual structure that future on-chain integrations will plug into.',
   mobileConnectHint: 'Tap connect below to continue.',
   sourceLabel: 'SUN.io',
   tokenInSymbol: '4TEEN',
@@ -149,23 +148,27 @@ function formatNumber(value, digits = 2) {
 function createRoutePathHtml(route) {
   const fromMeta = TOKEN_META[route.fromToken] || TOKEN_META['4TEEN'];
   const toMeta = TOKEN_META[route.toToken] || TOKEN_META['TRX'];
-
   const viaParts = Array.isArray(route.via) ? route.via : [];
-  const viaHtml = viaParts.length
-    ? `<span class="fourteen-swap-route-card__path-via">${escapeHtml(viaParts.join(' / '))}</span>`
-    : '';
 
   return `
     <div class="fourteen-swap-route-card__path-line">
-      <img class="fourteen-swap-route-card__token-logo" src="${fromMeta.logo}" alt="${escapeHtml(fromMeta.symbol)}" />
-      <span class="fourteen-swap-route-card__token-symbol">${escapeHtml(fromMeta.symbol)}</span>
+      <span class="fourteen-swap-route-card__path-token">
+        <img class="fourteen-swap-route-card__token-logo" src="${fromMeta.logo}" alt="${escapeHtml(fromMeta.symbol)}" />
+        <span class="fourteen-swap-route-card__token-symbol">${escapeHtml(fromMeta.symbol)}</span>
+      </span>
 
-      <span class="fourteen-swap-route-card__path-arrow">→</span>
+      ${
+        viaParts.length
+          ? viaParts
+              .map((via) => `<span class="fourteen-swap-route-card__path-via">${escapeHtml(via)}</span>`)
+              .join('')
+          : ''
+      }
 
-      ${viaHtml ? `<span class="fourteen-swap-route-card__via-wrap">${viaHtml}<span class="fourteen-swap-route-card__path-arrow">→</span></span>` : ''}
-
-      <img class="fourteen-swap-route-card__token-logo" src="${toMeta.logo}" alt="${escapeHtml(toMeta.symbol)}" />
-      <span class="fourteen-swap-route-card__token-symbol">${escapeHtml(toMeta.symbol)}</span>
+      <span class="fourteen-swap-route-card__path-token">
+        <img class="fourteen-swap-route-card__token-logo" src="${toMeta.logo}" alt="${escapeHtml(toMeta.symbol)}" />
+        <span class="fourteen-swap-route-card__token-symbol">${escapeHtml(toMeta.symbol)}</span>
+      </span>
     </div>
   `;
 }
@@ -189,8 +192,8 @@ function buildMockRoutes(amountIn, targetToken, baseRates, slippageValue, routeC
       provider: 'sunio',
       providerName: 'SUN.io',
       routeLabel: 'Direct · needs live quote',
-      feeLabel: 'Best direct',
-      pathHint: [],
+      executionLabel: 'Best direct',
+      via: [],
       qualityFactor: 1.0
     },
     {
@@ -198,8 +201,8 @@ function buildMockRoutes(amountIn, targetToken, baseRates, slippageValue, routeC
       provider: 'sunio',
       providerName: 'SUN.io',
       routeLabel: 'Optimized · best price',
-      feeLabel: 'Optimized route',
-      pathHint: ['WTRX'],
+      executionLabel: 'Optimized route',
+      via: ['WTRX'],
       qualityFactor: 0.992
     },
     {
@@ -207,8 +210,8 @@ function buildMockRoutes(amountIn, targetToken, baseRates, slippageValue, routeC
       provider: 'sunio',
       providerName: 'SUN.io',
       routeLabel: 'Stable · protected route',
-      feeLabel: 'Protected path',
-      pathHint: targetToken === 'USDT' ? ['TRX'] : ['USDT'],
+      executionLabel: 'Protected path',
+      via: targetToken === 'USDT' ? ['TRX'] : ['USDT'],
       qualityFactor: 0.983
     }
   ].slice(0, Math.max(1, routeCount || 3));
@@ -246,7 +249,6 @@ export function mountSwap(target, config = {}) {
     slippageOptions,
     estimateDecimals,
     routeCount,
-    tokenAddresses,
     mockBaseRates
   } = { ...DEFAULT_CONFIG, ...config };
 
@@ -274,7 +276,7 @@ export function mountSwap(target, config = {}) {
 
           <div class="fourteen-swap-hero__text">
             <div class="fourteen-swap-hero__title">
-              Swap <span>4TEEN</span> to TRX/USDT
+              ${escapeHtml(title).replace('4TEEN', '<span>4TEEN</span>')}
             </div>
             <div class="fourteen-swap-hero__subtitle">${escapeHtml(subtitle)}</div>
           </div>
@@ -562,7 +564,7 @@ export function mountSwap(target, config = {}) {
     }
 
     routesListEl.innerHTML = currentRoutes
-      .map((route, index) => {
+      .map((route) => {
         return `
           <div class="fourteen-swap-route-card">
             <div class="fourteen-swap-route-card__left">
@@ -586,16 +588,14 @@ export function mountSwap(target, config = {}) {
               </button>
             </div>
 
-            <div class="fourteen-swap-route-card__middle">
-              <img class="fourteen-swap-route-card__middle-icon" src="${swapArrowsLogo}" alt="Swap arrows" />
-            </div>
+            <div class="fourteen-swap-route-card__divider" aria-hidden="true"></div>
 
             <div class="fourteen-swap-route-card__right">
               <div class="fourteen-swap-route-card__provider">
                 <img class="fourteen-swap-route-card__provider-logo" src="${route.providerLogo}" alt="${escapeHtml(route.providerName)}" />
               </div>
 
-              <div class="fourteen-swap-route-card__detail">
+              <div class="fourteen-swap-route-card__detail fourteen-swap-route-card__detail--path">
                 <div class="fourteen-swap-route-card__label">Path</div>
                 <div class="fourteen-swap-route-card__value">
                   ${createRoutePathHtml(route)}
@@ -608,8 +608,8 @@ export function mountSwap(target, config = {}) {
               </div>
 
               <div class="fourteen-swap-route-card__detail">
-                <div class="fourteen-swap-route-card__label">Fee</div>
-                <div class="fourteen-swap-route-card__value">${escapeHtml(route.feeLabel)}</div>
+                <div class="fourteen-swap-route-card__label">Execution</div>
+                <div class="fourteen-swap-route-card__value">${escapeHtml(route.executionLabel)}</div>
               </div>
 
               <div class="fourteen-swap-route-card__detail">
