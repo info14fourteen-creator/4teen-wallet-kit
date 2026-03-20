@@ -4,7 +4,7 @@ const PROVIDER_ID = 'sunio';
 const PROVIDER_NAME = 'SUN.io';
 
 export const SUNIO_MAINNET_DEFAULTS = {
-  smartRouterAddress: 'TJ4NNy8xZEqsowCBhLvZ45LCqPdGjkET5j',
+  smartRouterAddress: 'TCFNp179Lg46D16zKoumd4Poa2WFFdtqYj',
   calculationServiceUrl: 'https://rot.endjgfsv.link/swap/router',
   feeLimit: 200_000_000,
   deadlineSeconds: 60 * 20,
@@ -240,7 +240,7 @@ function assertExecutableRoute(route) {
     throw new Error('SUN.io execution: route.versionLen is required');
   }
 
-  if (!Array.isArray(route.fees)) {
+  if (!Array.isArray(route.fees) || !route.fees.length) {
     throw new Error('SUN.io execution: route.fees is required');
   }
 }
@@ -281,13 +281,13 @@ function buildVersionLen(poolVersions = []) {
     if (poolVersions[i] === current) {
       count += 1;
     } else {
-      result.push(count);
+      result.push(result.length === 0 ? count + 1 : count);
       current = poolVersions[i];
       count = 1;
     }
   }
 
-  result.push(count);
+  result.push(result.length === 0 ? count + 1 : count);
   return result;
 }
 
@@ -296,16 +296,27 @@ function normalizePoolVersions(poolVersions = []) {
   return poolVersions.map((item) => String(item || '').trim()).filter(Boolean);
 }
 
-function normalizePoolFees(poolFees = []) {
-  if (!Array.isArray(poolFees)) return [];
-  return poolFees.map((item) => Number.parseInt(String(item ?? '0'), 10) || 0);
+function normalizePoolFees(poolFees = [], pathLength = 0) {
+  const normalized = Array.isArray(poolFees)
+    ? poolFees.map((item) => Number.parseInt(String(item ?? '0'), 10) || 0)
+    : [];
+
+  if (normalized.length >= pathLength) {
+    return normalized;
+  }
+
+  if (pathLength > 0) {
+    return [...normalized, ...new Array(pathLength - normalized.length).fill(0)];
+  }
+
+  return normalized;
 }
 
 function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
   const tokens = Array.isArray(apiRoute?.tokens) ? apiRoute.tokens : [];
   const symbols = Array.isArray(apiRoute?.symbols) ? apiRoute.symbols : [];
   const poolVersions = normalizePoolVersions(apiRoute?.poolVersions);
-  const fees = normalizePoolFees(apiRoute?.poolFees);
+  const fees = normalizePoolFees(apiRoute?.poolFees, tokens.length);
   const versionLen = buildVersionLen(poolVersions);
 
   return {
@@ -383,11 +394,6 @@ export function makeSunioRoute({
   };
 }
 
-/**
- * Real quote layer via SUN Smart Router Calculation Service.
- *
- * For TRX output, SUN expects WTRX address in the request.
- */
 export async function getSunioQuotes({
   amountIn,
   targetToken,
@@ -444,9 +450,6 @@ export async function getSunioQuotes({
     .sort((a, b) => Number(b.expectedOut || 0) - Number(a.expectedOut || 0));
 }
 
-/**
- * Real approval flow.
- */
 export async function ensureSunioApproval({
   wallet,
   tokenAddress,
@@ -516,21 +519,6 @@ export async function ensureSunioApproval({
   };
 }
 
-/**
- * Real SUN.io router execution.
- *
- * REQUIREMENT:
- * route must already contain exact:
- * - path
- * - poolVersion
- * - versionLen
- * - fees
- *
- * NOTE:
- * For TRX quotes SUN uses WTRX in the route path.
- * If you need strict native TRX unwrap behavior and router does not do it automatically,
- * that will require an extra unwrap step later.
- */
 export async function executeSunioSwap({
   wallet,
   route,
@@ -567,7 +555,10 @@ export async function executeSunioSwap({
 
   const amountInRaw = decimalToRaw(amountIn, inputTokenDecimals);
   const slippageBps = parseSlippageBps(slippage);
-  const resolvedOutputDecimals = getOutputDecimalsByTarget(route?.toToken, outputTokenDecimals ?? route?.outputDecimals);
+  const resolvedOutputDecimals = getOutputDecimalsByTarget(
+    route?.toToken,
+    outputTokenDecimals ?? route?.outputDecimals
+  );
 
   let amountOutMinRaw = 0n;
 
