@@ -209,20 +209,6 @@ async function getTokenDecimals(tronWeb, tokenAddress, fallback = 6) {
   }
 }
 
-function resolveSwapData({
-  amountInRaw,
-  amountOutMinRaw,
-  recipient,
-  deadlineSeconds
-}) {
-  return [
-    amountInRaw.toString(),
-    amountOutMinRaw.toString(),
-    recipient,
-    String(deadlineSeconds)
-  ];
-}
-
 function assertExecutableRoute(route) {
   if (!route) {
     throw new Error('SUN.io execution: route is required');
@@ -335,6 +321,18 @@ function ensureTronWebAddress(tronWeb, address) {
       ...(hex ? { hex } : {})
     };
   } catch (_) {}
+}
+
+function toHexAddress(tronWeb, address) {
+  if (!tronWeb || !isUsableAddress(address)) {
+    throw new Error(`Invalid address for hex conversion: ${address}`);
+  }
+
+  if (typeof tronWeb?.address?.toHex !== 'function') {
+    throw new Error('tronWeb.address.toHex is not available');
+  }
+
+  return tronWeb.address.toHex(address);
 }
 
 function tryDecodeHexMessage(message) {
@@ -631,6 +629,9 @@ export async function executeSunioSwap({
   assertExecutableRoute(route);
   ensureTronWebAddress(tronWeb, owner);
 
+  const ownerHex = toHexAddress(tronWeb, owner);
+  const toHex = toHexAddress(tronWeb, to);
+
   const amountInRaw = decimalToRaw(amountIn, inputTokenDecimals);
   const slippageBps = parseSlippageBps(slippage);
   const resolvedOutputDecimals = getOutputDecimalsByTarget(
@@ -654,13 +655,6 @@ export async function executeSunioSwap({
       ? Number(deadlineSeconds)
       : Math.floor(Date.now() / 1000) + SUNIO_MAINNET_DEFAULTS.deadlineSeconds;
 
-  const swapData = resolveSwapData({
-    amountInRaw,
-    amountOutMinRaw,
-    recipient: to,
-    deadlineSeconds: deadline
-  });
-
   const functionSelector =
     'swapExactInput(address[],string[],uint256[],uint24[],(uint256,uint256,address,uint256))';
 
@@ -682,13 +676,13 @@ export async function executeSunioSwap({
       value: route.fees.map((v) => Number(v))
     },
     {
-      type: 'tuple(uint256,uint256,address,uint256)',
-      value: [
-        amountInRaw.toString(),
-        amountOutMinRaw.toString(),
-        to,
-        String(deadline)
-      ]
+      type: 'tuple',
+      value: {
+        amountIn: amountInRaw.toString(),
+        amountOutMin: amountOutMinRaw.toString(),
+        to: toHex,
+        deadline: String(deadline)
+      }
     }
   ];
 
@@ -696,11 +690,13 @@ export async function executeSunioSwap({
 
   console.log('[SUN SWAP PAYLOAD]', {
     owner,
+    ownerHex,
+    to,
+    toHex,
     path: route.path,
     poolVersion: route.poolVersion,
     versionLen: route.versionLen,
     fees: route.fees,
-    swapData,
     params,
     functionSelector,
     smartRouterAddress,
@@ -722,7 +718,7 @@ export async function executeSunioSwap({
       abiV2: true
     },
     params,
-    owner
+    ownerHex
   );
 
   console.log('[SUN SWAP TRIGGER RESULT]', triggerResult);
