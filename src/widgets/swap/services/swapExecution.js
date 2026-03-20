@@ -1,6 +1,7 @@
 import {
   ensureSunioApproval,
-  executeSunioSwap
+  executeSunioSwap,
+  SUNIO_MAINNET_DEFAULTS
 } from '../providers/sunio.js';
 
 export async function executeSwapRoute({
@@ -8,8 +9,13 @@ export async function executeSwapRoute({
   route,
   amountIn,
   slippage,
-  tokenAddress,
-  spenderAddress
+  inputTokenAddress,
+  inputTokenDecimals = 6,
+  outputTokenDecimals = 6,
+  smartRouterAddress = SUNIO_MAINNET_DEFAULTS.smartRouterAddress,
+  feeLimit = SUNIO_MAINNET_DEFAULTS.feeLimit,
+  deadlineSeconds,
+  recipient
 } = {}) {
   if (!route) {
     throw new Error('Swap execution: route is required');
@@ -18,16 +24,25 @@ export async function executeSwapRoute({
   if (route.provider === 'sunio') {
     await ensureSunioApproval({
       wallet,
+      tokenAddress: inputTokenAddress,
+      spenderAddress: smartRouterAddress,
       amountIn,
-      tokenAddress,
-      spenderAddress
+      tokenDecimals: inputTokenDecimals,
+      feeLimit
     });
 
     return executeSunioSwap({
       wallet,
       route,
       amountIn,
-      slippage
+      slippage,
+      inputTokenAddress,
+      inputTokenDecimals,
+      outputTokenDecimals,
+      smartRouterAddress,
+      feeLimit,
+      deadlineSeconds,
+      recipient
     });
   }
 
