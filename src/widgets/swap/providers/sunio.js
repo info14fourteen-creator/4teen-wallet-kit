@@ -3,16 +3,18 @@ import sunioLogo from '../../../assets/sunio_swap.svg';
 const PROVIDER_ID = 'sunio';
 const PROVIDER_NAME = 'SUN.io';
 
-/**
- * IMPORTANT:
- * SUN upgraded the smart router in Sep 2024.
- * Keep it overrideable from config.
- */
 export const SUNIO_MAINNET_DEFAULTS = {
   smartRouterAddress: 'TJ4NNy8xZEqsowCBhLvZ45LCqPdGjkET5j',
+  calculationServiceUrl: 'https://rot.endjgfsv.link/swap/router',
   feeLimit: 200_000_000,
   deadlineSeconds: 60 * 20,
-  defaultSlippageBps: 300
+  defaultSlippageBps: 300,
+  typeList: 'PSM,CURVE,CURVE_COMBINATION,WTRX,SUNSWAP_V1,SUNSWAP_V2,SUNSWAP_V3'
+};
+
+export const SUNIO_TOKEN_ADDRESSES = {
+  WTRX: 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
+  USDT: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
 };
 
 const TRC20_ABI = [
@@ -92,6 +94,7 @@ function toSafeNumber(value, fallback = 0) {
 
 function parseSlippageBps(slippage, fallbackBps = SUNIO_MAINNET_DEFAULTS.defaultSlippageBps) {
   const num = Number.parseFloat(slippage);
+
   if (!Number.isFinite(num) || num < 0) {
     return fallbackBps;
   }
@@ -145,13 +148,20 @@ function isHexStrict(value) {
 
 function normalizeBigintLike(value) {
   if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') return BigInt(Math.trunc(value));
+
+  if (typeof value === 'number') {
+    return BigInt(Math.trunc(value));
+  }
+
   if (typeof value === 'string') {
     const trimmed = value.trim();
+
     if (!trimmed) return 0n;
+
     if (isHexStrict(trimmed)) {
       return BigInt(trimmed);
     }
+
     return BigInt(trimmed);
   }
 
@@ -167,6 +177,7 @@ function decimalToRaw(amount, decimals) {
   const normalized = String(amount ?? '0').replace(',', '.').trim();
 
   if (!normalized) return 0n;
+
   if (!/^\d+(\.\d+)?$/.test(normalized)) {
     throw new Error(`Invalid decimal amount: ${amount}`);
   }
@@ -234,10 +245,108 @@ function assertExecutableRoute(route) {
   }
 }
 
-/**
- * Optional preset helper.
- * Use only when YOU already know the exact SUN path payload.
- */
+function getTargetTokenAddress(targetToken, tokenAddresses = {}) {
+  if (targetToken === 'TRX') {
+    return tokenAddresses.WTRX || SUNIO_TOKEN_ADDRESSES.WTRX;
+  }
+
+  if (targetToken === 'USDT') {
+    return tokenAddresses.USDT || SUNIO_TOKEN_ADDRESSES.USDT;
+  }
+
+  return tokenAddresses[targetToken] || null;
+}
+
+function getOutputDecimalsByTarget(targetToken, explicitDecimals = null) {
+  if (Number.isFinite(Number(explicitDecimals))) {
+    return Number(explicitDecimals);
+  }
+
+  if (targetToken === 'TRX') return 6;
+  if (targetToken === 'USDT') return 6;
+
+  return 6;
+}
+
+function buildVersionLen(poolVersions = []) {
+  if (!Array.isArray(poolVersions) || !poolVersions.length) {
+    return [];
+  }
+
+  const result = [];
+  let current = poolVersions[0];
+  let count = 1;
+
+  for (let i = 1; i < poolVersions.length; i += 1) {
+    if (poolVersions[i] === current) {
+      count += 1;
+    } else {
+      result.push(count);
+      current = poolVersions[i];
+      count = 1;
+    }
+  }
+
+  result.push(count);
+  return result;
+}
+
+function normalizePoolVersions(poolVersions = []) {
+  if (!Array.isArray(poolVersions)) return [];
+  return poolVersions.map((item) => String(item || '').trim()).filter(Boolean);
+}
+
+function normalizePoolFees(poolFees = []) {
+  if (!Array.isArray(poolFees)) return [];
+  return poolFees.map((item) => Number.parseInt(String(item ?? '0'), 10) || 0);
+}
+
+function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
+  const tokens = Array.isArray(apiRoute?.tokens) ? apiRoute.tokens : [];
+  const symbols = Array.isArray(apiRoute?.symbols) ? apiRoute.symbols : [];
+  const poolVersions = normalizePoolVersions(apiRoute?.poolVersions);
+  const fees = normalizePoolFees(apiRoute?.poolFees);
+  const versionLen = buildVersionLen(poolVersions);
+
+  return {
+    id: `sunio-${targetToken}-${tokens.join('-')}-${poolVersions.join('-')}`,
+    provider: PROVIDER_ID,
+    providerName: PROVIDER_NAME,
+    providerLogo: sunioLogo,
+    providerMeta: getSunioProviderMeta(),
+    fromToken: '4TEEN',
+    toToken: targetToken,
+    path: tokens,
+    symbols,
+    via: symbols.slice(1, -1),
+    poolVersion: poolVersions,
+    versionLen,
+    fees,
+    expectedOut: apiRoute?.amountOut ?? null,
+    minReceived: null,
+    outputDecimals,
+    impactLabel:
+      apiRoute?.impact != null && apiRoute?.impact !== ''
+        ? `${String(apiRoute.impact)}%`
+        : '—',
+    routeLabel:
+      symbols.length > 2
+        ? `Optimized · ${Math.max(0, symbols.length - 2)} hop${symbols.length - 2 > 1 ? 's' : ''}`
+        : 'Direct · best route',
+    executionLabel:
+      apiRoute?.fee != null && apiRoute?.fee !== ''
+        ? `${String(apiRoute.fee)}`
+        : '—',
+    apiFee: apiRoute?.fee ?? null,
+    apiImpact: apiRoute?.impact ?? null,
+    amountIn: apiRoute?.amountIn ?? null,
+    amountOut: apiRoute?.amountOut ?? null,
+    inUsd: apiRoute?.inUsd ?? null,
+    outUsd: apiRoute?.outUsd ?? null,
+    stepAmountsOut: Array.isArray(apiRoute?.stepAmountsOut) ? apiRoute.stepAmountsOut : []
+  };
+}
+
 export function makeSunioRoute({
   id,
   fromToken,
@@ -272,6 +381,67 @@ export function makeSunioRoute({
     outputDecimals,
     impactLabel
   };
+}
+
+/**
+ * Real quote layer via SUN Smart Router Calculation Service.
+ *
+ * For TRX output, SUN expects WTRX address in the request.
+ */
+export async function getSunioQuotes({
+  amountIn,
+  targetToken,
+  fromTokenAddress,
+  tokenAddresses = {},
+  inputDecimals = 6,
+  outputDecimals = null,
+  routeCount = 3,
+  typeList = SUNIO_MAINNET_DEFAULTS.typeList,
+  calculationServiceUrl = SUNIO_MAINNET_DEFAULTS.calculationServiceUrl
+} = {}) {
+  const safeAmountIn = toSafeNumber(amountIn, 0);
+
+  if (!safeAmountIn || safeAmountIn <= 0) {
+    return [];
+  }
+
+  if (!isUsableAddress(fromTokenAddress)) {
+    throw new Error('SUN.io quotes: fromTokenAddress is invalid');
+  }
+
+  const toTokenAddress = getTargetTokenAddress(targetToken, tokenAddresses);
+
+  if (!isUsableAddress(toTokenAddress)) {
+    throw new Error(`SUN.io quotes: target token address for ${targetToken} is invalid`);
+  }
+
+  const amountInRaw = decimalToRaw(amountIn, inputDecimals).toString();
+  const resolvedOutputDecimals = getOutputDecimalsByTarget(targetToken, outputDecimals);
+
+  const url = new URL(calculationServiceUrl);
+  url.searchParams.set('fromToken', fromTokenAddress);
+  url.searchParams.set('toToken', toTokenAddress);
+  url.searchParams.set('amountIn', amountInRaw);
+  url.searchParams.set('typeList', typeList);
+
+  const response = await fetch(url.toString(), {
+    method: 'GET'
+  });
+
+  if (!response.ok) {
+    throw new Error(`SUN.io quotes failed with status ${response.status}`);
+  }
+
+  const payload = await response.json();
+
+  if (!payload || Number(payload.code) !== 0 || !Array.isArray(payload.data)) {
+    throw new Error(payload?.message || 'SUN.io quotes returned invalid payload');
+  }
+
+  return payload.data
+    .slice(0, Math.max(1, Number(routeCount || 3)))
+    .map((item) => mapApiRouteToSunioRoute(item, targetToken, resolvedOutputDecimals))
+    .sort((a, b) => Number(b.expectedOut || 0) - Number(a.expectedOut || 0));
 }
 
 /**
@@ -355,6 +525,11 @@ export async function ensureSunioApproval({
  * - poolVersion
  * - versionLen
  * - fees
+ *
+ * NOTE:
+ * For TRX quotes SUN uses WTRX in the route path.
+ * If you need strict native TRX unwrap behavior and router does not do it automatically,
+ * that will require an extra unwrap step later.
  */
 export async function executeSunioSwap({
   wallet,
@@ -384,20 +559,25 @@ export async function executeSunioSwap({
     throw new Error('SUN.io execution: smartRouterAddress is invalid');
   }
 
+  if (!isUsableAddress(inputTokenAddress)) {
+    throw new Error('SUN.io execution: inputTokenAddress is invalid');
+  }
+
   assertExecutableRoute(route);
 
   const amountInRaw = decimalToRaw(amountIn, inputTokenDecimals);
   const slippageBps = parseSlippageBps(slippage);
+  const resolvedOutputDecimals = getOutputDecimalsByTarget(route?.toToken, outputTokenDecimals ?? route?.outputDecimals);
 
   let amountOutMinRaw = 0n;
 
-  if (route.minReceived != null && outputTokenDecimals != null) {
-    amountOutMinRaw = humanOutputToRaw(route.minReceived, outputTokenDecimals);
-  } else if (route.expectedOut != null && outputTokenDecimals != null) {
-    const expectedOutRaw = humanOutputToRaw(route.expectedOut, outputTokenDecimals);
+  if (route.minReceived != null) {
+    amountOutMinRaw = humanOutputToRaw(route.minReceived, resolvedOutputDecimals);
+  } else if (route.expectedOut != null) {
+    const expectedOutRaw = humanOutputToRaw(route.expectedOut, resolvedOutputDecimals);
     amountOutMinRaw = calcMinOutRawFromExpected(expectedOutRaw, slippageBps);
   } else {
-    throw new Error('SUN.io execution: route.minReceived or route.expectedOut with outputTokenDecimals is required');
+    throw new Error('SUN.io execution: route.minReceived or route.expectedOut is required');
   }
 
   const deadline =
@@ -437,6 +617,7 @@ export async function executeSunioSwap({
     smartRouterAddress,
     amountInRaw: amountInRaw.toString(),
     amountOutMinRaw: amountOutMinRaw.toString(),
-    deadline
+    deadline,
+    route
   };
 }
