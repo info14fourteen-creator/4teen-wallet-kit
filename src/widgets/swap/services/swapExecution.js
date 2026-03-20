@@ -1,6 +1,7 @@
 import {
   ensureSunioApproval,
   executeSunioSwap,
+  waitForSunioTransactionConfirmation,
   SUNIO_MAINNET_DEFAULTS
 } from '../providers/sunio.js';
 
@@ -66,6 +67,13 @@ export async function executeSwapRoute({
         approvalTxid: approvalResult.txid
       });
 
+      await waitForSunioTransactionConfirmation({
+        wallet,
+        txid: approvalResult.txid,
+        timeoutMs: 120000,
+        pollIntervalMs: 1500
+      });
+
       emitProgress(onProgress, {
         step: 'approval-confirmed',
         message: 'Approval confirmed. Sending swap...',
@@ -100,7 +108,7 @@ export async function executeSwapRoute({
     emitProgress(onProgress, {
       step: 'swap-submitted',
       message: swapResult?.unwrapTxid
-        ? 'Swap completed. Unwrapping TRX...'
+        ? 'Swap completed. TRX received.'
         : 'Swap completed.',
       approvalTxid: approvalResult?.txid || null,
       swapTxid: swapResult?.txid || null,
