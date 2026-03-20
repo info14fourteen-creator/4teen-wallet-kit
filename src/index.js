@@ -1,14 +1,25 @@
+// ==========================
+// CORE STYLES & POLYFILLS
+// ==========================
 import './polyfills/node.js';
 import './ui/walletButton.css';
 import './ui/walletPicker.css';
 import './ui/noticeCenter.css';
 
+
+// ==========================
+// WALLET CORE ACTIONS
+// ==========================
 import { initWalletKit as initWalletKitInternal } from './wallet/services/initWalletKit.js';
 import { connectWallet } from './wallet/actions/connectWallet.js';
 import { disconnectWallet } from './wallet/actions/disconnectWallet.js';
 import { restoreWalletSession } from './wallet/actions/restoreWalletSession.js';
 import { refreshWalletBalances } from './wallet/actions/refreshWalletBalances.js';
 
+
+// ==========================
+// WALLET STATE STORE
+// ==========================
 import {
   getWalletState,
   setWalletState,
@@ -25,6 +36,10 @@ import {
   clearWalletError
 } from './core/store/walletStore.js';
 
+
+// ==========================
+// ADDRESS UTILITIES
+// ==========================
 import {
   shortenAddress,
   isHexAddress as isHexWalletAddress,
@@ -34,12 +49,21 @@ import {
   extractAddressFromPayload as extractWalletAddressFromPayload
 } from './core/utils/address.js';
 
+
+// ==========================
+// UI + WIDGETS
+// ==========================
 import { openWalletPicker } from './ui/wallet/openWalletPicker.js';
 import { mountWalletButton } from './ui/walletButton.js';
 import { mountDirectBuy } from './widgets/directBuy/index.js';
 import { mountUnlockTimeline } from './widgets/unlockTimeline/index.js';
 import { mountLiquidityController } from './widgets/liquidityController/index.js';
+import { mountSwap } from './widgets/swap/index.js';
 
+
+// ==========================
+// DEBUG & NOTIFICATIONS
+// ==========================
 import {
   initDebugOverlay,
   debugOverlayLog,
@@ -55,6 +79,10 @@ import {
   showNeutralNotice
 } from './ui/noticeCenter.js';
 
+
+// ==========================
+// ADAPTER SYSTEM
+// ==========================
 import { createWalletAdapters } from './adapters/createAdapters.js';
 
 import {
@@ -119,6 +147,10 @@ import {
   getSigningCapabilities
 } from './adapters/shared/signingReadiness.js';
 
+
+// ==========================
+// WALLET REGISTRY
+// ==========================
 import {
   pickWalletAdapter,
   getWalletAdapterById,
@@ -143,56 +175,25 @@ import {
   getDriverById
 } from './adapters/registry/getDriverById.js';
 
-import {
-  createTronLinkDriver,
-  tronLinkDriver
-} from './adapters/drivers/tronlink/index.js';
 
-import {
-  createOkxDriver,
-  okxDriver
-} from './adapters/drivers/okx/index.js';
+// ==========================
+// DRIVERS
+// ==========================
+import { createTronLinkDriver, tronLinkDriver } from './adapters/drivers/tronlink/index.js';
+import { createOkxDriver, okxDriver } from './adapters/drivers/okx/index.js';
+import { createBinanceDriver, binanceDriver } from './adapters/drivers/binance/index.js';
+import { createTokenPocketDriver, tokenPocketDriver } from './adapters/drivers/tokenpocket/index.js';
+import { createBitgetDriver, bitgetDriver } from './adapters/drivers/bitget/index.js';
+import { createTrustDriver, trustDriver } from './adapters/drivers/trust/index.js';
+import { createMetaMaskDriver, metaMaskDriver } from './adapters/drivers/metamask/index.js';
+import { createImTokenDriver, imTokenDriver } from './adapters/drivers/imtoken/index.js';
+import { createFoxWalletDriver, foxWalletDriver } from './adapters/drivers/foxwallet/index.js';
+import { createWalletConnectDriver, walletConnectDriver } from './adapters/drivers/walletconnect/index.js';
 
-import {
-  createBinanceDriver,
-  binanceDriver
-} from './adapters/drivers/binance/index.js';
 
-import {
-  createTokenPocketDriver,
-  tokenPocketDriver
-} from './adapters/drivers/tokenpocket/index.js';
-
-import {
-  createBitgetDriver,
-  bitgetDriver
-} from './adapters/drivers/bitget/index.js';
-
-import {
-  createTrustDriver,
-  trustDriver
-} from './adapters/drivers/trust/index.js';
-
-import {
-  createMetaMaskDriver,
-  metaMaskDriver
-} from './adapters/drivers/metamask/index.js';
-
-import {
-  createImTokenDriver,
-  imTokenDriver
-} from './adapters/drivers/imtoken/index.js';
-
-import {
-  createFoxWalletDriver,
-  foxWalletDriver
-} from './adapters/drivers/foxwallet/index.js';
-
-import {
-  createWalletConnectDriver,
-  walletConnectDriver
-} from './adapters/drivers/walletconnect/index.js';
-
+// ==========================
+// WALLET RUNTIME
+// ==========================
 import { bindAdapterEvents } from './wallet/runtime/bindAdapterEvents.js';
 import { waitAdaptersReady } from './wallet/runtime/waitAdaptersReady.js';
 import { refreshAvailableWallets } from './wallet/runtime/refreshAvailableWallets.js';
@@ -206,11 +207,23 @@ import {
 
 import { createWalletManager } from './wallet/core/walletManager.js';
 
+
+// ==========================
+// SESSION FLOW
+// ==========================
 import { finalizeWalletConnection } from './wallet/session/finalizeWalletConnection.js';
 import { failWalletConnection } from './wallet/session/failWalletConnection.js';
-import { mountSwap } from './widgets/swap/index.js';
+
+
+// ==========================
+// BALANCES
+// ==========================
 import { refreshAllBalances } from './services/balances/refreshAllBalances.js';
 
+
+// ==========================
+// DIAGNOSTICS
+// ==========================
 import {
   collectWalletDiagnostics,
   runWalletDiagnostics,
@@ -223,18 +236,22 @@ import {
   printWalletSigningDiagnostics
 } from './diagnostics/assertWalletSigning.js';
 
+
+// ==========================
+// INTERNAL STATE
+// ==========================
 let appkit = null;
 let tronAdapter = null;
 let initPromise = null;
 let startupSessionPromise = null;
 
+
+// ==========================
+// STARTUP FLOW
+// ==========================
 async function runStartupSessionFlow(appkitInstance) {
   if (!appkitInstance) {
-    return {
-      ok: false,
-      started: false,
-      reason: 'missing_appkit'
-    };
+    return { ok: false, started: false, reason: 'missing_appkit' };
   }
 
   const autoWallet = resolveAutoWallet();
@@ -242,48 +259,29 @@ async function runStartupSessionFlow(appkitInstance) {
   if (autoWallet.shouldAutoConnect && autoWallet.walletId) {
     try {
       const result = await connectWallet(appkitInstance, autoWallet.walletId);
-
       if (result?.ok) {
-        return {
-          ok: true,
-          started: true,
-          mode: 'auto_connect',
-          walletId: autoWallet.walletId,
-          result
-        };
+        return { ok: true, started: true, mode: 'auto_connect', walletId: autoWallet.walletId };
       }
     } catch (error) {
-      console.warn('[4TEEN] startup auto connect failed', error);
+      console.warn('[4TEEN] auto connect failed', error);
     }
   }
 
   try {
     const result = await restoreWalletSession(appkitInstance);
-
-    return {
-      ok: !!result?.ok,
-      started: true,
-      mode: 'restore',
-      walletId: null,
-      result
-    };
+    return { ok: !!result?.ok, started: true, mode: 'restore' };
   } catch (error) {
-    console.error('[4TEEN] restoreWalletSession failed', error);
-
-    return {
-      ok: false,
-      started: true,
-      mode: 'restore',
-      walletId: null,
-      error
-    };
+    console.error('[4TEEN] restore failed', error);
+    return { ok: false, started: true, mode: 'restore' };
   }
 }
 
+
+// ==========================
+// INIT
+// ==========================
 async function ensureInitialized(projectId) {
-  if (appkit) {
-    return { appkit, tronAdapter };
-  }
+  if (appkit) return { appkit, tronAdapter };
 
   if (!initPromise) {
     initPromise = initWalletKitInternal({ projectId })
@@ -291,19 +289,10 @@ async function ensureInitialized(projectId) {
         appkit = result?.appkit || null;
         tronAdapter = result?.tronAdapter || null;
 
-        console.log('[4TEEN] initFourteenConnect', {
-          hasAppkit: !!appkit,
-          hasTronAdapter: !!tronAdapter
-        });
-
         if (appkit && !startupSessionPromise) {
           startupSessionPromise = runStartupSessionFlow(appkit).finally(() => {
             startupSessionPromise = null;
           });
-        }
-
-        if (!appkit) {
-          console.error('[4TEEN] initWalletKit did not return appkit');
         }
 
         return { appkit, tronAdapter };
@@ -318,6 +307,9 @@ async function ensureInitialized(projectId) {
 }
 
 
+// ==========================
+// PUBLIC API
+// ==========================
 export function initFourteenConnect({ projectId }) {
   void ensureInitialized(projectId);
 
@@ -342,74 +334,44 @@ export function initFourteenConnect({ projectId }) {
       return refreshWalletBalances(appkit, options);
     },
 
-    refreshAllBalances: async () => {
-      return refreshAllBalances();
-    },
+    refreshAllBalances: async () => refreshAllBalances(),
 
     getState: () => getWalletState(),
-
     subscribe: (listener) => subscribeWalletState(listener),
 
     getAppkit: () => appkit,
-
     getTronAdapter: () => tronAdapter
   };
 }
 
-export const diagnostics = {
-  collectWalletDiagnostics,
-  runWalletDiagnostics,
-  printWalletDiagnostics,
-  printAndRunWalletDiagnostics,
-  assertWalletSigning,
-  printWalletSigningDiagnostics
-};
 
+// ==========================
+// EXPORTS
+// ==========================
+
+// wallet core
 export { initWalletKitInternal as initWalletKit };
+export { connectWallet, disconnectWallet, restoreWalletSession, refreshWalletBalances };
 
-export { connectWallet };
-export { disconnectWallet };
-export { restoreWalletSession };
-export { refreshWalletBalances };
-
+// state
 export {
   getWalletState,
   setWalletState,
   patchWalletState,
   resetWalletState,
-  subscribeWalletState,
-  setWalletLifecycle,
-  setWalletIdentity,
-  setWalletAccount,
-  setWalletRuntime,
-  setWalletBalances,
-  setWalletUi,
-  setWalletError,
-  clearWalletError
+  subscribeWalletState
 };
 
-export {
-  shortenAddress,
-  isHexWalletAddress,
-  isTronAddress,
-  isUsableWalletAddress,
-  normalizeWalletAddress,
-  extractWalletAddressFromPayload
-};
-
-export { openWalletPicker };
-
+// ui & widgets
 export {
   mountWalletButton,
   mountDirectBuy,
-  initDebugOverlay,
-  debugOverlayLog,
-  showDebugOverlay,
-  hideDebugOverlay
+  mountUnlockTimeline,
+  mountLiquidityController,
+  mountSwap
 };
-export { mountUnlockTimeline };
-export { mountLiquidityController };
 
+// notices
 export {
   showNotice,
   hideNotice,
@@ -418,170 +380,18 @@ export {
   showNeutralNotice
 };
 
+// adapters
 export { createWalletAdapters };
 
-export {
-  isOkxBrowser,
-  isBinanceBrowser,
-  isTronLinkBrowser,
-  isTrustBrowser,
-  isMetaMaskBrowser,
-  isTokenPocketBrowser,
-  isBitgetBrowser,
-  isImTokenBrowser,
-  isFoxWalletBrowser,
-  detectBrowserWalletName,
-  isWalletBrowser,
-  getBrowserDetectionSnapshot
-};
-
-export {
-  isUsableAddress,
-  isHexAddress,
-  normalizeAddress,
-  extractAddressFromPayload,
-  resolveAddress,
-  readAddressFromAdapter
-};
-
-export {
-  getProviderCandidates,
-  providerMatchesWallet,
-  pickBestProvider
-};
-
-export {
-  tryProviderRequest,
-  tryRequestAccounts,
-  forceBindTronWeb,
-  waitForAddress,
-  requestTronLinkAccounts
-};
-
-export {
-  createReadonlyTronWeb,
-  getDefaultReadonlyTronWeb
-};
-
-export {
-  readTrxBalance,
-  safeReadTrxBalance
-};
-
-export {
-  readTokenBalance,
-  readTokenBalanceViaTrigger,
-  safeReadTokenBalance
-};
-
-export {
-  getSigningReadiness,
-  assertSigningCapability,
-  getResolvedSigningProvider,
-  getResolvedSigningTronWeb,
-  getSigningCapabilities
-};
-
-export {
-  pickWalletAdapter,
-  getWalletAdapterById,
-  listWalletAdapters
-};
-
-export {
-  getWalletRegistry,
-  WALLET_REGISTRY
-};
-
-export {
-  getAvailableDrivers,
-  listAvailableDriverIds
-};
-
-export { getDriverMap };
-
-export {
-  getWalletById,
-  getDriverIdByWallet,
-  getDriverById
-};
-
-export {
-  createTronLinkDriver,
-  tronLinkDriver
-};
-
-export {
-  createOkxDriver,
-  okxDriver
-};
-
-export {
-  createBinanceDriver,
-  binanceDriver
-};
-
-export {
-  createTokenPocketDriver,
-  tokenPocketDriver
-};
-
-export {
-  createBitgetDriver,
-  bitgetDriver
-};
-
-export {
-  createTrustDriver,
-  trustDriver
-};
-
-export {
-  createMetaMaskDriver,
-  metaMaskDriver
-};
-
-export {
-  createImTokenDriver,
-  imTokenDriver
-};
-
-export {
-  createFoxWalletDriver,
-  foxWalletDriver
-};
-
-export {
-  createWalletConnectDriver,
-  walletConnectDriver
-};
-
-export { bindAdapterEvents };
-export { waitAdaptersReady };
-export { refreshAvailableWallets };
-export { buildWalletKitRuntime };
-export { createWalletScheduler };
-export {
-  resolveAutoWallet,
-  shouldAutoConnectWallet,
-  getWalletEnvironmentSnapshot
-};
-
-export { createWalletManager };
-
-export { finalizeWalletConnection };
-export { failWalletConnection };
-
+// balances
 export { refreshAllBalances };
-export { mountSwap };
+
+// diagnostics (single clean export)
 export {
   collectWalletDiagnostics,
   runWalletDiagnostics,
   printWalletDiagnostics,
-  printAndRunWalletDiagnostics
-};
-
-export {
+  printAndRunWalletDiagnostics,
   assertWalletSigning,
   printWalletSigningDiagnostics
 };
