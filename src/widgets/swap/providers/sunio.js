@@ -4,9 +4,9 @@ const PROVIDER_ID = 'sunio';
 const PROVIDER_NAME = 'SUN.io';
 
 export const SUNIO_MAINNET_DEFAULTS = {
-  smartRouterAddress: 'TGnC7LMji8hBpyvZt1TTEJhVpAZ5HFyJ3r',
+  smartRouterAddress: 'TCFNp179Lg46D16zKoumd4Poa2WFFdtqYj',
   calculationServiceUrl: 'https://rot.endjgfsv.link/swap/router',
-  feeLimit: 200_000_000,
+  feeLimit: 100_000_000,
   deadlineSeconds: 60 * 20,
   defaultSlippageBps: 300,
   typeList: 'PSM,CURVE,CURVE_COMBINATION,WTRX,SUNSWAP_V1,SUNSWAP_V2,SUNSWAP_V3'
@@ -296,17 +296,17 @@ function normalizePoolVersions(poolVersions = []) {
   return poolVersions.map((item) => String(item || '').trim()).filter(Boolean);
 }
 
-function normalizePoolFees(poolFees = [], pathLength = 0) {
+function normalizePoolFees(poolFees = [], hopCount = 0) {
   const normalized = Array.isArray(poolFees)
     ? poolFees.map((item) => Number.parseInt(String(item ?? '0'), 10) || 0)
     : [];
 
-  if (normalized.length >= pathLength) {
-    return normalized;
+  if (normalized.length >= hopCount) {
+    return normalized.slice(0, hopCount);
   }
 
-  if (pathLength > 0) {
-    return [...normalized, ...new Array(pathLength - normalized.length).fill(0)];
+  if (hopCount > 0) {
+    return [...normalized, ...new Array(hopCount - normalized.length).fill(0)];
   }
 
   return normalized;
@@ -341,7 +341,8 @@ function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
   const tokens = Array.isArray(apiRoute?.tokens) ? apiRoute.tokens : [];
   const symbols = Array.isArray(apiRoute?.symbols) ? apiRoute.symbols : [];
   const poolVersions = normalizePoolVersions(apiRoute?.poolVersions);
-  const fees = normalizePoolFees(apiRoute?.poolFees, tokens.length);
+  const hopCount = Math.max(0, tokens.length - 1);
+  const fees = normalizePoolFees(apiRoute?.poolFees, hopCount);
   const versionLen = buildVersionLen(poolVersions);
 
   return {
@@ -600,7 +601,7 @@ export async function executeSunioSwap({
   }
 
   const deadline =
-    Number.isFinite(Number(deadlineSeconds))
+    Number.isFinite(Number(deadlineSeconds)) && Number(deadlineSeconds) > 0
       ? Number(deadlineSeconds)
       : Math.floor(Date.now() / 1000) + SUNIO_MAINNET_DEFAULTS.deadlineSeconds;
 
@@ -613,35 +614,36 @@ export async function executeSunioSwap({
 
   const router = await tronWeb.contract(SMART_ROUTER_ABI, smartRouterAddress);
 
-console.log('[SUN SWAP ROUTE RAW]', route);
+  console.log('[SUN SWAP ROUTE RAW]', route);
 
-console.log('[SUN SWAP PAYLOAD]', {
-  path: route.path,
-  poolVersion: route.poolVersion,
-  versionLen: route.versionLen,
-  fees: route.fees,
-  swapData,
-  smartRouterAddress,
-  inputTokenAddress,
-  amountIn,
-  slippage,
-  outputTokenDecimals,
-  resolvedOutputDecimals
-});
-
-const txid = await router
-  .swapExactInput(
-    route.path,
-    route.poolVersion,
-    route.versionLen.map((v) => String(v)),
-    route.fees.map((v) => Number(v)),
-    swapData
-  )
-  .send({
-    feeLimit,
-    callValue: 0,
-    shouldPollResponse: true
+  console.log('[SUN SWAP PAYLOAD]', {
+    path: route.path,
+    poolVersion: route.poolVersion,
+    versionLen: route.versionLen,
+    fees: route.fees,
+    swapData,
+    smartRouterAddress,
+    inputTokenAddress,
+    amountIn,
+    slippage,
+    outputTokenDecimals,
+    resolvedOutputDecimals,
+    deadline
   });
+
+  const txid = await router
+    .swapExactInput(
+      route.path,
+      route.poolVersion,
+      route.versionLen.map((v) => String(v)),
+      route.fees.map((v) => Number(v)),
+      swapData
+    )
+    .send({
+      feeLimit,
+      callValue: 0,
+      shouldPollResponse: true
+    });
 
   return {
     ok: true,
