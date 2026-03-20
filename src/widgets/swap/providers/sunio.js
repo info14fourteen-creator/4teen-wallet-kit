@@ -6,7 +6,7 @@ const PROVIDER_NAME = 'SUN.io';
 export const SUNIO_MAINNET_DEFAULTS = {
   smartRouterAddress: 'TCFNp179Lg46D16zKoumd4Poa2WFFdtqYj',
   calculationServiceUrl: 'https://rot.endjgfsv.link/swap/router',
-  feeLimit: 100_000_000,
+  feeLimit: 35_000_000,
   deadlineSeconds: 60 * 20,
   defaultSlippageBps: 300,
   typeList: 'PSM,CURVE,CURVE_COMBINATION,WTRX,SUNSWAP_V1,SUNSWAP_V2,SUNSWAP_V3'
@@ -337,6 +337,50 @@ function ensureTronWebAddress(tronWeb, address) {
   } catch (_) {}
 }
 
+function tryDecodeHexMessage(message) {
+  if (!message || typeof message !== 'string') {
+    return '';
+  }
+
+  const normalized = message.startsWith('0x') ? message.slice(2) : message;
+
+  if (!/^[0-9a-fA-F]+$/.test(normalized)) {
+    return message;
+  }
+
+  try {
+    let text = '';
+
+    for (let i = 0; i < normalized.length; i += 2) {
+      const code = Number.parseInt(normalized.slice(i, i + 2), 16);
+
+      if (Number.isFinite(code) && code > 0) {
+        text += String.fromCharCode(code);
+      }
+    }
+
+    return text.replace(/\0/g, '').trim() || message;
+  } catch (_) {
+    return message;
+  }
+}
+
+function extractTriggerError(triggerResult) {
+  const rawMessage =
+    triggerResult?.result?.message ||
+    triggerResult?.message ||
+    triggerResult?.constant_result?.[0] ||
+    '';
+
+  const decoded = tryDecodeHexMessage(rawMessage);
+
+  if (decoded) {
+    return decoded;
+  }
+
+  return 'Swap simulation failed before signing';
+}
+
 function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
   const tokens = Array.isArray(apiRoute?.tokens) ? apiRoute.tokens : [];
   const symbols = Array.isArray(apiRoute?.symbols) ? apiRoute.symbols : [];
@@ -561,10 +605,15 @@ export async function executeSunioSwap({
   recipient = null
 } = {}) {
   const tronWeb = getTronWebSafe(wallet);
-  const to = recipient || getConnectedAddress(wallet);
+  const owner = getConnectedAddress(wallet);
+  const to = recipient || owner;
 
   if (!tronWeb) {
     throw new Error('SUN.io execution: tronWeb is not available');
+  }
+
+  if (!isUsableAddress(owner)) {
+    throw new Error('SUN.io execution: owner address is invalid');
   }
 
   if (!isUsableAddress(to)) {
@@ -580,7 +629,7 @@ export async function executeSunioSwap({
   }
 
   assertExecutableRoute(route);
-  ensureTronWebAddress(tronWeb, to);
+  ensureTronWebAddress(tronWeb, owner);
 
   const amountInRaw = decimalToRaw(amountIn, inputTokenDecimals);
   const slippageBps = parseSlippageBps(slippage);
@@ -612,44 +661,95 @@ export async function executeSunioSwap({
     deadlineSeconds: deadline
   });
 
-  const router = await tronWeb.contract(SMART_ROUTER_ABI, smartRouterAddress);
+  const functionSelector =
+    'swapExactInput(address[],string[],uint256[],uint24[],(uint256,uint256,address,uint256))';
+
+  const params = [
+    {
+      type: 'address[]',
+      value: route.path
+    },
+    {
+      type: 'string[]',
+      value: route.poolVersion
+    },
+    {
+      type: 'uint256[]',
+      value: route.versionLen.map((v) => String(v))
+    },
+    {
+      type: 'uint24[]',
+      value: route.fees.map((v) => Number(v))
+    },
+    {
+      type: 'tuple(uint256,uint256,address,uint256)',
+      value: [
+        amountInRaw.toString(),
+        amountOutMinRaw.toString(),
+        to,
+        String(deadline)
+      ]
+    }
+  ];
 
   console.log('[SUN SWAP ROUTE RAW]', route);
 
   console.log('[SUN SWAP PAYLOAD]', {
+    owner,
     path: route.path,
     poolVersion: route.poolVersion,
     versionLen: route.versionLen,
     fees: route.fees,
     swapData,
+    params,
+    functionSelector,
     smartRouterAddress,
     inputTokenAddress,
     amountIn,
     slippage,
     outputTokenDecimals,
     resolvedOutputDecimals,
-    deadline
+    deadline,
+    feeLimit
   });
 
-  const txid = await router
-    .swapExactInput(
-      route.path,
-      route.poolVersion,
-      route.versionLen.map((v) => String(v)),
-      route.fees.map((v) => Number(v)),
-      swapData
-    )
-    .send({
+  const triggerResult = await tronWeb.transactionBuilder.triggerSmartContract(
+    smartRouterAddress,
+    functionSelector,
+    {
       feeLimit,
       callValue: 0,
-      shouldPollResponse: true
-    });
+      abiV2: true
+    },
+    params,
+    owner
+  );
+
+  console.log('[SUN SWAP TRIGGER RESULT]', triggerResult);
+
+  if (!triggerResult?.result?.result || !triggerResult?.transaction) {
+    throw new Error(extractTriggerError(triggerResult));
+  }
+
+  const signedTransaction = await tronWeb.trx.sign(triggerResult.transaction);
+  console.log('[SUN SWAP SIGNED TX]', signedTransaction);
+
+  const broadcastResult = await tronWeb.trx.sendRawTransaction(signedTransaction);
+  console.log('[SUN SWAP BROADCAST RESULT]', broadcastResult);
+
+  if (!broadcastResult?.result) {
+    throw new Error(
+      broadcastResult?.code ||
+      broadcastResult?.message ||
+      'SUN.io execution: broadcast failed'
+    );
+  }
 
   return {
     ok: true,
     provider: PROVIDER_ID,
     providerName: PROVIDER_NAME,
-    txid,
+    txid: broadcastResult.txid,
     to,
     smartRouterAddress,
     amountInRaw: amountInRaw.toString(),
