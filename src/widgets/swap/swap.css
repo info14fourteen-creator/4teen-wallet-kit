@@ -322,8 +322,7 @@
 .fourteen-swap-estimate__token-logo,
 .fourteen-swap-target-switch__logo,
 .fourteen-swap-route-card__token-logo,
-.fourteen-swap-route-card__provider-logo,
-.fourteen-swap-route-card__middle-icon {
+.fourteen-swap-route-card__provider-logo {
   width: 22px;
   height: 22px;
   object-fit: contain;
@@ -415,8 +414,8 @@
 
 .fourteen-swap-route-card {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) 92px minmax(280px, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(260px, 1fr) 1px minmax(300px, 1fr);
+  gap: 18px;
   align-items: stretch;
   border: 1px solid var(--fourteen-swap-border);
   border-radius: 18px;
@@ -437,16 +436,16 @@
   padding: 4px 0;
 }
 
-.fourteen-swap-route-card__middle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.fourteen-swap-route-card__middle-icon {
-  width: 52px;
-  height: 52px;
-  opacity: 0.92;
+.fourteen-swap-route-card__divider {
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.02) 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  border-radius: 999px;
 }
 
 .fourteen-swap-route-card__eyebrow,
@@ -533,7 +532,7 @@
   height: 34px;
 }
 
-.fourteen-swap-route-card__detail:first-child {
+.fourteen-swap-route-card__detail--path {
   padding-right: 54px;
 }
 
@@ -548,23 +547,19 @@
 .fourteen-swap-route-card__path-line {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+.fourteen-swap-route-card__path-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
 }
 
 .fourteen-swap-route-card__token-symbol {
   font-weight: 800;
-}
-
-.fourteen-swap-route-card__path-arrow {
-  color: var(--fourteen-swap-text-faint);
-  font-weight: 800;
-}
-
-.fourteen-swap-route-card__via-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
 }
 
 .fourteen-swap-route-card__path-via {
@@ -594,6 +589,7 @@
 @media (max-width: 1024px) {
   .fourteen-swap-route-card {
     grid-template-columns: 1fr;
+    gap: 14px;
   }
 
   .fourteen-swap-route-card__left,
@@ -601,18 +597,15 @@
     min-height: auto;
   }
 
-  .fourteen-swap-route-card__middle {
-    min-height: 60px;
-  }
-
-  .fourteen-swap-route-card__provider {
-    position: static;
-    margin-bottom: 4px;
-    justify-content: flex-start;
-  }
-
-  .fourteen-swap-route-card__detail:first-child {
-    padding-right: 0;
+  .fourteen-swap-route-card__divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.02) 0%,
+      rgba(255, 255, 255, 0.12) 50%,
+      rgba(255, 255, 255, 0.02) 100%
+    );
   }
 }
 
@@ -673,6 +666,19 @@
   .fourteen-swap-target-switch__button {
     width: 48px;
     height: 48px;
+  }
+
+  .fourteen-swap-route-card__right {
+    padding-top: 6px;
+  }
+
+  .fourteen-swap-route-card__provider {
+    top: 0;
+    right: 0;
+  }
+
+  .fourteen-swap-route-card__detail--path {
+    padding-right: 50px;
   }
 }
 
@@ -746,5 +752,22 @@
   .fourteen-swap-route-card__action {
     min-height: 48px;
     font-size: 12px;
+  }
+
+  .fourteen-swap-route-card__provider-logo {
+    width: 30px;
+    height: 30px;
+  }
+
+  .fourteen-swap-route-card__value {
+    font-size: 14px;
+  }
+
+  .fourteen-swap-route-card__path-line {
+    gap: 6px;
+  }
+
+  .fourteen-swap-route-card__detail--path {
+    padding-right: 42px;
   }
 }
