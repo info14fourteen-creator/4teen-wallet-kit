@@ -3,13 +3,79 @@ import sunioLogo from '../../../assets/sunio_swap.svg';
 const PROVIDER_ID = 'sunio';
 const PROVIDER_NAME = 'SUN.io';
 
-export const SUNIO_DEFAULTS = {
-  routeCount: 3,
-  baseRates: {
-    TRX: 1.0,
-    USDT: 0.122
-  }
+/**
+ * IMPORTANT:
+ * SUN upgraded the smart router in Sep 2024.
+ * Keep it overrideable from config.
+ */
+export const SUNIO_MAINNET_DEFAULTS = {
+  smartRouterAddress: 'TJ4NNy8xZEqsowCBhLvZ45LCqPdGjkET5j',
+  feeLimit: 200_000_000,
+  deadlineSeconds: 60 * 20,
+  defaultSlippageBps: 300
 };
+
+const TRC20_ABI = [
+  {
+    constant: true,
+    inputs: [
+      { name: '_owner', type: 'address' },
+      { name: '_spender', type: 'address' }
+    ],
+    name: 'allowance',
+    outputs: [{ name: 'remaining', type: 'uint256' }],
+    payable: false,
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    constant: false,
+    inputs: [
+      { name: '_spender', type: 'address' },
+      { name: '_value', type: 'uint256' }
+    ],
+    name: 'approve',
+    outputs: [{ name: 'success', type: 'bool' }],
+    payable: false,
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    constant: true,
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ name: '', type: 'uint8' }],
+    payable: false,
+    stateMutability: 'view',
+    type: 'function'
+  }
+];
+
+const SMART_ROUTER_ABI = [
+  {
+    inputs: [
+      { internalType: 'address[]', name: 'path', type: 'address[]' },
+      { internalType: 'string[]', name: 'poolVersion', type: 'string[]' },
+      { internalType: 'uint256[]', name: 'versionLen', type: 'uint256[]' },
+      { internalType: 'uint24[]', name: 'fees', type: 'uint24[]' },
+      {
+        components: [
+          { internalType: 'uint256', name: 'amountIn', type: 'uint256' },
+          { internalType: 'uint256', name: 'amountOutMin', type: 'uint256' },
+          { internalType: 'address', name: 'to', type: 'address' },
+          { internalType: 'uint256', name: 'deadline', type: 'uint256' }
+        ],
+        internalType: 'struct ISmartExchangeRouter.SwapData',
+        name: 'data',
+        type: 'tuple'
+      }
+    ],
+    name: 'swapExactInput',
+    outputs: [{ internalType: 'uint256[]', name: 'amountsOut', type: 'uint256[]' }],
+    stateMutability: 'payable',
+    type: 'function'
+  }
+];
 
 export function getSunioProviderMeta() {
   return {
@@ -24,154 +90,353 @@ function toSafeNumber(value, fallback = 0) {
   return Number.isFinite(num) ? num : fallback;
 }
 
-function parseSlippage(slippageValue, fallback = 3) {
-  const slippage = Number.parseFloat(slippageValue);
-  return Number.isFinite(slippage) && slippage > 0 ? slippage : fallback;
+function parseSlippageBps(slippage, fallbackBps = SUNIO_MAINNET_DEFAULTS.defaultSlippageBps) {
+  const num = Number.parseFloat(slippage);
+  if (!Number.isFinite(num) || num < 0) {
+    return fallbackBps;
+  }
+
+  return Math.round(num * 100);
 }
 
-function buildMockTemplates(targetToken) {
-  return [
-    {
-      id: 'sun-direct',
-      provider: PROVIDER_ID,
-      providerName: PROVIDER_NAME,
-      routeLabel: 'Direct · needs live quote',
-      executionLabel: 'Best direct',
-      via: [],
-      qualityFactor: 1.0
-    },
-    {
-      id: 'sun-optimized',
-      provider: PROVIDER_ID,
-      providerName: PROVIDER_NAME,
-      routeLabel: 'Optimized · best price',
-      executionLabel: 'Optimized route',
-      via: ['WTRX'],
-      qualityFactor: 0.992
-    },
-    {
-      id: 'sun-stable',
-      provider: PROVIDER_ID,
-      providerName: PROVIDER_NAME,
-      routeLabel: 'Stable · protected route',
-      executionLabel: 'Protected path',
-      via: targetToken === 'USDT' ? ['TRX'] : ['USDT'],
-      qualityFactor: 0.983
+function getWalletStateSafe(wallet) {
+  if (!wallet) return null;
+
+  if (typeof wallet.getWalletState === 'function') {
+    return wallet.getWalletState();
+  }
+
+  if (typeof wallet.getState === 'function') {
+    return wallet.getState();
+  }
+
+  return null;
+}
+
+function getTronWebSafe(wallet) {
+  if (!wallet) return null;
+
+  if (typeof wallet.getTronWeb === 'function') {
+    return wallet.getTronWeb();
+  }
+
+  const state = getWalletStateSafe(wallet);
+  return state?.tronWeb || null;
+}
+
+function getConnectedAddress(wallet) {
+  const state = getWalletStateSafe(wallet);
+
+  return (
+    state?.address ||
+    wallet?.getAddress?.() ||
+    wallet?.getTronWeb?.()?.defaultAddress?.base58 ||
+    null
+  );
+}
+
+function isUsableAddress(address) {
+  return typeof address === 'string' && address.length >= 20;
+}
+
+function isHexStrict(value) {
+  return typeof value === 'string' && /^0x[0-9a-fA-F]+$/.test(value);
+}
+
+function normalizeBigintLike(value) {
+  if (typeof value === 'bigint') return value;
+  if (typeof value === 'number') return BigInt(Math.trunc(value));
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return 0n;
+    if (isHexStrict(trimmed)) {
+      return BigInt(trimmed);
     }
+    return BigInt(trimmed);
+  }
+
+  if (value && typeof value.toString === 'function') {
+    return BigInt(value.toString());
+  }
+
+  return 0n;
+}
+
+function decimalToRaw(amount, decimals) {
+  const safeDecimals = Math.max(0, Number(decimals || 0));
+  const normalized = String(amount ?? '0').replace(',', '.').trim();
+
+  if (!normalized) return 0n;
+  if (!/^\d+(\.\d+)?$/.test(normalized)) {
+    throw new Error(`Invalid decimal amount: ${amount}`);
+  }
+
+  const [whole, fraction = ''] = normalized.split('.');
+  const paddedFraction = (fraction + '0'.repeat(safeDecimals)).slice(0, safeDecimals);
+
+  return BigInt(whole || '0') * 10n ** BigInt(safeDecimals) + BigInt(paddedFraction || '0');
+}
+
+function humanOutputToRaw(value, decimals) {
+  return decimalToRaw(value, decimals);
+}
+
+function calcMinOutRawFromExpected(expectedOutRaw, slippageBps) {
+  const safeExpected = normalizeBigintLike(expectedOutRaw);
+  const safeBps = BigInt(Math.max(0, Number(slippageBps || 0)));
+
+  return (safeExpected * (10000n - safeBps)) / 10000n;
+}
+
+async function getTokenDecimals(tronWeb, tokenAddress, fallback = 6) {
+  try {
+    const contract = await tronWeb.contract(TRC20_ABI, tokenAddress);
+    const result = await contract.decimals().call();
+    return Number(result?.toString?.() || result || fallback);
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function resolveSwapData({
+  amountInRaw,
+  amountOutMinRaw,
+  recipient,
+  deadlineSeconds
+}) {
+  return [
+    amountInRaw.toString(),
+    amountOutMinRaw.toString(),
+    recipient,
+    String(deadlineSeconds)
   ];
 }
 
-/**
- * Quote layer for SUN.io
- *
- * Right now it preserves your current working behavior,
- * but it is already isolated so we can replace this with
- * real SUN.io route fetching and quoting logic later.
- */
-export async function getSunioQuotes({
-  amountIn,
-  targetToken,
-  slippage,
-  routeCount = SUNIO_DEFAULTS.routeCount,
-  baseRates = SUNIO_DEFAULTS.baseRates
-} = {}) {
-  const safeAmountIn = toSafeNumber(amountIn, 0);
-
-  if (!safeAmountIn || safeAmountIn <= 0) {
-    return [];
+function assertExecutableRoute(route) {
+  if (!route) {
+    throw new Error('SUN.io execution: route is required');
   }
 
-  const baseRate = toSafeNumber(baseRates?.[targetToken], 0);
-
-  if (!baseRate || baseRate <= 0) {
-    return [];
+  if (!Array.isArray(route.path) || route.path.length < 2) {
+    throw new Error('SUN.io execution: route.path is required');
   }
 
-  const safeSlippage = parseSlippage(slippage, 3);
+  if (!Array.isArray(route.poolVersion) || !route.poolVersion.length) {
+    throw new Error('SUN.io execution: route.poolVersion is required');
+  }
 
-  return buildMockTemplates(targetToken)
-    .slice(0, Math.max(1, routeCount || 3))
-    .map((template) => {
-      const receive = safeAmountIn * baseRate * template.qualityFactor;
-      const minReceived = receive * (1 - safeSlippage / 100);
+  if (!Array.isArray(route.versionLen) || !route.versionLen.length) {
+    throw new Error('SUN.io execution: route.versionLen is required');
+  }
 
-      return {
-        ...template,
-        fromToken: '4TEEN',
-        toToken: targetToken,
-        receive,
-        minReceived,
-        impactLabel: '—',
-        providerLogo: sunioLogo,
-        providerMeta: getSunioProviderMeta()
-      };
-    })
-    .sort((a, b) => Number(b.receive || 0) - Number(a.receive || 0));
+  if (!Array.isArray(route.fees)) {
+    throw new Error('SUN.io execution: route.fees is required');
+  }
 }
 
 /**
- * Approval stub for future real SUN.io TRC20 flow.
- *
- * Later here we will:
- * 1. read allowance
- * 2. compare with amountIn
- * 3. submit approve if needed
+ * Optional preset helper.
+ * Use only when YOU already know the exact SUN path payload.
  */
-export async function ensureSunioApproval({
-  wallet,
-  amountIn,
-  tokenAddress,
-  spenderAddress
-} = {}) {
-  if (!wallet) {
-    throw new Error('SUN.io approval: wallet is required');
-  }
-
+export function makeSunioRoute({
+  id,
+  fromToken,
+  toToken,
+  path,
+  poolVersion,
+  versionLen,
+  fees,
+  routeLabel = 'Direct',
+  executionLabel = 'Best direct',
+  expectedOut = null,
+  minReceived = null,
+  outputDecimals = 6,
+  impactLabel = '—'
+}) {
   return {
-    ok: true,
-    required: false,
-    approved: true,
-    amountIn,
-    tokenAddress,
-    spenderAddress
+    id: id || `sunio-${Date.now()}`,
+    provider: PROVIDER_ID,
+    providerName: PROVIDER_NAME,
+    providerLogo: sunioLogo,
+    providerMeta: getSunioProviderMeta(),
+    fromToken,
+    toToken,
+    path,
+    poolVersion,
+    versionLen,
+    fees,
+    routeLabel,
+    executionLabel,
+    expectedOut,
+    minReceived,
+    outputDecimals,
+    impactLabel
   };
 }
 
 /**
- * Execution stub for future real SUN.io router integration.
+ * Real approval flow.
+ */
+export async function ensureSunioApproval({
+  wallet,
+  tokenAddress,
+  spenderAddress = SUNIO_MAINNET_DEFAULTS.smartRouterAddress,
+  amountIn,
+  tokenDecimals = null,
+  feeLimit = SUNIO_MAINNET_DEFAULTS.feeLimit
+} = {}) {
+  const tronWeb = getTronWebSafe(wallet);
+  const owner = getConnectedAddress(wallet);
+
+  if (!tronWeb) {
+    throw new Error('SUN.io approval: tronWeb is not available');
+  }
+
+  if (!isUsableAddress(owner)) {
+    throw new Error('SUN.io approval: wallet address is not available');
+  }
+
+  if (!isUsableAddress(tokenAddress)) {
+    throw new Error('SUN.io approval: tokenAddress is invalid');
+  }
+
+  if (!isUsableAddress(spenderAddress)) {
+    throw new Error('SUN.io approval: spenderAddress is invalid');
+  }
+
+  const resolvedDecimals =
+    Number.isFinite(Number(tokenDecimals))
+      ? Number(tokenDecimals)
+      : await getTokenDecimals(tronWeb, tokenAddress, 6);
+
+  const amountInRaw = decimalToRaw(amountIn, resolvedDecimals);
+  const token = await tronWeb.contract(TRC20_ABI, tokenAddress);
+
+  const allowanceRaw = normalizeBigintLike(
+    await token.allowance(owner, spenderAddress).call()
+  );
+
+  if (allowanceRaw >= amountInRaw) {
+    return {
+      ok: true,
+      required: false,
+      approved: true,
+      allowanceRaw: allowanceRaw.toString(),
+      amountInRaw: amountInRaw.toString(),
+      spenderAddress
+    };
+  }
+
+  const txid = await token
+    .approve(spenderAddress, amountInRaw.toString())
+    .send({
+      feeLimit,
+      callValue: 0,
+      shouldPollResponse: true
+    });
+
+  return {
+    ok: true,
+    required: true,
+    approved: true,
+    txid,
+    spenderAddress,
+    allowanceRaw: allowanceRaw.toString(),
+    amountInRaw: amountInRaw.toString()
+  };
+}
+
+/**
+ * Real SUN.io router execution.
  *
- * Later here we will:
- * 1. build router params
- * 2. call router contract
- * 3. sign via connected wallet
- * 4. return txid
+ * REQUIREMENT:
+ * route must already contain exact:
+ * - path
+ * - poolVersion
+ * - versionLen
+ * - fees
  */
 export async function executeSunioSwap({
   wallet,
   route,
   amountIn,
-  slippage
+  slippage,
+  inputTokenAddress,
+  inputTokenDecimals = 6,
+  outputTokenDecimals = null,
+  smartRouterAddress = SUNIO_MAINNET_DEFAULTS.smartRouterAddress,
+  feeLimit = SUNIO_MAINNET_DEFAULTS.feeLimit,
+  deadlineSeconds = null,
+  recipient = null
 } = {}) {
-  if (!wallet) {
-    throw new Error('SUN.io execution: wallet is required');
+  const tronWeb = getTronWebSafe(wallet);
+  const to = recipient || getConnectedAddress(wallet);
+
+  if (!tronWeb) {
+    throw new Error('SUN.io execution: tronWeb is not available');
   }
 
-  if (!route) {
-    throw new Error('SUN.io execution: route is required');
+  if (!isUsableAddress(to)) {
+    throw new Error('SUN.io execution: recipient address is invalid');
   }
 
-  const safeAmountIn = toSafeNumber(amountIn, 0);
-
-  if (!safeAmountIn || safeAmountIn <= 0) {
-    throw new Error('SUN.io execution: invalid amount');
+  if (!isUsableAddress(smartRouterAddress)) {
+    throw new Error('SUN.io execution: smartRouterAddress is invalid');
   }
+
+  assertExecutableRoute(route);
+
+  const amountInRaw = decimalToRaw(amountIn, inputTokenDecimals);
+  const slippageBps = parseSlippageBps(slippage);
+
+  let amountOutMinRaw = 0n;
+
+  if (route.minReceived != null && outputTokenDecimals != null) {
+    amountOutMinRaw = humanOutputToRaw(route.minReceived, outputTokenDecimals);
+  } else if (route.expectedOut != null && outputTokenDecimals != null) {
+    const expectedOutRaw = humanOutputToRaw(route.expectedOut, outputTokenDecimals);
+    amountOutMinRaw = calcMinOutRawFromExpected(expectedOutRaw, slippageBps);
+  } else {
+    throw new Error('SUN.io execution: route.minReceived or route.expectedOut with outputTokenDecimals is required');
+  }
+
+  const deadline =
+    Number.isFinite(Number(deadlineSeconds))
+      ? Number(deadlineSeconds)
+      : Math.floor(Date.now() / 1000) + SUNIO_MAINNET_DEFAULTS.deadlineSeconds;
+
+  const swapData = resolveSwapData({
+    amountInRaw,
+    amountOutMinRaw,
+    recipient: to,
+    deadlineSeconds: deadline
+  });
+
+  const router = await tronWeb.contract(SMART_ROUTER_ABI, smartRouterAddress);
+
+  const txid = await router
+    .swapExactInput(
+      route.path,
+      route.poolVersion,
+      route.versionLen.map((v) => String(v)),
+      route.fees.map((v) => Number(v)),
+      swapData
+    )
+    .send({
+      feeLimit,
+      callValue: 0,
+      shouldPollResponse: true
+    });
 
   return {
-    ok: false,
+    ok: true,
     provider: PROVIDER_ID,
-    routeId: route.id || null,
-    amountIn: safeAmountIn,
-    slippage,
-    message: 'SUN.io live execution is not wired yet'
+    providerName: PROVIDER_NAME,
+    txid,
+    to,
+    smartRouterAddress,
+    amountInRaw: amountInRaw.toString(),
+    amountOutMinRaw: amountOutMinRaw.toString(),
+    deadline
   };
 }
