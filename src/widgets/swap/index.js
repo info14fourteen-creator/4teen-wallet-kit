@@ -1,3 +1,5 @@
+import { getSwapQuotes } from './services/quotes.js';
+import { executeSwapRoute } from './services/swapExecution.js';
 import './swap.css';
 import { mountWalletButton } from '../../ui/walletButton.js';
 
@@ -173,66 +175,7 @@ function createRoutePathHtml(route) {
   `;
 }
 
-function buildMockRoutes(amountIn, targetToken, baseRates, slippageValue, routeCount) {
-  if (!amountIn || amountIn <= 0) {
-    return [];
-  }
 
-  const baseRate = Number(baseRates?.[targetToken] || 0);
-
-  if (!Number.isFinite(baseRate) || baseRate <= 0) {
-    return [];
-  }
-
-  const safeSlippage = Number.parseFloat(slippageValue || '3') || 3;
-
-  const templates = [
-    {
-      id: 'sun-direct',
-      provider: 'sunio',
-      providerName: 'SUN.io',
-      routeLabel: 'Direct · needs live quote',
-      executionLabel: 'Best direct',
-      via: [],
-      qualityFactor: 1.0
-    },
-    {
-      id: 'sun-optimized',
-      provider: 'sunio',
-      providerName: 'SUN.io',
-      routeLabel: 'Optimized · best price',
-      executionLabel: 'Optimized route',
-      via: ['WTRX'],
-      qualityFactor: 0.992
-    },
-    {
-      id: 'sun-stable',
-      provider: 'sunio',
-      providerName: 'SUN.io',
-      routeLabel: 'Stable · protected route',
-      executionLabel: 'Protected path',
-      via: targetToken === 'USDT' ? ['TRX'] : ['USDT'],
-      qualityFactor: 0.983
-    }
-  ].slice(0, Math.max(1, routeCount || 3));
-
-  return templates
-    .map((template) => {
-      const receive = amountIn * baseRate * template.qualityFactor;
-      const minReceived = receive * (1 - safeSlippage / 100);
-
-      return {
-        ...template,
-        fromToken: '4TEEN',
-        toToken: targetToken,
-        receive,
-        minReceived,
-        impactLabel: '—',
-        providerLogo: PROVIDER_META[template.provider]?.logo || sunioLogo
-      };
-    })
-    .sort((a, b) => b.receive - a.receive);
-}
 
 export function mountSwap(target, config = {}) {
   const {
@@ -525,18 +468,18 @@ export function mountSwap(target, config = {}) {
     });
   }
 
-  function buildRoutes() {
-    const amount = parsePositiveNumber(amountInputEl?.value);
-    const slippage = slippageSelectEl?.value || defaultSlippage;
+  async function buildRoutes() {
+  const amount = parsePositiveNumber(amountInputEl?.value);
+  const slippage = slippageSelectEl?.value || defaultSlippage;
 
-    currentRoutes = buildMockRoutes(
-      amount,
-      selectedTarget,
-      mockBaseRates,
-      slippage,
-      routeCount
-    );
-  }
+  currentRoutes = await getSwapQuotes({
+    amountIn: amount,
+    targetToken: selectedTarget,
+    slippage,
+    routeCount,
+    baseRates: mockBaseRates
+  });
+}
 
   function renderEstimate() {
     const bestRoute = currentRoutes[0] || null;
@@ -634,19 +577,25 @@ export function mountSwap(target, config = {}) {
     }
   }
 
-  function syncQuotes() {
-    buildRoutes();
-    renderEstimate();
-    renderRoutes();
-  }
+  async function syncQuotes() {
+  await buildRoutes();
+  renderEstimate();
+  renderRoutes();
+}
 
   function handleAmountInput() {
-    syncQuotes();
-  }
+  syncQuotes().catch((error) => {
+    console.error('[4TEEN] swap quotes failed', error);
+    setStatus('Failed to load routes.', true);
+  });
+}
 
   function handleSlippageChange() {
-    syncQuotes();
-  }
+  syncQuotes().catch((error) => {
+    console.error('[4TEEN] swap slippage refresh failed', error);
+    setStatus('Failed to refresh routes.', true);
+  });
+}
 
   function handleTargetClick(event) {
     const button = event.currentTarget;
@@ -658,25 +607,56 @@ export function mountSwap(target, config = {}) {
 
     selectedTarget = token;
     updateTargetButtons();
-    syncQuotes();
+    syncQuotes().catch((error) => {
+  console.error('[4TEEN] swap target refresh failed', error);
+  setStatus('Failed to refresh routes.', true);
+});
   }
 
   async function handleRouteSwapClick(event) {
-    const routeId = event.currentTarget?.getAttribute('data-route-id');
-    const route = currentRoutes.find((item) => item.id === routeId);
+  const routeId = event.currentTarget?.getAttribute('data-route-id');
+  const route = currentRoutes.find((item) => item.id === routeId);
+  const amountIn = parsePositiveNumber(amountInputEl?.value);
+  const slippage = slippageSelectEl?.value || defaultSlippage;
 
-    if (!route) {
-      setStatus('Route not found.', true);
-      return;
-    }
-
-    if (!isConnectedSafe(wallet)) {
-      setStatus('Connect wallet first.', true);
-      return;
-    }
-
-    setStatus(`Swap execution for ${route.providerName} will be connected next.`);
+  if (!route) {
+    setStatus('Route not found.', true);
+    return;
   }
+
+  if (!isConnectedSafe(wallet)) {
+    setStatus('Connect wallet first.', true);
+    return;
+  }
+
+  if (!amountIn || amountIn <= 0) {
+    setStatus('Enter amount first.', true);
+    return;
+  }
+
+  try {
+    setStatus(`Preparing ${route.providerName} swap...`);
+
+    const result = await executeSwapRoute({
+      wallet,
+      route,
+      amountIn,
+      slippage,
+      tokenAddress: DEFAULT_CONFIG.tokenAddresses['4TEEN'],
+      spenderAddress: null
+    });
+
+    if (result?.ok) {
+      setStatus('Swap sent successfully.');
+      return;
+    }
+
+    setStatus(result?.message || 'Swap execution is not ready yet.', true);
+  } catch (error) {
+    console.error('[4TEEN] swap execution failed', error);
+    setStatus(error?.message || 'Swap execution failed.', true);
+  }
+}
 
   function handleWalletUpdate() {
     if (!isAlive()) return;
@@ -745,7 +725,10 @@ export function mountSwap(target, config = {}) {
   updateTargetButtons();
   syncEmbeddedWalletUi();
   updateWalletLabel();
-  syncQuotes();
+  syncQuotes().catch((error) => {
+  console.error('[4TEEN] initial swap quotes failed', error);
+  setStatus('Failed to load routes.', true);
+});
 
   return instance;
 }
