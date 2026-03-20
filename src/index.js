@@ -316,47 +316,7 @@ async function ensureInitialized(projectId) {
 
   return initPromise;
 }
-function hasSwapSlots() {
-  return !!document.querySelector("[data-fourteen-swap]");
-}
-async function mountSwapSlot(slot) {
-  if (!slot || slot.dataset[MOUNT_FLAG] === "1") return;
 
-  mountSwap(slot);
-
-  slot.dataset[MOUNT_FLAG] = "1";
-}
-function mountSwapWidgetsLazy() {
-  const slots = [...document.querySelectorAll("[data-fourteen-swap]")].filter(
-    (slot) => slot.dataset[MOUNT_FLAG] !== "1"
-  );
-
-  if (!slots.length) return;
-
-  if (!("IntersectionObserver" in window)) {
-    slots.forEach((slot) => {
-      mountSwapSlot(slot).catch((error) => {
-        console.error("[4TEEN] Swap mount failed:", error);
-      });
-    });
-    return;
-  }
-
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-
-      observer.unobserve(entry.target);
-      mountSwapSlot(entry.target).catch((error) => {
-        console.error("[4TEEN] Swap mount failed:", error);
-      });
-    });
-  }, {
-    rootMargin: "300px 0px"
-  });
-
-  slots.forEach((slot) => observer.observe(slot));
-}
 
 export function initFourteenConnect({ projectId }) {
   void ensureInitialized(projectId);
@@ -613,7 +573,7 @@ export { finalizeWalletConnection };
 export { failWalletConnection };
 
 export { refreshAllBalances };
-
+export { mountSwap };
 export {
   collectWalletDiagnostics,
   runWalletDiagnostics,
