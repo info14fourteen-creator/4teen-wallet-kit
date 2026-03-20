@@ -1,1 +1,229 @@
+:root {
+  --fourteen-swap-bg: rgba(17, 17, 17, 0.92);
+  --fourteen-swap-border: rgba(255, 255, 255, 0.08);
+  --fourteen-swap-text: rgba(255, 255, 255, 0.94);
+  --fourteen-swap-text-soft: rgba(255, 255, 255, 0.64);
+  --fourteen-swap-accent: rgb(255, 105, 0);
+  --fourteen-swap-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
 
+.fourteen-swap-widget {
+  width: 100%;
+  font-family: TTNorm, Inter, Arial, sans-serif;
+  color: var(--fourteen-swap-text);
+}
+
+/* HERO */
+
+.fourteen-swap-hero {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.fourteen-swap-hero__bg {
+  position: absolute;
+  left: -12px;
+  top: -16px;
+  width: 58px;
+  height: 58px;
+  background-image: url('../../assets/text_bg.svg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 1;
+  z-index: 0;
+}
+
+.fourteen-swap-hero__text {
+  position: relative;
+  z-index: 1;
+}
+
+.fourteen-swap-hero__title {
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 0.95;
+  color: #ffffff;
+}
+
+.fourteen-swap-hero__title span {
+  color: var(--fourteen-swap-accent);
+  text-shadow: 0 0 14px rgba(255, 105, 0, 0.25);
+}
+
+.fourteen-swap-hero__subtitle {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fourteen-swap-text-soft);
+}
+
+/* ACTIONS */
+
+.fourteen-swap-hero__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.fourteen-swap-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  background: rgba(255, 105, 0, 0.1);
+  border: 1px solid rgba(255, 105, 0, 0.25);
+  color: var(--fourteen-swap-accent);
+}
+
+/* INFO BUTTON */
+
+.fourteen-swap-info-toggle {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: none;
+  background: var(--fourteen-swap-accent);
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+/* POPOVER */
+
+.fourteen-swap-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: min(420px, 92vw);
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(15, 15, 15, 0.98);
+  border: 1px solid var(--fourteen-swap-border);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.36);
+}
+
+.fourteen-swap-popover__title {
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.fourteen-swap-popover__text {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--fourteen-swap-text-soft);
+}
+
+/* FORM */
+
+.fourteen-swap-form {
+  margin-top: 12px;
+}
+
+.fourteen-swap-field {
+  margin-bottom: 12px;
+}
+
+.fourteen-swap-field__label {
+  font-size: 11px;
+  color: var(--fourteen-swap-text-soft);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.fourteen-swap-fixed-token {
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--fourteen-swap-border);
+  font-weight: 800;
+}
+
+/* INPUT */
+
+.fourteen-swap-amount-input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--fourteen-swap-border);
+  background: rgba(255,255,255,0.03);
+  color: #fff;
+  font-size: 14px;
+}
+
+/* OUTPUT BUTTONS */
+
+.fourteen-swap-output-list {
+  display: flex;
+  gap: 8px;
+}
+
+.fourteen-swap-output-chip {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--fourteen-swap-border);
+  background: rgba(255,255,255,0.02);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.fourteen-swap-output-chip.is-active {
+  background: var(--fourteen-swap-accent);
+  border-color: var(--fourteen-swap-accent);
+}
+
+/* ROUTES */
+
+.fourteen-swap-route-card {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--fourteen-swap-border);
+  background: rgba(255,255,255,0.02);
+}
+
+.fourteen-swap-route-card__label {
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.fourteen-swap-route-card__grid {
+  display: grid;
+  grid-template-columns: repeat(2,1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.fourteen-swap-route-card__item-label {
+  font-size: 11px;
+  color: var(--fourteen-swap-text-soft);
+}
+
+.fourteen-swap-route-card__item-value {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+/* BUTTON */
+
+.fourteen-swap-route-card__action {
+  width: 100%;
+  margin-top: 12px;
+  height: 48px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,105,0,0.3);
+  background: linear-gradient(
+    180deg,
+    rgba(255,145,52,1) 0%,
+    rgba(255,105,0,0.95) 100%
+  );
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
