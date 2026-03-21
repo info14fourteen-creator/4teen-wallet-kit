@@ -33,7 +33,7 @@ const DEFAULT_CONFIG = {
   routeCount: 3,
   tokenAddresses: {
     '4TEEN': 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A',
-    'TRX': 'TRX',
+    'TRX': 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb',
     'WTRX': 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
     'USDT': 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
   },
