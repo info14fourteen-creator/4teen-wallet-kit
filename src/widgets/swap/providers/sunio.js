@@ -322,6 +322,14 @@ function ensureTronWebAddress(tronWeb, address) {
     return;
   }
 
+  let hex = '';
+
+  try {
+    if (typeof tronWeb?.address?.toHex === 'function') {
+      hex = tronWeb.address.toHex(address) || '';
+    }
+  } catch (_) {}
+
   try {
     if (typeof tronWeb.setAddress === 'function') {
       tronWeb.setAddress(address);
@@ -329,17 +337,42 @@ function ensureTronWebAddress(tronWeb, address) {
   } catch (_) {}
 
   try {
-    const hex =
-      typeof tronWeb?.address?.toHex === 'function'
-        ? tronWeb.address.toHex(address)
-        : undefined;
-
     tronWeb.defaultAddress = {
       ...(tronWeb.defaultAddress || {}),
       base58: address,
       ...(hex ? { hex } : {})
     };
   } catch (_) {}
+
+  try {
+    if (!tronWeb.defaultAddress) {
+      tronWeb.defaultAddress = {};
+    }
+
+    tronWeb.defaultAddress.base58 = address;
+
+    if (hex) {
+      tronWeb.defaultAddress.hex = hex;
+    }
+  } catch (_) {}
+}
+
+function prepareTronWebForSigning(tronWeb, owner) {
+  if (!tronWeb) {
+    throw new Error('SUN.io execution: tronWeb is not available');
+  }
+
+  if (!isUsableAddress(owner)) {
+    throw new Error('SUN.io execution: owner address is invalid');
+  }
+
+  ensureTronWebAddress(tronWeb, owner);
+
+  const defaultBase58 = tronWeb?.defaultAddress?.base58;
+
+  if (!defaultBase58 || defaultBase58 !== owner) {
+    throw new Error('SUN.io execution: owner_address is not set');
+  }
 }
 
 function tryDecodeHexMessage(message) {
@@ -370,15 +403,100 @@ function tryDecodeHexMessage(message) {
   }
 }
 
-function extractContractError(error) {
-  const message =
-    error?.error ||
-    error?.message ||
-    error?.data?.message ||
-    error?.toString?.() ||
-    '';
+function collectErrorStrings(error, bucket = []) {
+  if (!error) {
+    return bucket;
+  }
 
-  return tryDecodeHexMessage(String(message || '')) || 'Swap execution failed';
+  if (typeof error === 'string') {
+    bucket.push(error);
+    return bucket;
+  }
+
+  if (typeof error?.message === 'string') {
+    bucket.push(error.message);
+  }
+
+  if (typeof error?.error === 'string') {
+    bucket.push(error.error);
+  }
+
+  if (typeof error?.data === 'string') {
+    bucket.push(error.data);
+  }
+
+  if (typeof error?.data?.message === 'string') {
+    bucket.push(error.data.message);
+  }
+
+  if (typeof error?.data?.error === 'string') {
+    bucket.push(error.data.error);
+  }
+
+  if (typeof error?.response?.data?.message === 'string') {
+    bucket.push(error.response.data.message);
+  }
+
+  if (typeof error?.response?.data?.error === 'string') {
+    bucket.push(error.response.data.error);
+  }
+
+  if (Array.isArray(error?.errors)) {
+    error.errors.forEach((item) => collectErrorStrings(item, bucket));
+  }
+
+  return bucket;
+}
+
+function normalizeErrorText(value) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .replace(/^error:\s*/i, '')
+    .trim();
+}
+
+function extractContractError(error) {
+  const rawCandidates = collectErrorStrings(error)
+    .map((item) => tryDecodeHexMessage(String(item || '')))
+    .map((item) => normalizeErrorText(item))
+    .filter(Boolean);
+
+  const joined = rawCandidates.join(' | ');
+  const lower = joined.toLowerCase();
+
+  if (!joined) {
+    return 'Swap execution failed.';
+  }
+
+  if (lower.includes('owner_address isn\'t set') || lower.includes('owner_address is not set')) {
+    return 'Wallet connection is not ready. Please reconnect the wallet and try again.';
+  }
+
+  if (lower.includes('network fee estimation unsuccessful')) {
+    return 'Network fee estimation failed. Please try again in a moment.';
+  }
+
+  if (lower.includes('third-party contract execution error')) {
+    return 'The swap transaction was rejected by the target contract. Please try another route or try again later.';
+  }
+
+  if (lower.includes('insufficient output amount') || lower.includes('amountoutmin')) {
+    return 'Price changed before confirmation. Please try again.';
+  }
+
+  if (lower.includes('out of energy') || lower.includes('not enough energy')) {
+    return 'Not enough TRX energy for this transaction. Please add more TRX for network resources and try again.';
+  }
+
+  if (lower.includes('bandwidth')) {
+    return 'Not enough bandwidth for this transaction. Please try again after replenishing wallet resources.';
+  }
+
+  if (lower.includes('user denied') || lower.includes('user rejected') || lower.includes('cancelled')) {
+    return 'Transaction was cancelled in the wallet.';
+  }
+
+  return rawCandidates[0];
 }
 
 function isTransientNetworkError(error) {
@@ -691,7 +809,7 @@ export async function checkSunioAllowance({
     throw new Error('SUN.io allowance: spenderAddress is invalid');
   }
 
-  ensureTronWebAddress(tronWeb, owner);
+  prepareTronWebForSigning(tronWeb, owner);
 
   const resolvedDecimals = Number.isFinite(Number(tokenDecimals))
     ? Number(tokenDecimals)
@@ -742,7 +860,7 @@ export async function ensureSunioApproval({
     throw new Error('SUN.io approval: spenderAddress is invalid');
   }
 
-  ensureTronWebAddress(tronWeb, owner);
+  prepareTronWebForSigning(tronWeb, owner);
 
   const resolvedDecimals = Number.isFinite(Number(tokenDecimals))
     ? Number(tokenDecimals)
@@ -768,25 +886,29 @@ export async function ensureSunioApproval({
     };
   }
 
-  const txid = await token
-    .approve(spenderAddress, MAX_UINT256)
-    .send({
-      feeLimit,
-      callValue: 0,
-      shouldPollResponse: false
-    });
+  try {
+    const txid = await token
+      .approve(spenderAddress, MAX_UINT256)
+      .send({
+        feeLimit,
+        callValue: 0,
+        shouldPollResponse: false
+      });
 
-  return {
-    ok: true,
-    required: true,
-    approved: false,
-    approvalType: 'unlimited',
-    txid,
-    spenderAddress,
-    allowanceRaw: allowanceRaw.toString(),
-    amountInRaw: amountInRaw.toString(),
-    approvalAmountRaw: MAX_UINT256
-  };
+    return {
+      ok: true,
+      required: true,
+      approved: false,
+      approvalType: 'unlimited',
+      txid,
+      spenderAddress,
+      allowanceRaw: allowanceRaw.toString(),
+      amountInRaw: amountInRaw.toString(),
+      approvalAmountRaw: MAX_UINT256
+    };
+  } catch (error) {
+    throw new Error(extractContractError(error));
+  }
 }
 
 export async function executeSunioSwap({
@@ -827,7 +949,7 @@ export async function executeSunioSwap({
   }
 
   assertExecutableRoute(route);
-  ensureTronWebAddress(tronWeb, owner);
+  prepareTronWebForSigning(tronWeb, owner);
 
   const amountInRaw = decimalToRaw(amountIn, inputTokenDecimals);
   const slippageBps = parseSlippageBps(slippage);
@@ -881,6 +1003,8 @@ export async function executeSunioSwap({
   });
 
   try {
+    prepareTronWebForSigning(tronWeb, owner);
+
     const router = await tronWeb.contract(SMART_ROUTER_ABI, smartRouterAddress);
 
     const txid = await router
