@@ -78,26 +78,40 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function getReadableErrorMessage(error, fallback = 'Operation failed.') {
-  if (!error) return fallback;
-
-  if (typeof error === 'string') {
-    return error || fallback;
+function normalizeNoticeMessage(value, fallback = 'Operation failed.') {
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/\s+/g, ' ').trim();
+    if (cleaned && cleaned !== '[object Object]') {
+      return cleaned;
+    }
   }
 
-  if (typeof error?.message === 'string' && error.message.trim()) {
-    return error.message;
+  if (typeof value?.message === 'string') {
+    const cleaned = value.message.replace(/\s+/g, ' ').trim();
+    if (cleaned && cleaned !== '[object Object]') {
+      return cleaned;
+    }
   }
 
-  if (typeof error?.error === 'string' && error.error.trim()) {
-    return error.error;
+  if (typeof value?.error === 'string') {
+    const cleaned = value.error.replace(/\s+/g, ' ').trim();
+    if (cleaned && cleaned !== '[object Object]') {
+      return cleaned;
+    }
   }
 
-  if (typeof error?.data?.message === 'string' && error.data.message.trim()) {
-    return error.data.message;
+  if (typeof value?.data?.message === 'string') {
+    const cleaned = value.data.message.replace(/\s+/g, ' ').trim();
+    if (cleaned && cleaned !== '[object Object]') {
+      return cleaned;
+    }
   }
 
   return fallback;
+}
+
+function getReadableErrorMessage(error, fallback = 'Operation failed.') {
+  return normalizeNoticeMessage(error, fallback);
 }
 
 function getWalletSafe() {
@@ -401,7 +415,7 @@ export function mountSwap(target, config = {}) {
 
   function setStatus(message = '', isError = false) {
     if (!statusEl) return;
-    statusEl.textContent = message;
+    statusEl.textContent = normalizeNoticeMessage(message, '');
     statusEl.dataset.state = isError ? 'error' : 'default';
   }
 
@@ -511,9 +525,20 @@ export function mountSwap(target, config = {}) {
     const disabled = isSwapPending || !isConnectedSafe(wallet);
 
     Array.from(routesListEl.querySelectorAll('[data-role="swap-route-button"]')).forEach((button) => {
-      button.disabled = disabled;
-      button.textContent = isSwapPending ? 'Processing...' : 'Swap';
+      button.disabled = disabled || button.dataset.executable === 'false';
+      button.textContent = isSwapPending ? 'Processing...' : button.dataset.executable === 'false' ? 'Unavailable' : 'Swap';
     });
+  }
+
+  function resetSwapFormState() {
+    if (amountInputEl) {
+      amountInputEl.value = '';
+    }
+
+    currentRoutes = [];
+    quotesRequestId += 1;
+    renderEstimate();
+    renderRoutes({ preserveStatus: true });
   }
 
   async function buildRoutes() {
@@ -563,7 +588,7 @@ export function mountSwap(target, config = {}) {
     const preserveStatus = Boolean(options.preserveStatus);
     const amount = parsePositiveNumber(amountInputEl?.value);
     const count = currentRoutes.length;
-    routesSummaryEl.textContent = `${count} ${count === 1 ? 'route' : 'routes'} found via ${escapeHtml(sourceLabel)}`;
+    routesSummaryEl.textContent = `${count} ${count === 1 ? 'route' : 'routes'} found via ${sourceLabel}`;
 
     if (!amount || amount <= 0) {
       routesListEl.innerHTML = `
@@ -614,6 +639,7 @@ export function mountSwap(target, config = {}) {
                 class="fourteen-swap-route-card__action"
                 data-role="swap-route-button"
                 data-route-id="${escapeHtml(route.id)}"
+                data-executable="${executable ? 'true' : 'false'}"
                 ${isConnectedSafe(wallet) && !isSwapPending && executable ? '' : 'disabled'}
               >
                 ${isSwapPending ? 'Processing...' : executable ? 'Swap' : 'Unavailable'}
@@ -738,7 +764,7 @@ export function mountSwap(target, config = {}) {
 
   function handleExecutionProgress(progress) {
     const step = progress?.step || '';
-    const message = progress?.message || '';
+    const message = normalizeNoticeMessage(progress?.message, '');
 
     if (message) {
       setStatus(message, step === 'error');
@@ -756,17 +782,21 @@ export function mountSwap(target, config = {}) {
       step === 'swap-submitted' ||
       step === 'swap-confirming'
     ) {
-      showNeutralNotice(message, 2600);
+      if (message) {
+        showNeutralNotice(message, 2600);
+      }
       return;
     }
 
     if (step === 'swap-confirmed' || step === 'success') {
-      showSuccessNotice(message, 4200);
+      if (message) {
+        showSuccessNotice(message, 4200);
+      }
       return;
     }
 
     if (step === 'error') {
-      showErrorNotice(message, 4200);
+      showErrorNotice(message || 'Swap failed.', 4200);
     }
   }
 
@@ -781,36 +811,39 @@ export function mountSwap(target, config = {}) {
     const slippage = slippageSelectEl?.value || defaultSlippage;
 
     if (!route) {
-      setStatus('Route not found.', true);
-      showErrorNotice('Route not found.');
+      const message = 'Route not found.';
+      setStatus(message, true);
+      showErrorNotice(message);
       return;
     }
 
     if (route?.isExecutable === false) {
-      const msg = 'This route is shown by the quote engine, but execution is not supported by the widget yet.';
-      setStatus(msg, true);
-      showErrorNotice(msg, 4200);
+      const message = 'This route is shown by the quote engine, but execution is not supported by the widget yet.';
+      setStatus(message, true);
+      showErrorNotice(message, 4200);
       return;
     }
 
     if (!isConnectedSafe(wallet)) {
-      setStatus('Connect wallet first.', true);
-      showErrorNotice('Connect wallet first.');
+      const message = 'Connect wallet first.';
+      setStatus(message, true);
+      showErrorNotice(message);
       return;
     }
 
     if (!amountIn || amountIn <= 0) {
-      setStatus('Enter amount first.', true);
-      showErrorNotice('Enter amount first.');
+      const message = 'Enter amount first.';
+      setStatus(message, true);
+      showErrorNotice(message);
       return;
     }
 
     isSwapPending = true;
     updateSwapButtonsDisabledState();
-    setStatus(`Preparing ${route.providerName} swap...`);
-    showNeutralNotice(`Preparing ${route.providerName} swap...`, 2200);
 
-    let didRefreshRoutesAfterExecution = false;
+    const preparingMessage = `Preparing ${route.providerName} swap...`;
+    setStatus(preparingMessage);
+    showNeutralNotice(preparingMessage, 2200);
 
     try {
       const result = await executeSwapFlow({
@@ -825,27 +858,23 @@ export function mountSwap(target, config = {}) {
       });
 
       if (result?.ok) {
-        const successMessage =
+        const successMessage = normalizeNoticeMessage(
+          result?.successMessage,
           route.toToken === 'TRX'
-            ? 'Swap completed. TRX received.'
-            : `Swap completed. ${route.toToken} received.`;
+            ? 'Swap completed successfully. TRX received.'
+            : `Swap completed successfully. ${route.toToken} received.`
+        );
 
-        setStatus(successMessage);
-        showSuccessNotice(successMessage, 4200);
+        setStatus(successMessage, false);
+        showSuccessNotice(successMessage, 5200);
 
         await refreshBalancesSafe();
-
-        try {
-          await syncQuotes({ preserveStatus: true });
-          didRefreshRoutesAfterExecution = true;
-        } catch (syncError) {
-          console.error('[4TEEN] post-swap quotes refresh failed', syncError);
-        }
+        resetSwapFormState();
 
         return;
       }
 
-      const fallbackMessage = result?.message || 'Swap failed.';
+      const fallbackMessage = normalizeNoticeMessage(result?.message, 'Swap failed.');
       setStatus(fallbackMessage, true);
       showErrorNotice(fallbackMessage, 4200);
     } catch (error) {
@@ -856,10 +885,8 @@ export function mountSwap(target, config = {}) {
     } finally {
       isSwapPending = false;
       updateSwapButtonsDisabledState();
-
-      if (!didRefreshRoutesAfterExecution) {
-        renderRoutes({ preserveStatus: true });
-      }
+      renderEstimate();
+      renderRoutes({ preserveStatus: true });
     }
   }
 
