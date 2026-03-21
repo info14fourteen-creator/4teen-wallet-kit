@@ -6,7 +6,7 @@ const PROVIDER_NAME = 'SUN.io';
 export const SUNIO_MAINNET_DEFAULTS = {
   smartRouterAddress: 'TJ4NNy8xZEqsowCBhLvZ45LCqPdGjkET5j',
   calculationServiceUrl: 'https://rot.endjgfsv.link/swap/routerUniversal',
-  feeLimit: 35_000_000,
+  feeLimit: 500_000_000,
   deadlineSeconds: 60 * 20,
   defaultSlippageBps: 300,
   typeList: ''
