@@ -1,5 +1,5 @@
 import { getSwapQuotes } from './services/quotes.js';
-import { executeSwapRoute } from './services/swapExecution.js';
+import { executeSwapFlow } from './services/swapExecution.js';
 import './swap.css';
 import { mountWalletButton } from '../../ui/walletButton.js';
 import {
@@ -36,10 +36,6 @@ const DEFAULT_CONFIG = {
     'TRX': 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb',
     'WTRX': 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
     'USDT': 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
-  },
-  mockBaseRates: {
-    TRX: 1.0,
-    USDT: 0.122
   }
 };
 
@@ -397,6 +393,7 @@ export function mountSwap(target, config = {}) {
   let selectedTarget = tokenOutDefault;
   let currentRoutes = [];
   let isSwapPending = false;
+  let quotesRequestId = 0;
 
   function isAlive() {
     return !isDestroyed && document.body.contains(target);
@@ -522,7 +519,14 @@ export function mountSwap(target, config = {}) {
   async function buildRoutes() {
     const amount = parsePositiveNumber(amountInputEl?.value);
 
-    currentRoutes = await getSwapQuotes({
+    if (!amount || amount <= 0) {
+      currentRoutes = [];
+      return;
+    }
+
+    const requestId = ++quotesRequestId;
+
+    const routes = await getSwapQuotes({
       amountIn: amount,
       targetToken: selectedTarget,
       fromTokenAddress: tokenAddresses['4TEEN'],
@@ -535,6 +539,12 @@ export function mountSwap(target, config = {}) {
       outputDecimals: 6,
       routeCount
     });
+
+    if (requestId !== quotesRequestId) {
+      return;
+    }
+
+    currentRoutes = routes;
   }
 
   function renderEstimate() {
@@ -551,15 +561,31 @@ export function mountSwap(target, config = {}) {
 
   function renderRoutes(options = {}) {
     const preserveStatus = Boolean(options.preserveStatus);
+    const amount = parsePositiveNumber(amountInputEl?.value);
     const count = currentRoutes.length;
-    routesSummaryEl.textContent = `${count} ${count === 1 ? 'route' : 'routes'} found via ${sourceLabel}`;
+    routesSummaryEl.textContent = `${count} ${count === 1 ? 'route' : 'routes'} found via ${escapeHtml(sourceLabel)}`;
 
-    if (!count) {
+    if (!amount || amount <= 0) {
       routesListEl.innerHTML = `
         <div class="fourteen-swap-routes-empty">
           Enter an amount to preview available routes.
         </div>
       `;
+      if (!preserveStatus) {
+        setStatus('');
+      }
+      return;
+    }
+
+    if (!count) {
+      routesListEl.innerHTML = `
+        <div class="fourteen-swap-routes-empty">
+          No routes available for this amount right now.
+        </div>
+      `;
+      if (!preserveStatus) {
+        setStatus('No routes available right now.', true);
+      }
       return;
     }
 
@@ -569,9 +595,10 @@ export function mountSwap(target, config = {}) {
       .map((route) => {
         const displayedReceive = getDisplayedReceive(route);
         const displayedMinReceived = getDisplayedMinReceived(route, currentSlippage);
+        const executable = route?.isExecutable !== false;
 
         return `
-          <div class="fourteen-swap-route-card">
+          <div class="fourteen-swap-route-card ${executable ? '' : 'is-disabled-route'}">
             <div class="fourteen-swap-route-card__left">
               <div class="fourteen-swap-route-card__eyebrow">You receive</div>
               <div class="fourteen-swap-route-card__receive">
@@ -587,9 +614,9 @@ export function mountSwap(target, config = {}) {
                 class="fourteen-swap-route-card__action"
                 data-role="swap-route-button"
                 data-route-id="${escapeHtml(route.id)}"
-                ${isConnectedSafe(wallet) && !isSwapPending ? '' : 'disabled'}
+                ${isConnectedSafe(wallet) && !isSwapPending && executable ? '' : 'disabled'}
               >
-                ${isSwapPending ? 'Processing...' : 'Swap'}
+                ${isSwapPending ? 'Processing...' : executable ? 'Swap' : 'Unavailable'}
               </button>
             </div>
 
@@ -621,6 +648,17 @@ export function mountSwap(target, config = {}) {
                 <div class="fourteen-swap-route-card__label">Impact</div>
                 <div class="fourteen-swap-route-card__value">${escapeHtml(route.impactLabel ?? '—')}</div>
               </div>
+
+              ${
+                executable
+                  ? ''
+                  : `
+                    <div class="fourteen-swap-route-card__detail">
+                      <div class="fourteen-swap-route-card__label">Status</div>
+                      <div class="fourteen-swap-route-card__value">Quote available, execution not supported yet</div>
+                    </div>
+                  `
+              }
             </div>
           </div>
         `;
@@ -699,23 +737,36 @@ export function mountSwap(target, config = {}) {
   }
 
   function handleExecutionProgress(progress) {
+    const step = progress?.step || '';
     const message = progress?.message || '';
 
-    if (!message) {
+    if (message) {
+      setStatus(message, step === 'error');
+    }
+
+    if (
+      step === 'validating' ||
+      step === 'checking-allowance' ||
+      step === 'approval-required' ||
+      step === 'approval-submitted' ||
+      step === 'approval-confirming' ||
+      step === 'approval-confirmed' ||
+      step === 'approval-ready' ||
+      step === 'swap-submitting' ||
+      step === 'swap-submitted' ||
+      step === 'swap-confirming'
+    ) {
+      showNeutralNotice(message, 2600);
       return;
     }
 
-    setStatus(message);
+    if (step === 'swap-confirmed' || step === 'success') {
+      showSuccessNotice(message, 4200);
+      return;
+    }
 
-    if (
-      progress.step === 'checking-allowance' ||
-      progress.step === 'approval-submitted' ||
-      progress.step === 'approval-confirmed' ||
-      progress.step === 'approval-skipped' ||
-      progress.step === 'swap-submitting' ||
-      progress.step === 'swap-submitted'
-    ) {
-      showNeutralNotice(message, 2600);
+    if (step === 'error') {
+      showErrorNotice(message, 4200);
     }
   }
 
@@ -732,6 +783,13 @@ export function mountSwap(target, config = {}) {
     if (!route) {
       setStatus('Route not found.', true);
       showErrorNotice('Route not found.');
+      return;
+    }
+
+    if (route?.isExecutable === false) {
+      const msg = 'This route is shown by the quote engine, but execution is not supported by the widget yet.';
+      setStatus(msg, true);
+      showErrorNotice(msg, 4200);
       return;
     }
 
@@ -755,40 +813,16 @@ export function mountSwap(target, config = {}) {
     let didRefreshRoutesAfterExecution = false;
 
     try {
-      const result = await executeSwapRoute({
+      const result = await executeSwapFlow({
         wallet,
-        route,
+        selectedRoute: route,
         amountIn,
         slippage,
         inputTokenAddress: tokenAddresses['4TEEN'],
         inputTokenDecimals: 6,
         outputTokenDecimals: 6,
-        onProgress: handleExecutionProgress
+        reportProgress: handleExecutionProgress
       });
-
-      if (result?.cancelled) {
-        const cancelledMessage = result?.message || 'Transaction cancelled by user.';
-        setStatus(cancelledMessage, true);
-        showErrorNotice(cancelledMessage, 3200);
-        return;
-      }
-
-      if (result?.needsRetry) {
-        const retryMessage = result?.message || 'Approval confirmed. Press Swap again.';
-        setStatus(retryMessage);
-        showSuccessNotice(retryMessage, 4200);
-
-        await refreshBalancesSafe();
-
-        try {
-          await syncQuotes({ preserveStatus: true });
-          didRefreshRoutesAfterExecution = true;
-        } catch (syncError) {
-          console.error('[4TEEN] post-approval quotes refresh failed', syncError);
-        }
-
-        return;
-      }
 
       if (result?.ok) {
         const successMessage =
@@ -811,9 +845,9 @@ export function mountSwap(target, config = {}) {
         return;
       }
 
-      const fallbackMessage = result?.message || 'Swap execution is not ready yet.';
+      const fallbackMessage = result?.message || 'Swap failed.';
       setStatus(fallbackMessage, true);
-      showErrorNotice(fallbackMessage);
+      showErrorNotice(fallbackMessage, 4200);
     } catch (error) {
       console.error('[4TEEN] swap execution failed', error);
       const message = getReadableErrorMessage(error, 'Swap execution failed.');
