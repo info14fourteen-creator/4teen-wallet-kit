@@ -14,6 +14,14 @@ export const SUNIO_MAINNET_DEFAULTS = {
   typeList: 'PSM,CURVE,CURVE_COMBINATION,WTRX,SUNSWAP_V1,SUNSWAP_V2,SUNSWAP_V3'
 };
 
+export function getSunioProviderMeta() {
+  return {
+    id: PROVIDER_ID,
+    name: PROVIDER_NAME,
+    logo: sunioLogo
+  };
+}
+
 export const SUNIO_TOKEN_ADDRESSES = {
   TRX: 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb',
   WTRX: 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
