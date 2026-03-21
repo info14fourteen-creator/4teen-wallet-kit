@@ -69,17 +69,17 @@ function normalizePoolVersions(poolVersions = []) {
   return poolVersions.map((item) => String(item || '').trim()).filter(Boolean);
 }
 
-function normalizePoolFees(poolFees = [], tokenCount = 0) {
+function normalizePoolFees(poolFees = [], count = 0) {
   const normalized = Array.isArray(poolFees)
     ? poolFees.map((item) => Number.parseInt(String(item ?? '0'), 10) || 0)
     : [];
 
-  if (normalized.length >= tokenCount) {
-    return normalized.slice(0, tokenCount);
+  if (normalized.length >= count) {
+    return normalized.slice(0, count);
   }
 
-  if (tokenCount > 0) {
-    return [...normalized, ...new Array(tokenCount - normalized.length).fill(0)];
+  if (count > 0) {
+    return [...normalized, ...new Array(count - normalized.length).fill(0)];
   }
 
   return normalized;
@@ -87,14 +87,19 @@ function normalizePoolFees(poolFees = [], tokenCount = 0) {
 
 function mapApiRouteToSunioUsdtRoute(apiRoute, outputDecimals) {
   const providerMeta = getSunioProviderMeta();
+
   const tokens = Array.isArray(apiRoute?.tokens) ? apiRoute.tokens : [];
   const symbols = Array.isArray(apiRoute?.symbols) ? apiRoute.symbols : [];
+
   const poolVersions = normalizePoolVersions(apiRoute?.poolVersions);
-  const fees = normalizePoolFees(apiRoute?.poolFees, tokens.length);
+
+  // FIX 1: correct length
+  const fees = normalizePoolFees(apiRoute?.poolFees, poolVersions.length);
+
   const versionLen = buildVersionLen(poolVersions);
 
   return {
-    id: `sunio-USDT-${tokens.join('-')}-${poolVersions.join('-')}`,
+    id: `sunio-USDT-${Date.now()}-${Math.random()}`, // FIX 2: unique id
     provider: 'sunio',
     providerName: 'SUN.io',
     providerLogo: providerMeta.logo,
@@ -170,10 +175,16 @@ export async function getSunioUsdtQuotes({
   const resolvedOutputDecimals = getOutputDecimalsByTarget('USDT', outputDecimals);
 
   const url = new URL(calculationServiceUrl);
+
   url.searchParams.set('fromToken', fromTokenAddress);
   url.searchParams.set('toToken', toTokenParam);
   url.searchParams.set('amountIn', amountInRaw);
-  url.searchParams.set('typeList', typeList);
+
+  // FIX 3: match sun.io behavior
+  if (typeList) {
+    url.searchParams.set('typeList', typeList);
+  }
+
   url.searchParams.set('includeUnverifiedV4Hook', 'true');
 
   const response = await fetch(url.toString(), {
