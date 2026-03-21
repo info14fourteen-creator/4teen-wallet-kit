@@ -9,7 +9,7 @@ export const SUNIO_MAINNET_DEFAULTS = {
   feeLimit: 35_000_000,
   deadlineSeconds: 60 * 20,
   defaultSlippageBps: 300,
-  typeList: 'PSM,CURVE,CURVE_COMBINATION,WTRX,SUNSWAP_V1,SUNSWAP_V2,SUNSWAP_V3'
+  typeList: ''
 };
 
 export const SUNIO_TOKEN_ADDRESSES = {
@@ -510,7 +510,10 @@ export async function getSunioQuotes({
   url.searchParams.set('fromToken', fromTokenAddress);
   url.searchParams.set('toToken', toTokenParam);
   url.searchParams.set('amountIn', amountInRaw);
-  url.searchParams.set('typeList', typeList);
+
+  const normalizedTypeList = typeof typeList === 'string' ? typeList.trim() : '';
+  url.searchParams.set('typeList', normalizedTypeList);
+
   url.searchParams.set('includeUnverifiedV4Hook', 'true');
 
   const response = await fetch(url.toString(), {
