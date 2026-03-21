@@ -90,6 +90,10 @@ export function getSunioProviderMeta() {
   };
 }
 
+export function getSunioSpenderAddressForRoute() {
+  return SUNIO_MAINNET_DEFAULTS.smartRouterAddress;
+}
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -473,7 +477,7 @@ function extractContractError(error) {
   }
 
   if (lower.includes('network fee estimation unsuccessful')) {
-    return 'Network fee estimation failed. Please try a simpler route or try again in a moment.';
+    return 'Network fee estimation failed. Please try again in a moment.';
   }
 
   if (lower.includes('third-party contract execution error')) {
@@ -514,64 +518,14 @@ function isTransientNetworkError(error) {
   );
 }
 
-function hasUnsupportedPoolVersion(poolVersions = []) {
-  return poolVersions.some((version) => String(version || '').toLowerCase() === 'v4');
-}
-
-function isSimpleUsdtExecutionRoute(tokens = [], symbols = [], poolVersions = []) {
-  if (!Array.isArray(tokens) || tokens.length < 2) {
-    return false;
-  }
-
-  if (!Array.isArray(symbols) || symbols.length !== tokens.length) {
-    return false;
-  }
-
-  if (!Array.isArray(poolVersions) || poolVersions.length !== tokens.length - 1) {
-    return false;
-  }
-
-  if (tokens.length > 3) {
-    return false;
-  }
-
-  if (symbols[0] !== '4TEEN') {
-    return false;
-  }
-
-  if (symbols[symbols.length - 1] !== 'USDT') {
-    return false;
-  }
-
-  if (symbols.length === 3 && symbols[1] !== 'WTRX') {
-    return false;
-  }
-
-  return poolVersions.every((version) => {
-    const normalized = String(version || '').toLowerCase();
-    return normalized === 'v2' || normalized === 'v3';
-  });
-}
-
 function isRouteExecutableByWidget({
   tokens = [],
-  symbols = [],
   poolVersions = [],
-  versionLen = [],
-  targetToken = ''
+  versionLen = []
 } = {}) {
   if (!Array.isArray(tokens) || tokens.length < 2) return false;
   if (!Array.isArray(poolVersions) || !poolVersions.length) return false;
   if (!Array.isArray(versionLen) || !versionLen.length) return false;
-
-  if (hasUnsupportedPoolVersion(poolVersions)) {
-    return false;
-  }
-
-  if (targetToken === 'USDT') {
-    return isSimpleUsdtExecutionRoute(tokens, symbols, poolVersions);
-  }
-
   return true;
 }
 
@@ -583,10 +537,8 @@ function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
   const versionLen = buildVersionLen(poolVersions);
   const isExecutable = isRouteExecutableByWidget({
     tokens,
-    symbols,
     poolVersions,
-    versionLen,
-    targetToken
+    versionLen
   });
 
   return {
@@ -735,13 +687,7 @@ export async function getSunioQuotes({
   return payload.data
     .slice(0, Math.max(1, Number(routeCount || 3)))
     .map((item) => mapApiRouteToSunioRoute(item, targetToken, resolvedOutputDecimals))
-    .sort((a, b) => {
-      if (a.isExecutable !== b.isExecutable) {
-        return a.isExecutable ? -1 : 1;
-      }
-
-      return Number(b.expectedOut || 0) - Number(a.expectedOut || 0);
-    });
+    .sort((a, b) => Number(b.expectedOut || 0) - Number(a.expectedOut || 0));
 }
 
 export async function waitForSunioTransactionConfirmation({
@@ -1030,24 +976,36 @@ export async function executeSunioSwap({
     String(deadline)
   ];
 
-  console.log('[SUN SWAP ROUTE RAW]', route);
-  console.log('[SUN SWAP PAYLOAD]', {
-    owner,
-    to,
-    path: route.path,
-    poolVersion: route.poolVersion,
-    versionLen: route.versionLen,
-    fees: route.fees,
-    swapData,
-    smartRouterAddress,
-    inputTokenAddress,
-    amountIn,
-    slippage,
-    outputTokenDecimals,
-    resolvedOutputDecimals,
-    deadline,
-    feeLimit
-  });
+  console.log('[SUN SWAP ROUTE RAW JSON]', JSON.stringify(route, null, 2));
+  console.log(
+    '[SUN SWAP PAYLOAD JSON]',
+    JSON.stringify(
+      {
+        owner,
+        to,
+        path: route.path,
+        poolVersion: route.poolVersion,
+        versionLen: route.versionLen,
+        fees: route.fees,
+        swapData,
+        smartRouterAddress,
+        inputTokenAddress,
+        amountIn,
+        amountInRaw: amountInRaw.toString(),
+        amountOutMinRaw: amountOutMinRaw.toString(),
+        slippage,
+        outputTokenDecimals,
+        resolvedOutputDecimals,
+        deadline,
+        feeLimit,
+        tronDefaultAddress: tronWeb?.defaultAddress || null,
+        poolKeys: route.poolKeys || null,
+        stepAmountsOut: route.stepAmountsOut || null
+      },
+      null,
+      2
+    )
+  );
 
   try {
     prepareTronWebForSigning(tronWeb, owner);
@@ -1095,7 +1053,24 @@ export async function executeSunioSwap({
   } catch (error) {
     console.error('[SUN SWAP CONTRACT SEND ERROR FULL]', error);
     console.error('[SUN SWAP CONTRACT SEND ERROR MESSAGE]', error?.message);
-    console.error('[SUN SWAP CONTRACT SEND ERROR RAW]', JSON.stringify(error, null, 2));
+    console.error(
+      '[SUN SWAP CONTRACT SEND ERROR JSON]',
+      JSON.stringify(
+        {
+          message: error?.message || null,
+          error: error?.error || null,
+          data: error?.data || null,
+          response: error?.response || null,
+          stack: error?.stack || null,
+          defaultAddress: tronWeb?.defaultAddress || null,
+          owner,
+          to,
+          route
+        },
+        null,
+        2
+      )
+    );
     throw new Error(extractContractError(error));
   }
 }
