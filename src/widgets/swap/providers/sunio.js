@@ -1,6 +1,4 @@
 import sunioLogo from '../../../assets/sunio_swap.svg';
-import { getSunioTrxQuotes } from './suniotrx.js';
-import { getSunioUsdtQuotes } from './suniousdt.js';
 
 const PROVIDER_ID = 'sunio';
 const PROVIDER_NAME = 'SUN.io';
@@ -102,6 +100,19 @@ function getConnectedAddress(wallet) {
   );
 }
 
+function ensureTronWebAddress(tronWeb, address) {
+  if (!tronWeb || !address) return;
+
+  try {
+    tronWeb.setAddress?.(address);
+  } catch (_) {}
+
+  try {
+    const hex = tronWeb.address.toHex(address);
+    tronWeb.defaultAddress = { base58: address, hex };
+  } catch (_) {}
+}
+
 function decimalToRaw(amount, decimals) {
   const [w, f = ''] = String(amount || '0').split('.');
   const d = BigInt(decimals || 0);
@@ -117,13 +128,6 @@ function calcMinOutRaw(expected, bps) {
   return (normalizeBigintLike(expected) * (10000n - BigInt(bps))) / 10000n;
 }
 
-export async function getSunioQuotes({ targetToken, ...rest } = {}) {
-  const t = String(targetToken || '').toUpperCase();
-  if (t === 'TRX') return getSunioTrxQuotes(rest);
-  if (t === 'USDT') return getSunioUsdtQuotes(rest);
-  throw new Error('Unsupported token');
-}
-
 export async function checkSunioAllowance({
   wallet,
   tokenAddress,
@@ -133,6 +137,8 @@ export async function checkSunioAllowance({
 }) {
   const tronWeb = getTronWebSafe(wallet);
   const owner = getConnectedAddress(wallet);
+
+  ensureTronWebAddress(tronWeb, owner);
 
   const token = await tronWeb.contract(TRC20_ABI, tokenAddress);
   const allowance = await token.allowance(owner, spenderAddress).call();
@@ -154,6 +160,9 @@ export async function ensureSunioApproval({
   feeLimit = SUNIO_MAINNET_DEFAULTS.feeLimit
 }) {
   const tronWeb = getTronWebSafe(wallet);
+  const owner = getConnectedAddress(wallet);
+
+  ensureTronWebAddress(tronWeb, owner);
 
   const token = await tronWeb.contract(TRC20_ABI, tokenAddress);
 
@@ -196,6 +205,8 @@ export async function executeSunioSwap({
 }) {
   const tronWeb = getTronWebSafe(wallet);
   const owner = getConnectedAddress(wallet);
+
+  ensureTronWebAddress(tronWeb, owner);
 
   const amountInRaw = decimalToRaw(amountIn, inputTokenDecimals);
   const minOut = calcMinOutRaw(route.amountOutRaw, slippage * 100);
