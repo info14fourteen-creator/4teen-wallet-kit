@@ -17,6 +17,8 @@ export const SUNIO_TOKEN_ADDRESSES = {
   USDT: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
 };
 
+const MAX_UINT256 = (2n ** 256n - 1n).toString();
+
 const TRC20_ABI = [
   {
     constant: true,
@@ -640,6 +642,56 @@ export async function waitForSunioTransactionConfirmation({
   throw new Error('Transaction confirmation timeout');
 }
 
+export async function checkSunioAllowance({
+  wallet,
+  tokenAddress,
+  spenderAddress = SUNIO_MAINNET_DEFAULTS.smartRouterAddress,
+  amountIn,
+  tokenDecimals = null
+} = {}) {
+  const tronWeb = getTronWebSafe(wallet);
+  const owner = getConnectedAddress(wallet);
+
+  if (!tronWeb) {
+    throw new Error('SUN.io allowance: tronWeb is not available');
+  }
+
+  if (!isUsableAddress(owner)) {
+    throw new Error('SUN.io allowance: wallet address is not available');
+  }
+
+  if (!isUsableAddress(tokenAddress)) {
+    throw new Error('SUN.io allowance: tokenAddress is invalid');
+  }
+
+  if (!isUsableAddress(spenderAddress)) {
+    throw new Error('SUN.io allowance: spenderAddress is invalid');
+  }
+
+  ensureTronWebAddress(tronWeb, owner);
+
+  const resolvedDecimals = Number.isFinite(Number(tokenDecimals))
+    ? Number(tokenDecimals)
+    : await getTokenDecimals(tronWeb, tokenAddress, 6);
+
+  const requiredAmountRaw = decimalToRaw(amountIn, resolvedDecimals);
+  const token = await tronWeb.contract(TRC20_ABI, tokenAddress);
+
+  const allowanceRaw = normalizeBigintLike(
+    await token.allowance(owner, spenderAddress).call()
+  );
+
+  return {
+    ok: true,
+    owner,
+    spenderAddress,
+    tokenAddress,
+    allowanceRaw: allowanceRaw.toString(),
+    requiredAmountRaw: requiredAmountRaw.toString(),
+    hasEnoughAllowance: allowanceRaw >= requiredAmountRaw
+  };
+}
+
 export async function ensureSunioApproval({
   wallet,
   tokenAddress,
@@ -685,14 +737,16 @@ export async function ensureSunioApproval({
       ok: true,
       required: false,
       approved: true,
+      approvalType: 'already-approved',
       allowanceRaw: allowanceRaw.toString(),
       amountInRaw: amountInRaw.toString(),
+      approvalAmountRaw: MAX_UINT256,
       spenderAddress
     };
   }
 
   const txid = await token
-    .approve(spenderAddress, amountInRaw.toString())
+    .approve(spenderAddress, MAX_UINT256)
     .send({
       feeLimit,
       callValue: 0,
@@ -703,10 +757,12 @@ export async function ensureSunioApproval({
     ok: true,
     required: true,
     approved: false,
+    approvalType: 'unlimited',
     txid,
     spenderAddress,
     allowanceRaw: allowanceRaw.toString(),
-    amountInRaw: amountInRaw.toString()
+    amountInRaw: amountInRaw.toString(),
+    approvalAmountRaw: MAX_UINT256
   };
 }
 
