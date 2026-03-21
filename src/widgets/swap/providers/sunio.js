@@ -638,15 +638,19 @@ export async function executeSunioSwap({
     outputTokenDecimals ?? route?.outputDecimals
   );
 
-  let amountOutMinRaw = 0n;
-
+    let amountOutMinRaw = 0n;
+  
   if (route.minReceived != null) {
     amountOutMinRaw = humanOutputToRaw(route.minReceived, resolvedOutputDecimals);
+  } else if (route.amountOutRaw != null) {
+    amountOutMinRaw = calcMinOutRawFromExpected(route.amountOutRaw, slippageBps);
   } else if (route.expectedOut != null) {
     const expectedOutRaw = humanOutputToRaw(route.expectedOut, resolvedOutputDecimals);
     amountOutMinRaw = calcMinOutRawFromExpected(expectedOutRaw, slippageBps);
   } else {
-    throw new Error('SUN.io execution: route.minReceived or route.expectedOut is required');
+    throw new Error(
+      'SUN.io execution: route.minReceived or route.amountOutRaw or route.expectedOut is required'
+    );
   }
 
   const deadline =
