@@ -1,4 +1,5 @@
 import {
+  checkSunioAllowance,
   ensureSunioApproval,
   executeSunioSwap,
   waitForSunioTransactionConfirmation,
@@ -51,20 +52,28 @@ export async function executeSwapRoute({
       message: 'Checking allowance...'
     });
 
-    const approvalResult = await ensureSunioApproval({
+    const allowanceState = await checkSunioAllowance({
       wallet,
       tokenAddress: inputTokenAddress,
       spenderAddress: smartRouterAddress,
       amountIn,
-      tokenDecimals: inputTokenDecimals,
-      feeLimit
+      tokenDecimals: inputTokenDecimals
     });
 
-    if (approvalResult?.required) {
+    if (!allowanceState?.hasEnoughAllowance) {
+      const approvalResult = await ensureSunioApproval({
+        wallet,
+        tokenAddress: inputTokenAddress,
+        spenderAddress: smartRouterAddress,
+        amountIn,
+        tokenDecimals: inputTokenDecimals,
+        feeLimit
+      });
+
       emitProgress(onProgress, {
         step: 'approval-submitted',
         message: 'Approving 4TEEN...',
-        approvalTxid: approvalResult.txid
+        approvalTxid: approvalResult?.txid || null
       });
 
       await waitForSunioTransactionConfirmation({
@@ -76,15 +85,23 @@ export async function executeSwapRoute({
 
       emitProgress(onProgress, {
         step: 'approval-confirmed',
-        message: 'Approval confirmed. Sending swap...',
-        approvalTxid: approvalResult.txid
+        message: 'Approval confirmed. Press Swap again.',
+        approvalTxid: approvalResult?.txid || null
       });
-    } else {
-      emitProgress(onProgress, {
-        step: 'approval-skipped',
-        message: 'Allowance already available. Sending swap...'
-      });
+
+      return {
+        ok: true,
+        needsRetry: true,
+        approvalRequired: true,
+        approvalTxid: approvalResult?.txid || null,
+        message: 'Approval confirmed. Press Swap again.'
+      };
     }
+
+    emitProgress(onProgress, {
+      step: 'approval-skipped',
+      message: 'Allowance already available. Sending swap...'
+    });
 
     emitProgress(onProgress, {
       step: 'swap-submitting',
@@ -110,16 +127,16 @@ export async function executeSwapRoute({
       message: swapResult?.unwrapTxid
         ? 'Swap completed. TRX received.'
         : 'Swap completed.',
-      approvalTxid: approvalResult?.txid || null,
       swapTxid: swapResult?.txid || null,
       unwrapTxid: swapResult?.unwrapTxid || null
     });
 
     return {
       ok: true,
+      needsRetry: false,
       provider: route.provider,
-      approvalRequired: Boolean(approvalResult?.required),
-      approvalTxid: approvalResult?.txid || null,
+      approvalRequired: false,
+      approvalTxid: null,
       txid: swapResult?.txid || null,
       unwrapTxid: swapResult?.unwrapTxid || null,
       unwrappedAmountRaw: swapResult?.unwrappedAmountRaw || '0',
