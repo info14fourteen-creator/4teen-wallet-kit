@@ -52,36 +52,6 @@ const TRC20_ABI = [
     payable: false,
     stateMutability: 'view',
     type: 'function'
-  },
-  {
-    constant: true,
-    inputs: [{ name: '_owner', type: 'address' }],
-    name: 'balanceOf',
-    outputs: [{ name: 'balance', type: 'uint256' }],
-    payable: false,
-    stateMutability: 'view',
-    type: 'function'
-  }
-];
-
-const WTRX_ABI = [
-  {
-    constant: true,
-    inputs: [{ name: '', type: 'address' }],
-    name: 'balanceOf',
-    outputs: [{ name: '', type: 'uint256' }],
-    payable: false,
-    stateMutability: 'view',
-    type: 'function'
-  },
-  {
-    constant: false,
-    inputs: [{ name: 'wad', type: 'uint256' }],
-    name: 'withdraw',
-    outputs: [],
-    payable: false,
-    stateMutability: 'nonpayable',
-    type: 'function'
   }
 ];
 
@@ -251,12 +221,6 @@ async function getTokenDecimals(tronWeb, tokenAddress, fallback = 6) {
   }
 }
 
-async function getTokenBalanceRaw(tronWeb, tokenAddress, owner) {
-  const contract = await tronWeb.contract(WTRX_ABI, tokenAddress);
-  const balance = await contract.balanceOf(owner).call();
-  return normalizeBigintLike(balance);
-}
-
 function assertExecutableRoute(route) {
   if (!route) {
     throw new Error('SUN.io execution: route is required');
@@ -279,9 +243,9 @@ function assertExecutableRoute(route) {
   }
 }
 
-function getTargetTokenAddress(targetToken, tokenAddresses = {}) {
+function getTargetTokenParam(targetToken, tokenAddresses = {}) {
   if (targetToken === 'TRX') {
-    return tokenAddresses.WTRX || SUNIO_TOKEN_ADDRESSES.WTRX;
+    return 'TRX';
   }
 
   if (targetToken === 'USDT') {
@@ -425,17 +389,6 @@ function isTransientNetworkError(error) {
   );
 }
 
-function shouldAutoUnwrapWtrx(route) {
-  if (!route || route.toToken !== 'TRX') {
-    return false;
-  }
-
-  const path = Array.isArray(route.path) ? route.path : [];
-  const lastToken = path[path.length - 1] || '';
-
-  return lastToken === SUNIO_TOKEN_ADDRESSES.WTRX;
-}
-
 function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
   const tokens = Array.isArray(apiRoute?.tokens) ? apiRoute.tokens : [];
   const symbols = Array.isArray(apiRoute?.symbols) ? apiRoute.symbols : [];
@@ -543,9 +496,9 @@ export async function getSunioQuotes({
     throw new Error('SUN.io quotes: fromTokenAddress is invalid');
   }
 
-  const toTokenAddress = getTargetTokenAddress(targetToken, tokenAddresses);
+  const toTokenParam = getTargetTokenParam(targetToken, tokenAddresses);
 
-  if (!isUsableAddress(toTokenAddress)) {
+  if (targetToken !== 'TRX' && !isUsableAddress(toTokenParam)) {
     throw new Error(`SUN.io quotes: target token address for ${targetToken} is invalid`);
   }
 
@@ -554,7 +507,7 @@ export async function getSunioQuotes({
 
   const url = new URL(calculationServiceUrl);
   url.searchParams.set('fromToken', fromTokenAddress);
-  url.searchParams.set('toToken', toTokenAddress);
+  url.searchParams.set('toToken', toTokenParam);
   url.searchParams.set('amountIn', amountInRaw);
   url.searchParams.set('typeList', typeList);
 
@@ -856,18 +809,6 @@ export async function executeSunioSwap({
   });
 
   try {
-    const shouldUnwrap = shouldAutoUnwrapWtrx(route);
-
-    let wtrxBalanceBefore = 0n;
-    if (shouldUnwrap) {
-      wtrxBalanceBefore = await getTokenBalanceRaw(
-        tronWeb,
-        SUNIO_TOKEN_ADDRESSES.WTRX,
-        owner
-      );
-      console.log('[SUN SWAP WTRX BEFORE]', wtrxBalanceBefore.toString());
-    }
-
     const router = await tronWeb.contract(SMART_ROUTER_ABI, smartRouterAddress);
 
     const txid = await router
@@ -893,73 +834,13 @@ export async function executeSunioSwap({
       pollIntervalMs: 1500
     });
 
-    let unwrapTxid = null;
-    let unwrappedAmountRaw = '0';
-
-    if (shouldUnwrap) {
-      let wtrxBalanceAfter = wtrxBalanceBefore;
-
-      for (let i = 0; i < 10; i += 1) {
-        await wait(700);
-
-        try {
-          wtrxBalanceAfter = await getTokenBalanceRaw(
-            tronWeb,
-            SUNIO_TOKEN_ADDRESSES.WTRX,
-            owner
-          );
-        } catch (_) {}
-
-        if (wtrxBalanceAfter > wtrxBalanceBefore) {
-          break;
-        }
-      }
-
-      console.log('[SUN SWAP WTRX AFTER]', wtrxBalanceAfter.toString());
-
-      let unwrapAmountRaw = wtrxBalanceAfter - wtrxBalanceBefore;
-
-      if (unwrapAmountRaw <= 0n && route.expectedOut != null) {
-        unwrapAmountRaw = humanOutputToRaw(
-          route.expectedOut,
-          resolvedOutputDecimals
-        );
-      }
-
-      if (unwrapAmountRaw > 0n) {
-        const wtrx = await tronWeb.contract(WTRX_ABI, SUNIO_TOKEN_ADDRESSES.WTRX);
-
-        console.log('[SUN SWAP UNWRAP AMOUNT]', unwrapAmountRaw.toString());
-
-        unwrapTxid = await wtrx
-          .withdraw(unwrapAmountRaw.toString())
-          .send({
-            feeLimit,
-            callValue: 0,
-            shouldPollResponse: false
-          });
-
-        await waitForSunioTransactionConfirmation({
-          wallet,
-          txid: unwrapTxid,
-          timeoutMs: 120000,
-          pollIntervalMs: 1500
-        });
-
-        console.log('[SUN SWAP UNWRAP TXID]', unwrapTxid);
-        unwrappedAmountRaw = unwrapAmountRaw.toString();
-      } else {
-        console.warn('[SUN SWAP UNWRAP SKIPPED] unwrap amount was zero');
-      }
-    }
-
     return {
       ok: true,
       provider: PROVIDER_ID,
       providerName: PROVIDER_NAME,
       txid,
-      unwrapTxid,
-      unwrappedAmountRaw,
+      unwrapTxid: null,
+      unwrappedAmountRaw: '0',
       to,
       smartRouterAddress,
       amountInRaw: amountInRaw.toString(),
