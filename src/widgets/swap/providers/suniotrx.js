@@ -86,6 +86,7 @@ function normalizePoolFees(poolFees = [], tokenCount = 0) {
 }
 
 function mapApiRouteToSunioTrxRoute(apiRoute, outputDecimals) {
+  const providerMeta = getSunioProviderMeta();
   const tokens = Array.isArray(apiRoute?.tokens) ? apiRoute.tokens : [];
   const symbols = Array.isArray(apiRoute?.symbols) ? apiRoute.symbols : [];
   const poolVersions = normalizePoolVersions(apiRoute?.poolVersions);
@@ -96,7 +97,8 @@ function mapApiRouteToSunioTrxRoute(apiRoute, outputDecimals) {
     id: `sunio-TRX-${tokens.join('-')}-${poolVersions.join('-')}`,
     provider: 'sunio',
     providerName: 'SUN.io',
-    providerMeta: getSunioProviderMeta(),
+    providerLogo: providerMeta.logo,
+    providerMeta,
     fromToken: '4TEEN',
     toToken: 'TRX',
     path: tokens,
@@ -189,7 +191,7 @@ export async function getSunioTrxQuotes({
   }
 
   return payload.data
-    .slice(0, Math.max(1, Number(routeCount || 3)))
     .map((item) => mapApiRouteToSunioTrxRoute(item, resolvedOutputDecimals))
-    .sort((a, b) => Number(b.expectedOut || 0) - Number(a.expectedOut || 0));
+    .sort((a, b) => Number(b.expectedOut || 0) - Number(a.expectedOut || 0))
+    .slice(0, Math.max(1, Number(routeCount || 3)));
 }
