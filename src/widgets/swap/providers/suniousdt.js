@@ -85,24 +85,6 @@ function normalizePoolFees(poolFees = [], tokenCount = 0) {
   return normalized;
 }
 
-function isSunioUsdtRouteExecutable(apiRoute) {
-  const poolVersions = normalizePoolVersions(apiRoute?.poolVersions).map((item) =>
-    item.toLowerCase()
-  );
-
-  const hasV4 = poolVersions.includes('v4');
-  const hasHook = Boolean(apiRoute?.containsUnverifiedHook);
-  const hasPoolKeys =
-    Array.isArray(apiRoute?.poolKeys) && apiRoute.poolKeys.some((item) => item != null);
-
-  return !hasV4 && !hasHook && !hasPoolKeys;
-}
-
-function getUnsupportedReason(apiRoute) {
-  if (isSunioUsdtRouteExecutable(apiRoute)) return null;
-  return 'SUN.io v4 / hook route is not supported by current swap executor';
-}
-
 function mapApiRouteToSunioUsdtRoute(apiRoute, outputDecimals) {
   const providerMeta = getSunioProviderMeta();
   const tokens = Array.isArray(apiRoute?.tokens) ? apiRoute.tokens : [];
@@ -110,8 +92,6 @@ function mapApiRouteToSunioUsdtRoute(apiRoute, outputDecimals) {
   const poolVersions = normalizePoolVersions(apiRoute?.poolVersions);
   const fees = normalizePoolFees(apiRoute?.poolFees, tokens.length);
   const versionLen = buildVersionLen(poolVersions);
-  const isExecutable = isSunioUsdtRouteExecutable(apiRoute);
-  const unsupportedReason = getUnsupportedReason(apiRoute);
 
   return {
     id: `sunio-USDT-${tokens.join('-')}-${poolVersions.join('-')}`,
@@ -140,11 +120,10 @@ function mapApiRouteToSunioUsdtRoute(apiRoute, outputDecimals) {
             symbols.length - 2 > 1 ? 's' : ''
           }`
         : 'Direct · best route',
-    executionLabel: isExecutable
-      ? apiRoute?.fee != null && apiRoute?.fee !== ''
+    executionLabel:
+      apiRoute?.fee != null && apiRoute?.fee !== ''
         ? `${String(apiRoute.fee)}`
-        : '—'
-      : 'Unsupported',
+        : '—',
     apiFee: apiRoute?.fee ?? null,
     apiImpact: apiRoute?.impact ?? null,
     amountIn: apiRoute?.amountIn ?? null,
@@ -156,10 +135,8 @@ function mapApiRouteToSunioUsdtRoute(apiRoute, outputDecimals) {
     stepAmountsOut: Array.isArray(apiRoute?.stepAmountsOut)
       ? apiRoute.stepAmountsOut
       : [],
-    containsUnverifiedHook: Boolean(apiRoute?.containsUnverifiedHook),
-    poolKeys: Array.isArray(apiRoute?.poolKeys) ? apiRoute.poolKeys : [],
-    isExecutable,
-    unsupportedReason
+    isExecutable: true,
+    unsupportedReason: null
   };
 }
 
@@ -170,7 +147,7 @@ export async function getSunioUsdtQuotes({
   inputDecimals = 6,
   outputDecimals = null,
   routeCount = 3,
-  typeList = '',
+  typeList = SUNIO_MAINNET_DEFAULTS.typeList,
   calculationServiceUrl = SUNIO_MAINNET_DEFAULTS.calculationServiceUrl
 } = {}) {
   const safeAmountIn = toSafeNumber(amountIn, 0);
@@ -215,12 +192,6 @@ export async function getSunioUsdtQuotes({
 
   return payload.data
     .map((item) => mapApiRouteToSunioUsdtRoute(item, resolvedOutputDecimals))
-    .sort((a, b) => {
-      if (Boolean(a.isExecutable) !== Boolean(b.isExecutable)) {
-        return a.isExecutable ? -1 : 1;
-      }
-
-      return Number(b.expectedOut || 0) - Number(a.expectedOut || 0);
-    })
+    .sort((a, b) => Number(b.expectedOut || 0) - Number(a.expectedOut || 0))
     .slice(0, Math.max(1, Number(routeCount || 3)));
 }
