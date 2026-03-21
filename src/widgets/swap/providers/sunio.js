@@ -9,7 +9,7 @@ export const SUNIO_MAINNET_DEFAULTS = {
   feeLimit: 35_000_000,
   deadlineSeconds: 60 * 20,
   defaultSlippageBps: 300,
-  typeList: 'PSM,CURVE,CURVE_COMBINATION,WTRX,SUNSWAP_V1,SUNSWAP_V2,SUNSWAP_V3'
+  typeList: ''
 };
 
 export const SUNIO_TOKEN_ADDRESSES = {
@@ -242,6 +242,12 @@ function assertExecutableRoute(route) {
   if (!Array.isArray(route.fees) || !route.fees.length) {
     throw new Error('SUN.io execution: route.fees is required');
   }
+
+  if (route.isExecutable === false) {
+    throw new Error(
+      'SUN.io execution: selected route is not supported by the current widget implementation'
+    );
+  }
 }
 
 function getTargetTokenParam(targetToken, tokenAddresses = {}) {
@@ -390,12 +396,33 @@ function isTransientNetworkError(error) {
   );
 }
 
+function hasUnsupportedPoolVersion(poolVersions = []) {
+  return poolVersions.some((version) => String(version || '').toLowerCase() === 'v4');
+}
+
+function isRouteExecutableByWidget({ tokens = [], poolVersions = [], versionLen = [] } = {}) {
+  if (!Array.isArray(tokens) || tokens.length < 2) return false;
+  if (!Array.isArray(poolVersions) || !poolVersions.length) return false;
+  if (!Array.isArray(versionLen) || !versionLen.length) return false;
+
+  if (hasUnsupportedPoolVersion(poolVersions)) {
+    return false;
+  }
+
+  return true;
+}
+
 function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
   const tokens = Array.isArray(apiRoute?.tokens) ? apiRoute.tokens : [];
   const symbols = Array.isArray(apiRoute?.symbols) ? apiRoute.symbols : [];
   const poolVersions = normalizePoolVersions(apiRoute?.poolVersions);
   const fees = normalizePoolFees(apiRoute?.poolFees, tokens.length);
   const versionLen = buildVersionLen(poolVersions);
+  const isExecutable = isRouteExecutableByWidget({
+    tokens,
+    poolVersions,
+    versionLen
+  });
 
   return {
     id: `sunio-${targetToken}-${tokens.join('-')}-${poolVersions.join('-')}`,
@@ -412,6 +439,7 @@ function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
     versionLen,
     fees,
     expectedOut: apiRoute?.amountOut ?? null,
+    expectedOutRaw: apiRoute?.amountOutRaw ?? null,
     minReceived: null,
     outputDecimals,
     impactLabel:
@@ -431,12 +459,17 @@ function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
     apiFee: apiRoute?.fee ?? null,
     apiImpact: apiRoute?.impact ?? null,
     amountIn: apiRoute?.amountIn ?? null,
+    amountInRaw: apiRoute?.amountInRaw ?? null,
     amountOut: apiRoute?.amountOut ?? null,
+    amountOutRaw: apiRoute?.amountOutRaw ?? null,
     inUsd: apiRoute?.inUsd ?? null,
     outUsd: apiRoute?.outUsd ?? null,
+    containsUnverifiedHook: Boolean(apiRoute?.containsUnverifiedHook),
+    poolKeys: Array.isArray(apiRoute?.poolKeys) ? apiRoute.poolKeys : [],
     stepAmountsOut: Array.isArray(apiRoute?.stepAmountsOut)
       ? apiRoute.stepAmountsOut
-      : []
+      : [],
+    isExecutable
   };
 }
 
@@ -451,9 +484,11 @@ export function makeSunioRoute({
   routeLabel = 'Direct',
   executionLabel = 'Best direct',
   expectedOut = null,
+  expectedOutRaw = null,
   minReceived = null,
   outputDecimals = 6,
-  impactLabel = '—'
+  impactLabel = '—',
+  isExecutable = true
 }) {
   return {
     id: id || `sunio-${Date.now()}`,
@@ -470,9 +505,11 @@ export function makeSunioRoute({
     routeLabel,
     executionLabel,
     expectedOut,
+    expectedOutRaw,
     minReceived,
     outputDecimals,
-    impactLabel
+    impactLabel,
+    isExecutable
   };
 }
 
@@ -510,11 +547,14 @@ export async function getSunioQuotes({
   url.searchParams.set('fromToken', fromTokenAddress);
   url.searchParams.set('toToken', toTokenParam);
   url.searchParams.set('amountIn', amountInRaw);
-  url.searchParams.set('typeList', typeList);
+  url.searchParams.set('typeList', typeof typeList === 'string' ? typeList : '');
   url.searchParams.set('includeUnverifiedV4Hook', 'true');
 
   const response = await fetch(url.toString(), {
-    method: 'GET'
+    method: 'GET',
+    headers: {
+      Accept: 'application/json, text/plain, */*'
+    }
   });
 
   if (!response.ok) {
@@ -530,7 +570,13 @@ export async function getSunioQuotes({
   return payload.data
     .slice(0, Math.max(1, Number(routeCount || 3)))
     .map((item) => mapApiRouteToSunioRoute(item, targetToken, resolvedOutputDecimals))
-    .sort((a, b) => Number(b.expectedOut || 0) - Number(a.expectedOut || 0));
+    .sort((a, b) => {
+      if (a.isExecutable !== b.isExecutable) {
+        return a.isExecutable ? -1 : 1;
+      }
+
+      return Number(b.expectedOut || 0) - Number(a.expectedOut || 0);
+    });
 }
 
 export async function waitForSunioTransactionConfirmation({
@@ -554,22 +600,44 @@ export async function waitForSunioTransactionConfirmation({
 
   while (Date.now() - startedAt < timeoutMs) {
     try {
-      const info = await tronWeb.trx.getTransactionInfo(txid);
+      const [info, tx] = await Promise.allSettled([
+        tronWeb.trx.getTransactionInfo(txid),
+        tronWeb.trx.getTransaction(txid)
+      ]);
 
-      if (info && Object.keys(info).length > 0) {
-        const receiptResult = info?.receipt?.result;
+      const txInfo = info.status === 'fulfilled' ? info.value : null;
+      const txData = tx.status === 'fulfilled' ? tx.value : null;
+
+      if (txInfo && Object.keys(txInfo).length > 0) {
+        const receiptResult = txInfo?.receipt?.result;
 
         if (receiptResult === 'SUCCESS') {
           return {
             ok: true,
             txid,
-            info
+            info: txInfo,
+            transaction: txData || null
           };
         }
 
         if (receiptResult && receiptResult !== 'SUCCESS') {
           throw new Error(`Transaction failed: ${receiptResult}`);
         }
+      }
+
+      const txResult =
+        txData?.ret?.[0]?.contractRet ||
+        txData?.ret?.[0]?.contract_ret ||
+        txData?.result ||
+        '';
+
+      if (String(txResult).toUpperCase() === 'SUCCESS') {
+        return {
+          ok: true,
+          txid,
+          info: txInfo || null,
+          transaction: txData
+        };
       }
     } catch (error) {
       const message = String(error?.message || '');
@@ -770,7 +838,9 @@ export async function executeSunioSwap({
 
   let amountOutMinRaw = 0n;
 
-  if (route.minReceived != null) {
+  if (route.amountOutRaw != null) {
+    amountOutMinRaw = calcMinOutRawFromExpected(route.amountOutRaw, slippageBps);
+  } else if (route.minReceived != null) {
     amountOutMinRaw = humanOutputToRaw(route.minReceived, resolvedOutputDecimals);
   } else if (route.expectedOut != null) {
     const expectedOutRaw = humanOutputToRaw(route.expectedOut, resolvedOutputDecimals);
@@ -829,7 +899,7 @@ export async function executeSunioSwap({
 
     console.log('[SUN SWAP TXID]', txid);
 
-    await waitForSunioTransactionConfirmation({
+    const confirmation = await waitForSunioTransactionConfirmation({
       wallet,
       txid,
       timeoutMs: 120000,
@@ -848,7 +918,8 @@ export async function executeSunioSwap({
       amountInRaw: amountInRaw.toString(),
       amountOutMinRaw: amountOutMinRaw.toString(),
       deadline,
-      route
+      route,
+      confirmation
     };
   } catch (error) {
     console.error('[SUN SWAP CONTRACT SEND ERROR FULL]', error);
