@@ -190,6 +190,15 @@ function getDisplayedMinReceived(route, slippagePercent) {
   return receive * (1 - safeSlippage / 100);
 }
 
+function getRouteProviderLogo(route) {
+  return (
+    route?.providerLogo ||
+    route?.providerMeta?.logo ||
+    PROVIDER_META[route?.provider]?.logo ||
+    sunioLogo
+  );
+}
+
 function createRoutePathHtml(route) {
   const fromMeta = TOKEN_META[route.fromToken] || TOKEN_META['4TEEN'];
   const toMeta = TOKEN_META[route.toToken] || TOKEN_META['TRX'];
@@ -511,11 +520,21 @@ export function mountSwap(target, config = {}) {
   }
 
   function updateSwapButtonsDisabledState() {
-    const disabled = isSwapPending || !isConnectedSafe(wallet);
-
     Array.from(routesListEl.querySelectorAll('[data-role="swap-route-button"]')).forEach((button) => {
+      const routeId = button.getAttribute('data-route-id');
+      const route = currentRoutes.find((item) => item.id === routeId);
+      const disabled =
+        isSwapPending ||
+        !isConnectedSafe(wallet) ||
+        route?.isExecutable === false;
+
       button.disabled = disabled;
-      button.textContent = isSwapPending ? 'Processing...' : 'Swap';
+      button.textContent =
+        route?.isExecutable === false
+          ? 'Unsupported'
+          : isSwapPending
+            ? 'Processing...'
+            : 'Swap';
     });
   }
 
@@ -569,6 +588,10 @@ export function mountSwap(target, config = {}) {
       .map((route) => {
         const displayedReceive = getDisplayedReceive(route);
         const displayedMinReceived = getDisplayedMinReceived(route, currentSlippage);
+        const isRouteDisabled =
+          isSwapPending ||
+          !isConnectedSafe(wallet) ||
+          route.isExecutable === false;
 
         return `
           <div class="fourteen-swap-route-card">
@@ -587,9 +610,15 @@ export function mountSwap(target, config = {}) {
                 class="fourteen-swap-route-card__action"
                 data-role="swap-route-button"
                 data-route-id="${escapeHtml(route.id)}"
-                ${isConnectedSafe(wallet) && !isSwapPending ? '' : 'disabled'}
+                ${isRouteDisabled ? 'disabled' : ''}
               >
-                ${isSwapPending ? 'Processing...' : 'Swap'}
+                ${
+                  route.isExecutable === false
+                    ? 'Unsupported'
+                    : isSwapPending
+                      ? 'Processing...'
+                      : 'Swap'
+                }
               </button>
             </div>
 
@@ -597,7 +626,7 @@ export function mountSwap(target, config = {}) {
 
             <div class="fourteen-swap-route-card__right">
               <div class="fourteen-swap-route-card__provider">
-                <img class="fourteen-swap-route-card__provider-logo" src="${route.providerLogo}" alt="${escapeHtml(route.providerName)}" />
+                <img class="fourteen-swap-route-card__provider-logo" src="${getRouteProviderLogo(route)}" alt="${escapeHtml(route.providerName || PROVIDER_META[route.provider]?.name || 'Provider')}" />
               </div>
 
               <div class="fourteen-swap-route-card__detail fourteen-swap-route-card__detail--path">
@@ -732,6 +761,13 @@ export function mountSwap(target, config = {}) {
     if (!route) {
       setStatus('Route not found.', true);
       showErrorNotice('Route not found.');
+      return;
+    }
+
+    if (route.isExecutable === false) {
+      const message = route.unsupportedReason || 'This route is not supported.';
+      setStatus(message, true);
+      showErrorNotice(message);
       return;
     }
 
