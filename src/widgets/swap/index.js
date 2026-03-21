@@ -660,8 +660,9 @@ export function mountSwap(target, config = {}) {
 
     syncQuotes().catch((error) => {
       console.error('[4TEEN] swap quotes failed', error);
-      setStatus('Failed to load routes.', true);
-      showErrorNotice('Failed to load routes.');
+      const message = getReadableErrorMessage(error, 'Failed to load routes.');
+      setStatus(message, true);
+      showErrorNotice(message);
     });
   }
 
@@ -670,8 +671,9 @@ export function mountSwap(target, config = {}) {
 
     syncQuotes().catch((error) => {
       console.error('[4TEEN] swap slippage refresh failed', error);
-      setStatus('Failed to refresh routes.', true);
-      showErrorNotice('Failed to refresh routes.');
+      const message = getReadableErrorMessage(error, 'Failed to refresh routes.');
+      setStatus(message, true);
+      showErrorNotice(message);
     });
   }
 
@@ -690,8 +692,9 @@ export function mountSwap(target, config = {}) {
 
     syncQuotes().catch((error) => {
       console.error('[4TEEN] swap target refresh failed', error);
-      setStatus('Failed to refresh routes.', true);
-      showErrorNotice('Failed to refresh routes.');
+      const message = getReadableErrorMessage(error, 'Failed to refresh routes.');
+      setStatus(message, true);
+      showErrorNotice(message);
     });
   }
 
@@ -893,8 +896,9 @@ export function mountSwap(target, config = {}) {
 
   syncQuotes().catch((error) => {
     console.error('[4TEEN] initial swap quotes failed', error);
-    setStatus('Failed to load routes.', true);
-    showErrorNotice('Failed to load routes.');
+    const message = getReadableErrorMessage(error, 'Failed to load routes.');
+    setStatus(message, true);
+    showErrorNotice(message);
   });
 
   return instance;
