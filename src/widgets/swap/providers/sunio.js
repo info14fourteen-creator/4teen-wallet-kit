@@ -5,7 +5,7 @@ const PROVIDER_NAME = 'SUN.io';
 
 export const SUNIO_MAINNET_DEFAULTS = {
   smartRouterAddress: 'TJ4NNy8xZEqsowCBhLvZ45LCqPdGjkET5j',
-  calculationServiceUrl: 'https://rot.endjgfsv.link/swap/router',
+  calculationServiceUrl: 'https://rot.endjgfsv.link/swap/routerUniversal',
   feeLimit: 35_000_000,
   deadlineSeconds: 60 * 20,
   defaultSlippageBps: 300,
@@ -13,6 +13,7 @@ export const SUNIO_MAINNET_DEFAULTS = {
 };
 
 export const SUNIO_TOKEN_ADDRESSES = {
+  TRX: 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb',
   WTRX: 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
   USDT: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
 };
@@ -245,7 +246,7 @@ function assertExecutableRoute(route) {
 
 function getTargetTokenParam(targetToken, tokenAddresses = {}) {
   if (targetToken === 'TRX') {
-    return 'TRX';
+    return tokenAddresses.TRX || SUNIO_TOKEN_ADDRESSES.TRX;
   }
 
   if (targetToken === 'USDT') {
@@ -498,7 +499,7 @@ export async function getSunioQuotes({
 
   const toTokenParam = getTargetTokenParam(targetToken, tokenAddresses);
 
-  if (targetToken !== 'TRX' && !isUsableAddress(toTokenParam)) {
+  if (!isUsableAddress(toTokenParam)) {
     throw new Error(`SUN.io quotes: target token address for ${targetToken} is invalid`);
   }
 
@@ -510,6 +511,7 @@ export async function getSunioQuotes({
   url.searchParams.set('toToken', toTokenParam);
   url.searchParams.set('amountIn', amountInRaw);
   url.searchParams.set('typeList', typeList);
+  url.searchParams.set('includeUnverifiedV4Hook', 'true');
 
   const response = await fetch(url.toString(), {
     method: 'GET'
