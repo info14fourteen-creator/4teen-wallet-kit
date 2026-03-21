@@ -734,6 +734,22 @@ export function mountSwap(target, config = {}) {
         return;
       }
 
+      if (result?.needsRetry) {
+        const retryMessage = result?.message || 'Approval confirmed. Press Swap again.';
+        setStatus(retryMessage);
+        showSuccessNotice(retryMessage, 4200);
+
+        await refreshBalancesSafe();
+
+        try {
+          await syncQuotes();
+        } catch (syncError) {
+          console.error('[4TEEN] post-approval quotes refresh failed', syncError);
+        }
+
+        return;
+      }
+
       if (result?.ok) {
         const successMessage = result?.unwrapTxid
           ? 'Swap completed. TRX received.'
@@ -743,6 +759,13 @@ export function mountSwap(target, config = {}) {
         showSuccessNotice(successMessage, 4200);
 
         await refreshBalancesSafe();
+
+        try {
+          await syncQuotes();
+        } catch (syncError) {
+          console.error('[4TEEN] post-swap quotes refresh failed', syncError);
+        }
+
         return;
       }
 
