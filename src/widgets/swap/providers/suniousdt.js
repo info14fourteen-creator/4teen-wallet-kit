@@ -42,8 +42,26 @@ function getOutputDecimalsByTarget(targetToken, explicitDecimals = null) {
 }
 
 function buildVersionLen(poolVersions = []) {
-  if (!Array.isArray(poolVersions)) return [];
-  return poolVersions.map(() => 1);
+  if (!Array.isArray(poolVersions) || !poolVersions.length) {
+    return [];
+  }
+
+  const result = [];
+  let current = poolVersions[0];
+  let count = 1;
+
+  for (let i = 1; i < poolVersions.length; i += 1) {
+    if (poolVersions[i] === current) {
+      count += 1;
+    } else {
+      result.push(result.length === 0 ? count + 1 : count);
+      current = poolVersions[i];
+      count = 1;
+    }
+  }
+
+  result.push(result.length === 0 ? count + 1 : count);
+  return result;
 }
 
 function normalizePoolVersions(poolVersions = []) {
@@ -51,9 +69,20 @@ function normalizePoolVersions(poolVersions = []) {
   return poolVersions.map((item) => String(item || '').trim()).filter(Boolean);
 }
 
-function normalizePoolFees(poolFees = []) {
-  if (!Array.isArray(poolFees)) return [];
-  return poolFees.map((item) => Number.parseInt(String(item ?? '0'), 10) || 0);
+function normalizePoolFees(poolFees = [], tokenCount = 0) {
+  const normalized = Array.isArray(poolFees)
+    ? poolFees.map((item) => Number.parseInt(String(item ?? '0'), 10) || 0)
+    : [];
+
+  if (normalized.length >= tokenCount) {
+    return normalized.slice(0, tokenCount);
+  }
+
+  if (tokenCount > 0) {
+    return [...normalized, ...new Array(tokenCount - normalized.length).fill(0)];
+  }
+
+  return normalized;
 }
 
 function isSunioUsdtRouteExecutable(apiRoute) {
@@ -79,7 +108,7 @@ function mapApiRouteToSunioUsdtRoute(apiRoute, outputDecimals) {
   const tokens = Array.isArray(apiRoute?.tokens) ? apiRoute.tokens : [];
   const symbols = Array.isArray(apiRoute?.symbols) ? apiRoute.symbols : [];
   const poolVersions = normalizePoolVersions(apiRoute?.poolVersions);
-  const fees = normalizePoolFees(apiRoute?.poolFees);
+  const fees = normalizePoolFees(apiRoute?.poolFees, tokens.length);
   const versionLen = buildVersionLen(poolVersions);
   const isExecutable = isSunioUsdtRouteExecutable(apiRoute);
   const unsupportedReason = getUnsupportedReason(apiRoute);
