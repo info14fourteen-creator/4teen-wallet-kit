@@ -513,7 +513,6 @@ export async function getSunioQuotes({
 
   const normalizedTypeList = typeof typeList === 'string' ? typeList.trim() : '';
   url.searchParams.set('typeList', normalizedTypeList);
-
   url.searchParams.set('includeUnverifiedV4Hook', 'true');
 
   const response = await fetch(url.toString(), {
