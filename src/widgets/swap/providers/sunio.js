@@ -44,14 +44,6 @@ const TRC20_ABI = [
     outputs: [{ name: 'success', type: 'bool' }],
     stateMutability: 'nonpayable',
     type: 'function'
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: 'decimals',
-    outputs: [{ name: '', type: 'uint8' }],
-    stateMutability: 'view',
-    type: 'function'
   }
 ];
 
@@ -80,26 +72,12 @@ const SMART_ROUTER_ABI = [
   }
 ];
 
-export function getSunioProviderMeta() {
-  return {
-    id: PROVIDER_ID,
-    name: PROVIDER_NAME,
-    logo: sunioLogo
-  };
-}
-
 function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function parseSlippageBps(slippage, fallback = SUNIO_MAINNET_DEFAULTS.defaultSlippageBps) {
-  const num = Number(slippage);
-  return Number.isFinite(num) && num >= 0 ? Math.round(num * 100) : fallback;
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 function getWalletStateSafe(wallet) {
-  if (!wallet) return null;
-  return wallet.getWalletState?.() || wallet.getState?.() || null;
+  return wallet?.getWalletState?.() || wallet?.getState?.() || null;
 }
 
 function getTronWebSafe(wallet) {
@@ -116,53 +94,88 @@ function getConnectedAddress(wallet) {
   );
 }
 
-function isUsableAddress(addr) {
-  return typeof addr === 'string' && addr.length >= 20;
+function decimalToRaw(amount, decimals) {
+  const [w, f = ''] = String(amount || '0').split('.');
+  const d = BigInt(decimals || 0);
+  const frac = (f + '0'.repeat(Number(d))).slice(0, Number(d));
+  return BigInt(w || '0') * 10n ** d + BigInt(frac || '0');
 }
 
 function normalizeBigintLike(v) {
-  if (typeof v === 'bigint') return v;
-  if (typeof v === 'number') return BigInt(Math.trunc(v));
-  if (typeof v === 'string') return BigInt(v || '0');
   return BigInt(v?.toString?.() || '0');
 }
 
-function decimalToRaw(amount, decimals) {
-  const d = Math.max(0, Number(decimals || 0));
-  const [w, f = ''] = String(amount || '0').split('.');
-  const frac = (f + '0'.repeat(d)).slice(0, d);
-  return BigInt(w || '0') * 10n ** BigInt(d) + BigInt(frac || '0');
-}
-
-function calcMinOutRawFromExpected(expectedRaw, slippageBps) {
-  return (normalizeBigintLike(expectedRaw) * (10000n - BigInt(slippageBps))) / 10000n;
-}
-
-function ensureTronWebAddress(tronWeb, address) {
-  try {
-    tronWeb?.setAddress?.(address);
-  } catch (_) {}
-}
-
-function extractContractError(error) {
-  const msg =
-    error?.error ||
-    error?.message ||
-    error?.data?.message ||
-    error?.toString?.() ||
-    '';
-  return String(msg || 'Swap execution failed');
-}
-
-function assertExecutableRoute(route) {
-  if (!route?.path?.length) throw new Error('Invalid route');
+function calcMinOutRaw(expected, bps) {
+  return (normalizeBigintLike(expected) * (10000n - BigInt(bps))) / 10000n;
 }
 
 export async function getSunioQuotes({ targetToken, ...rest } = {}) {
   const t = String(targetToken || '').toUpperCase();
   if (t === 'TRX') return getSunioTrxQuotes(rest);
   if (t === 'USDT') return getSunioUsdtQuotes(rest);
-  throw new Error(`Unsupported targetToken "${targetToken}"`);
+  throw new Error('Unsupported token');
+}
+
+export async function checkSunioAllowance({
+  wallet,
+  tokenAddress,
+  spenderAddress = SUNIO_MAINNET_DEFAULTS.smartRouterAddress,
+  amountIn,
+  tokenDecimals = 6
+}) {
+  const tronWeb = getTronWebSafe(wallet);
+  const owner = getConnectedAddress(wallet);
+
+  const token = await tronWeb.contract(TRC20_ABI, tokenAddress);
+  const allowance = await token.allowance(owner, spenderAddress).call();
+
+  const required = decimalToRaw(amountIn, tokenDecimals);
+
+  return {
+    ok: true,
+    allowanceRaw: allowance.toString(),
+    requiredAmountRaw: required.toString(),
+    hasEnoughAllowance: normalizeBigintLike(allowance) >= required
+  };
+}
+
+export async function ensureSunioApproval({
+  wallet,
+  tokenAddress,
+  spenderAddress = SUNIO_MAINNET_DEFAULTS.smartRouterAddress,
+  feeLimit = SUNIO_MAINNET_DEFAULTS.feeLimit
+}) {
+  const tronWeb = getTronWebSafe(wallet);
+
+  const token = await tronWeb.contract(TRC20_ABI, tokenAddress);
+
+  const txid = await token
+    .approve(spenderAddress, MAX_UINT256)
+    .send({ feeLimit, callValue: 0 });
+
+  return { ok: true, txid };
+}
+
+export async function waitForSunioTransactionConfirmation({
+  wallet,
+  txid,
+  timeoutMs = 120000
+}) {
+  const tronWeb = getTronWebSafe(wallet);
+
+  const start = Date.now();
+
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const info = await tronWeb.trx.getTransactionInfo(txid);
+      if (info?.receipt?.result === 'SUCCESS') {
+        return { ok: true };
+      }
+    } catch (_) {}
+    await wait(1500);
+  }
+
+  throw new Error('Transaction timeout');
 }
 
 export async function executeSunioSwap({
@@ -171,36 +184,18 @@ export async function executeSunioSwap({
   amountIn,
   slippage,
   inputTokenAddress,
-  inputTokenDecimals = 6,
-  outputTokenDecimals = null,
-  smartRouterAddress = SUNIO_MAINNET_DEFAULTS.smartRouterAddress,
-  feeLimit = SUNIO_MAINNET_DEFAULTS.feeLimit,
-  recipient = null
-} = {}) {
+  inputTokenDecimals = 6
+}) {
   const tronWeb = getTronWebSafe(wallet);
   const owner = getConnectedAddress(wallet);
-  const to = recipient || owner;
-
-  if (!tronWeb) throw new Error('tronWeb not available');
-  if (!isUsableAddress(owner)) throw new Error('Invalid wallet address');
-
-  assertExecutableRoute(route);
-  ensureTronWebAddress(tronWeb, owner);
 
   const amountInRaw = decimalToRaw(amountIn, inputTokenDecimals);
-  const slippageBps = parseSlippageBps(slippage);
+  const minOut = calcMinOutRaw(route.amountOutRaw, slippage * 100);
 
-  let minOut = 0n;
-
-  if (route.amountOutRaw) {
-    minOut = calcMinOutRawFromExpected(route.amountOutRaw, slippageBps);
-  } else {
-    throw new Error('Missing route output');
-  }
-
-  const deadline = Math.floor(Date.now() / 1000) + 1200;
-
-  const router = await tronWeb.contract(SMART_ROUTER_ABI, smartRouterAddress);
+  const router = await tronWeb.contract(
+    SMART_ROUTER_ABI,
+    SUNIO_MAINNET_DEFAULTS.smartRouterAddress
+  );
 
   try {
     const txid = await router
@@ -209,38 +204,28 @@ export async function executeSunioSwap({
         route.poolVersion,
         route.versionLen.map(String),
         route.fees.map(Number),
-        [amountInRaw.toString(), minOut.toString(), to, String(deadline)]
+        [
+          amountInRaw.toString(),
+          minOut.toString(),
+          owner,
+          String(Math.floor(Date.now() / 1000) + 1200)
+        ]
       )
       .send({
-        feeLimit,
-        callValue: 0,
-        shouldPollResponse: false
+        feeLimit: SUNIO_MAINNET_DEFAULTS.feeLimit,
+        callValue: 0
       });
 
-    try {
-      await tronWeb.trx.getTransactionInfo(txid);
-    } catch (_) {}
+    await waitForSunioTransactionConfirmation({ wallet, txid });
 
-    return {
-      ok: true,
-      txid,
-      provider: PROVIDER_ID
-    };
-  } catch (error) {
-    const msg = String(error?.message || '').toLowerCase();
+    return { ok: true, txid };
+  } catch (e) {
+    const msg = String(e?.message || '').toLowerCase();
 
-    if (
-      msg.includes('denied') ||
-      msg.includes('rejected') ||
-      msg.includes('user rejected')
-    ) {
-      return {
-        ok: false,
-        rejected: true,
-        message: 'User rejected transaction'
-      };
+    if (msg.includes('reject') || msg.includes('denied')) {
+      return { ok: false, rejected: true };
     }
 
-    throw new Error(extractContractError(error));
+    throw new Error(String(e?.message || 'Swap failed'));
   }
 }
