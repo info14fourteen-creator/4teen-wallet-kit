@@ -8,19 +8,12 @@ import {
 
 function isUserRejectedError(error) {
   const code = Number(error?.code);
-  const message = String(
-    error?.message ||
-    error?.error ||
-    error?.data?.message ||
-    ''
-  );
+  const message = String(error?.message || error?.error || '');
 
   return (
     code === 4001 ||
     message.includes('User denied') ||
     message.includes('user denied') ||
-    message.includes('User rejected') ||
-    message.includes('user rejected') ||
     message.includes('Request Signature: User denied request signature')
   );
 }
@@ -134,10 +127,9 @@ export async function executeSwapRoute({
 
     emitProgress(onProgress, {
       step: 'swap-submitting',
-      message:
-        route.toToken === 'TRX'
-          ? 'Swap requested. Receiving native TRX...'
-          : 'Swap requested...'
+      message: route.toToken === 'TRX'
+        ? 'Swap requested. Receiving native TRX...'
+        : 'Swap requested...'
     });
 
     const swapResult = await executeSunioSwap({
