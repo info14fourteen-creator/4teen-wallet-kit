@@ -128,6 +128,54 @@ function calcMinOutRaw(expected, bps) {
   return (normalizeBigintLike(expected) * (10000n - BigInt(bps))) / 10000n;
 }
 
+export async function getSunioQuotes({
+  amountIn,
+  targetToken,
+  fromTokenAddress,
+  tokenAddresses = {},
+  inputDecimals = 6,
+  outputDecimals = 6,
+  routeCount = 3,
+  typeList = SUNIO_MAINNET_DEFAULTS.typeList,
+  calculationServiceUrl = SUNIO_MAINNET_DEFAULTS.calculationServiceUrl
+} = {}) {
+  if (!amountIn || amountIn <= 0) return [];
+
+  const toToken =
+    targetToken === 'TRX'
+      ? tokenAddresses.TRX || SUNIO_TOKEN_ADDRESSES.TRX
+      : tokenAddresses.USDT || SUNIO_TOKEN_ADDRESSES.USDT;
+
+  const amountInRaw = decimalToRaw(amountIn, inputDecimals).toString();
+
+  const url = new URL(calculationServiceUrl);
+  url.searchParams.set('fromToken', fromTokenAddress);
+  url.searchParams.set('toToken', toToken);
+  url.searchParams.set('amountIn', amountInRaw);
+  url.searchParams.set('typeList', typeList);
+
+  const res = await fetch(url.toString());
+  const data = await res.json();
+
+  return (data?.data || [])
+    .slice(0, routeCount)
+    .map((r) => ({
+      id: `sunio-${Date.now()}-${Math.random()}`,
+      provider: PROVIDER_ID,
+      providerName: PROVIDER_NAME,
+      providerLogo: sunioLogo,
+      fromToken: '4TEEN',
+      toToken: targetToken,
+      path: r.tokens,
+      poolVersion: r.poolVersions,
+      versionLen: r.poolVersions?.map(() => 1) || [],
+      fees: r.poolFees || [],
+      expectedOut: r.amountOut,
+      amountOutRaw: r.amountOutRaw,
+      outputDecimals
+    }));
+}
+
 export async function checkSunioAllowance({
   wallet,
   tokenAddress,
@@ -147,8 +195,6 @@ export async function checkSunioAllowance({
 
   return {
     ok: true,
-    allowanceRaw: allowance.toString(),
-    requiredAmountRaw: required.toString(),
     hasEnoughAllowance: normalizeBigintLike(allowance) >= required
   };
 }
@@ -156,8 +202,7 @@ export async function checkSunioAllowance({
 export async function ensureSunioApproval({
   wallet,
   tokenAddress,
-  spenderAddress = SUNIO_MAINNET_DEFAULTS.smartRouterAddress,
-  feeLimit = SUNIO_MAINNET_DEFAULTS.feeLimit
+  spenderAddress = SUNIO_MAINNET_DEFAULTS.smartRouterAddress
 }) {
   const tronWeb = getTronWebSafe(wallet);
   const owner = getConnectedAddress(wallet);
@@ -168,7 +213,7 @@ export async function ensureSunioApproval({
 
   const txid = await token
     .approve(spenderAddress, MAX_UINT256)
-    .send({ feeLimit, callValue: 0 });
+    .send({ feeLimit: SUNIO_MAINNET_DEFAULTS.feeLimit });
 
   return { ok: true, txid };
 }
@@ -216,35 +261,24 @@ export async function executeSunioSwap({
     SUNIO_MAINNET_DEFAULTS.smartRouterAddress
   );
 
-  try {
-    const txid = await router
-      .swapExactInput(
-        route.path,
-        route.poolVersion,
-        route.versionLen.map(String),
-        route.fees.map(Number),
-        [
-          amountInRaw.toString(),
-          minOut.toString(),
-          owner,
-          String(Math.floor(Date.now() / 1000) + 1200)
-        ]
-      )
-      .send({
-        feeLimit: SUNIO_MAINNET_DEFAULTS.feeLimit,
-        callValue: 0
-      });
+  const txid = await router
+    .swapExactInput(
+      route.path,
+      route.poolVersion,
+      route.versionLen.map(String),
+      route.fees.map(Number),
+      [
+        amountInRaw.toString(),
+        minOut.toString(),
+        owner,
+        String(Math.floor(Date.now() / 1000) + 1200)
+      ]
+    )
+    .send({
+      feeLimit: SUNIO_MAINNET_DEFAULTS.feeLimit
+    });
 
-    await waitForSunioTransactionConfirmation({ wallet, txid });
+  await waitForSunioTransactionConfirmation({ wallet, txid });
 
-    return { ok: true, txid };
-  } catch (e) {
-    const msg = String(e?.message || '').toLowerCase();
-
-    if (msg.includes('reject') || msg.includes('denied')) {
-      return { ok: false, rejected: true };
-    }
-
-    throw new Error(String(e?.message || 'Swap failed'));
-  }
+  return { ok: true, txid };
 }
