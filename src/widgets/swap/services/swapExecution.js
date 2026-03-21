@@ -6,15 +6,45 @@ import {
   SUNIO_MAINNET_DEFAULTS
 } from '../providers/sunio.js';
 
+function getErrorMessage(error) {
+  if (!error) {
+    return '';
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  if (typeof error?.message === 'string' && error.message.trim()) {
+    return error.message;
+  }
+
+  if (typeof error?.error === 'string' && error.error.trim()) {
+    return error.error;
+  }
+
+  if (typeof error?.data?.message === 'string' && error.data.message.trim()) {
+    return error.data.message;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch (_) {
+    return String(error);
+  }
+}
+
 function isUserRejectedError(error) {
   const code = Number(error?.code);
-  const message = String(error?.message || error?.error || '');
+  const message = getErrorMessage(error);
 
   return (
     code === 4001 ||
     message.includes('User denied') ||
     message.includes('user denied') ||
-    message.includes('Request Signature: User denied request signature')
+    message.includes('Request Signature: User denied request signature') ||
+    message.includes('cancelled by user') ||
+    message.includes('canceled by user')
   );
 }
 
@@ -72,7 +102,7 @@ export async function executeSwapRoute({
 
       emitProgress(onProgress, {
         step: 'approval-submitted',
-        message: 'Approving 4TEEN...',
+        message: 'Unlimited approval requested...',
         approvalTxid: approvalResult?.txid || null
       });
 
@@ -124,11 +154,10 @@ export async function executeSwapRoute({
 
     emitProgress(onProgress, {
       step: 'swap-submitted',
-      message: swapResult?.unwrapTxid
+      message: route?.toToken === 'TRX'
         ? 'Swap completed. TRX received.'
         : 'Swap completed.',
-      swapTxid: swapResult?.txid || null,
-      unwrapTxid: swapResult?.unwrapTxid || null
+      swapTxid: swapResult?.txid || null
     });
 
     return {
@@ -138,8 +167,8 @@ export async function executeSwapRoute({
       approvalRequired: false,
       approvalTxid: null,
       txid: swapResult?.txid || null,
-      unwrapTxid: swapResult?.unwrapTxid || null,
-      unwrappedAmountRaw: swapResult?.unwrappedAmountRaw || '0',
+      unwrapTxid: null,
+      unwrappedAmountRaw: '0',
       route,
       swapResult
     };
@@ -153,6 +182,6 @@ export async function executeSwapRoute({
       };
     }
 
-    throw error;
+    throw new Error(getErrorMessage(error) || 'Swap execution failed.');
   }
 }
