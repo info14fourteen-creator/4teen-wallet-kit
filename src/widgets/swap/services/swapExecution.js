@@ -2,181 +2,328 @@ import {
   checkSunioAllowance,
   ensureSunioApproval,
   executeSunioSwap,
-  waitForSunioTransactionConfirmation,
-  SUNIO_MAINNET_DEFAULTS
+  waitForSunioTransactionConfirmation
 } from '../providers/sunio.js';
 
-function isUserRejectedError(error) {
-  const code = Number(error?.code);
-  const message = String(error?.message || error?.error || '');
+function toErrorMessage(error) {
+  if (!error) return 'Unknown error';
 
-  return (
-    code === 4001 ||
-    message.includes('User denied') ||
-    message.includes('user denied') ||
-    message.includes('Request Signature: User denied request signature')
-  );
-}
-
-function getReadableErrorMessage(error, fallback = 'Swap execution failed.') {
-  if (!error) return fallback;
-
-  if (typeof error === 'string') {
-    return error || fallback;
-  }
+  if (typeof error === 'string') return error;
 
   if (typeof error?.message === 'string' && error.message.trim()) {
-    return error.message;
+    return error.message.trim();
   }
 
   if (typeof error?.error === 'string' && error.error.trim()) {
-    return error.error;
+    return error.error.trim();
   }
 
-  if (typeof error?.data?.message === 'string' && error.data.message.trim()) {
-    return error.data.message;
-  }
-
-  return fallback;
-}
-
-function emitProgress(onProgress, payload) {
-  if (typeof onProgress === 'function') {
-    onProgress(payload);
+  try {
+    return JSON.stringify(error);
+  } catch (_) {
+    return 'Unknown error';
   }
 }
 
-export async function executeSwapRoute({
+function normalizeMessage(message) {
+  return String(message || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function mapSwapErrorToUserMessage(error) {
+  const raw = normalizeMessage(toErrorMessage(error));
+  const lower = raw.toLowerCase();
+
+  if (!raw) {
+    return 'Swap failed for an unknown reason. Please try again.';
+  }
+
+  if (
+    lower.includes('user denied') ||
+    lower.includes('user rejected') ||
+    lower.includes('rejected by user') ||
+    lower.includes('cancelled') ||
+    lower.includes('canceled') ||
+    lower.includes('declined')
+  ) {
+    return 'Transaction was cancelled in the wallet.';
+  }
+
+  if (
+    lower.includes('wallet is not connected') ||
+    lower.includes('tronweb is not available') ||
+    lower.includes('wallet address is not available') ||
+    lower.includes('owner address is invalid') ||
+    lower.includes('recipient address is invalid')
+  ) {
+    return 'Wallet connection is not ready. Reconnect the wallet and try again.';
+  }
+
+  if (
+    lower.includes('network error') ||
+    lower.includes('failed to fetch') ||
+    lower.includes('fetch failed') ||
+    lower.includes('request failed') ||
+    lower.includes('timeout') ||
+    lower.includes('connection') ||
+    lower.includes('disconnected')
+  ) {
+    return 'Network issue while talking to the blockchain. Please try again.';
+  }
+
+  if (
+    lower.includes('transaction confirmation timeout') ||
+    lower.includes('transaction not found')
+  ) {
+    return 'The transaction was sent, but confirmation took too long. Please check the wallet or explorer.';
+  }
+
+  if (
+    lower.includes('insufficient output amount') ||
+    lower.includes('amountoutmin') ||
+    lower.includes('slippage')
+  ) {
+    return 'Price changed before confirmation. Try again or increase slippage slightly.';
+  }
+
+  if (
+    lower.includes('deadline') ||
+    lower.includes('expired') ||
+    lower.includes('transaction expired')
+  ) {
+    return 'Swap request expired before confirmation. Please try again.';
+  }
+
+  if (
+    lower.includes('balance is not sufficient') ||
+    lower.includes('insufficient balance') ||
+    lower.includes('no enough balance') ||
+    lower.includes('account balance is insufficient')
+  ) {
+    return 'Insufficient balance to complete this swap.';
+  }
+
+  if (
+    lower.includes('out of energy') ||
+    lower.includes('bandwidth') ||
+    lower.includes('fee limit') ||
+    lower.includes('not enough energy')
+  ) {
+    return 'Not enough network resources for the transaction. Add more TRX for fees or energy and try again.';
+  }
+
+  if (
+    lower.includes('allowance') ||
+    lower.includes('approve')
+  ) {
+    return 'Token approval failed. Please confirm approval in the wallet and try again.';
+  }
+
+  if (
+    lower.includes('selected route is not supported') ||
+    lower.includes('route is not supported') ||
+    lower.includes('route.path is required') ||
+    lower.includes('route.poolversion is required')
+  ) {
+    return 'This route is not supported by the current widget version yet. Please try another quote.';
+  }
+
+  return raw;
+}
+
+function makeStepReporter(reportProgress) {
+  return function step(step, payload = {}) {
+    if (typeof reportProgress === 'function') {
+      reportProgress({
+        step,
+        ...payload
+      });
+    }
+  };
+}
+
+async function confirmIfNeeded({
   wallet,
-  route,
+  txid,
+  reportStep,
+  label = 'confirming'
+}) {
+  if (!txid) return null;
+
+  reportStep(label, { txid });
+
+  try {
+    const confirmation = await waitForSunioTransactionConfirmation({
+      wallet,
+      txid,
+      timeoutMs: 120000,
+      pollIntervalMs: 1500
+    });
+
+    return confirmation;
+  } catch (error) {
+    throw new Error(mapSwapErrorToUserMessage(error));
+  }
+}
+
+export async function executeSwapFlow({
+  wallet,
+  selectedRoute,
   amountIn,
   slippage,
   inputTokenAddress,
   inputTokenDecimals = 6,
-  outputTokenDecimals = 6,
-  smartRouterAddress = SUNIO_MAINNET_DEFAULTS.smartRouterAddress,
-  feeLimit = SUNIO_MAINNET_DEFAULTS.feeLimit,
-  deadlineSeconds,
-  recipient,
-  onProgress
+  outputTokenDecimals = null,
+  reportProgress
 } = {}) {
-  if (!route) {
-    throw new Error('Swap execution: route is required');
-  }
-
-  if (route.provider !== 'sunio') {
-    throw new Error(`Unsupported swap provider: ${route.provider}`);
-  }
+  const step = makeStepReporter(reportProgress);
 
   try {
-    emitProgress(onProgress, {
-      step: 'checking-allowance',
-      message: 'Checking allowance...'
+    if (!wallet) {
+      throw new Error('Wallet is not connected');
+    }
+
+    if (!selectedRoute) {
+      throw new Error('No route selected');
+    }
+
+    if (!amountIn || Number(amountIn) <= 0) {
+      throw new Error('Enter a valid amount');
+    }
+
+    if (!inputTokenAddress) {
+      throw new Error('Input token address is missing');
+    }
+
+    step('validating', {
+      message: 'Preparing swap...'
     });
 
-    const allowanceState = await checkSunioAllowance({
+    step('checking-allowance', {
+      message: 'Checking token approval...'
+    });
+
+    const allowance = await checkSunioAllowance({
       wallet,
       tokenAddress: inputTokenAddress,
-      spenderAddress: smartRouterAddress,
       amountIn,
       tokenDecimals: inputTokenDecimals
     });
 
-    if (!allowanceState?.hasEnoughAllowance) {
-      const approvalResult = await ensureSunioApproval({
+    let approval = null;
+    let approvalConfirmation = null;
+
+    if (!allowance?.hasEnoughAllowance) {
+      step('approval-required', {
+        message: 'Approval is required before swap.'
+      });
+
+      approval = await ensureSunioApproval({
         wallet,
         tokenAddress: inputTokenAddress,
-        spenderAddress: smartRouterAddress,
         amountIn,
-        tokenDecimals: inputTokenDecimals,
-        feeLimit
+        tokenDecimals: inputTokenDecimals
       });
 
-      emitProgress(onProgress, {
-        step: 'approval-submitted',
-        message: 'Approving 4TEEN...',
-        approvalTxid: approvalResult?.txid || null
-      });
+      if (approval?.txid) {
+        step('approval-submitted', {
+          message: 'Approval transaction sent.',
+          txid: approval.txid
+        });
 
-      await waitForSunioTransactionConfirmation({
-        wallet,
-        txid: approvalResult.txid,
-        timeoutMs: 120000,
-        pollIntervalMs: 1500
-      });
+        approvalConfirmation = await confirmIfNeeded({
+          wallet,
+          txid: approval.txid,
+          reportStep: step,
+          label: 'approval-confirming'
+        });
 
-      emitProgress(onProgress, {
-        step: 'approval-confirmed',
-        message: 'Approval confirmed. Press Swap again.',
-        approvalTxid: approvalResult?.txid || null
+        step('approval-confirmed', {
+          message: 'Approval confirmed.',
+          txid: approval.txid,
+          confirmation: approvalConfirmation
+        });
+      }
+    } else {
+      step('approval-ready', {
+        message: 'Existing approval is sufficient.'
       });
-
-      return {
-        ok: true,
-        needsRetry: true,
-        approvalRequired: true,
-        approvalTxid: approvalResult?.txid || null,
-        message: 'Approval confirmed. Press Swap again.'
-      };
     }
 
-    emitProgress(onProgress, {
-      step: 'approval-skipped',
-      message: 'Allowance already available. Sending swap...'
-    });
-
-    emitProgress(onProgress, {
-      step: 'swap-submitting',
-      message: route.toToken === 'TRX'
-        ? 'Swap requested. Receiving native TRX...'
-        : 'Swap requested...'
+    step('swap-submitting', {
+      message: 'Sending swap transaction...'
     });
 
     const swapResult = await executeSunioSwap({
       wallet,
-      route,
+      route: selectedRoute,
       amountIn,
       slippage,
       inputTokenAddress,
       inputTokenDecimals,
-      outputTokenDecimals,
-      smartRouterAddress,
-      feeLimit,
-      deadlineSeconds,
-      recipient
+      outputTokenDecimals
     });
 
-    emitProgress(onProgress, {
-      step: 'swap-submitted',
-      message:
-        route.toToken === 'TRX'
-          ? 'Swap completed. TRX received.'
-          : `Swap completed. ${route.toToken} received.`,
-      swapTxid: swapResult?.txid || null
+    if (!swapResult?.txid) {
+      throw new Error('Swap transaction was not created');
+    }
+
+    step('swap-submitted', {
+      message: 'Swap transaction sent.',
+      txid: swapResult.txid
+    });
+
+    const confirmation =
+      swapResult?.confirmation ||
+      (await confirmIfNeeded({
+        wallet,
+        txid: swapResult.txid,
+        reportStep: step,
+        label: 'swap-confirming'
+      }));
+
+    step('swap-confirmed', {
+      message: 'Swap confirmed on-chain.',
+      txid: swapResult.txid,
+      confirmation
+    });
+
+    step('success', {
+      message: 'Swap completed successfully.',
+      txid: swapResult.txid,
+      approvalTxid: approval?.txid || null,
+      confirmation
     });
 
     return {
       ok: true,
-      needsRetry: false,
-      provider: route.provider,
-      approvalRequired: false,
-      approvalTxid: null,
-      txid: swapResult?.txid || null,
-      unwrapTxid: null,
-      unwrappedAmountRaw: '0',
-      route,
-      swapResult
+      status: 'success',
+      provider: swapResult?.provider || selectedRoute?.provider || 'sunio',
+      txid: swapResult.txid,
+      approvalTxid: approval?.txid || null,
+      approval,
+      approvalConfirmation,
+      confirmation,
+      route: selectedRoute,
+      result: swapResult
     };
   } catch (error) {
-    if (isUserRejectedError(error)) {
-      return {
-        ok: false,
-        cancelled: true,
-        code: 4001,
-        message: 'Transaction cancelled by user.'
-      };
-    }
+    const userMessage = mapSwapErrorToUserMessage(error);
 
-    throw new Error(getReadableErrorMessage(error, 'Swap execution failed.'));
+    step('error', {
+      message: userMessage,
+      rawMessage: toErrorMessage(error)
+    });
+
+    return {
+      ok: false,
+      status: 'error',
+      message: userMessage,
+      rawMessage: toErrorMessage(error),
+      route: selectedRoute || null
+    };
   }
 }
+
+export { mapSwapErrorToUserMessage };
