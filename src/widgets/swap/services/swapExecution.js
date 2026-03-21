@@ -6,6 +6,18 @@ import {
   SUNIO_MAINNET_DEFAULTS
 } from '../providers/sunio.js';
 
+function isUserRejectedError(error) {
+  const code = Number(error?.code);
+  const message = String(error?.message || error?.error || '');
+
+  return (
+    code === 4001 ||
+    message.includes('User denied') ||
+    message.includes('user denied') ||
+    message.includes('Request Signature: User denied request signature')
+  );
+}
+
 function getReadableErrorMessage(error, fallback = 'Swap execution failed.') {
   if (!error) return fallback;
 
@@ -26,18 +38,6 @@ function getReadableErrorMessage(error, fallback = 'Swap execution failed.') {
   }
 
   return fallback;
-}
-
-function isUserRejectedError(error) {
-  const code = Number(error?.code);
-  const message = getReadableErrorMessage(error, '');
-
-  return (
-    code === 4001 ||
-    message.includes('User denied') ||
-    message.includes('user denied') ||
-    message.includes('Request Signature: User denied request signature')
-  );
 }
 
 function emitProgress(onProgress, payload) {
@@ -127,7 +127,9 @@ export async function executeSwapRoute({
 
     emitProgress(onProgress, {
       step: 'swap-submitting',
-      message: route?.toToken === 'TRX' ? 'Swap requested for TRX...' : 'Swap requested...'
+      message: route.toToken === 'TRX'
+        ? 'Swap requested. Receiving native TRX...'
+        : 'Swap requested...'
     });
 
     const swapResult = await executeSunioSwap({
@@ -147,9 +149,9 @@ export async function executeSwapRoute({
     emitProgress(onProgress, {
       step: 'swap-submitted',
       message:
-        route?.toToken === 'TRX'
+        route.toToken === 'TRX'
           ? 'Swap completed. TRX received.'
-          : `Swap completed. ${route?.toToken || 'Token'} received.`,
+          : `Swap completed. ${route.toToken} received.`,
       swapTxid: swapResult?.txid || null
     });
 
@@ -175,6 +177,6 @@ export async function executeSwapRoute({
       };
     }
 
-    throw new Error(getReadableErrorMessage(error));
+    throw new Error(getReadableErrorMessage(error, 'Swap execution failed.'));
   }
 }
