@@ -735,8 +735,9 @@ export function mountSwap(target, config = {}) {
       });
 
       if (result?.cancelled) {
-        setStatus('Transaction cancelled by user.', true);
-        showErrorNotice('Transaction cancelled by user.', 3200);
+        const cancelledMessage = result?.message || 'Transaction cancelled by user.';
+        setStatus(cancelledMessage, true);
+        showErrorNotice(cancelledMessage, 3200);
         return;
       }
 
@@ -758,9 +759,10 @@ export function mountSwap(target, config = {}) {
       }
 
       if (result?.ok) {
-        const successMessage = result?.unwrapTxid
-          ? 'Swap completed. TRX received.'
-          : `Swap completed. ${route.toToken} received.`;
+        const successMessage =
+          route.toToken === 'TRX'
+            ? 'Swap completed. TRX received.'
+            : `Swap completed. ${route.toToken} received.`;
 
         setStatus(successMessage);
         showSuccessNotice(successMessage, 4200);
