@@ -2,7 +2,8 @@ import {
   checkSunioAllowance,
   ensureSunioApproval,
   executeSunioSwap,
-  waitForSunioTransactionConfirmation
+  waitForSunioTransactionConfirmation,
+  getSunioSpenderAddressForRoute
 } from '../providers/sunio.js';
 
 function isPlainObject(value) {
@@ -251,6 +252,8 @@ export async function executeSwapFlow({
       throw new Error('Input token address is missing');
     }
 
+    const spenderAddress = getSunioSpenderAddressForRoute(selectedRoute);
+
     step('validating', {
       message: 'Preparing swap...'
     });
@@ -262,6 +265,7 @@ export async function executeSwapFlow({
     const allowance = await checkSunioAllowance({
       wallet,
       tokenAddress: inputTokenAddress,
+      spenderAddress,
       amountIn,
       tokenDecimals: inputTokenDecimals
     });
@@ -277,6 +281,7 @@ export async function executeSwapFlow({
       approval = await ensureSunioApproval({
         wallet,
         tokenAddress: inputTokenAddress,
+        spenderAddress,
         amountIn,
         tokenDecimals: inputTokenDecimals
       });
