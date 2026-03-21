@@ -5,10 +5,24 @@ import {
   waitForSunioTransactionConfirmation
 } from '../providers/sunio.js';
 
+function isPlainObject(value) {
+  return Object.prototype.toString.call(value) === '[object Object]';
+}
+
+function safeJsonStringify(value) {
+  try {
+    return JSON.stringify(value);
+  } catch (_) {
+    return '';
+  }
+}
+
 function toErrorMessage(error) {
   if (!error) return 'Unknown error';
 
-  if (typeof error === 'string') return error;
+  if (typeof error === 'string') {
+    return error.trim() || 'Unknown error';
+  }
 
   if (typeof error?.message === 'string' && error.message.trim()) {
     return error.message.trim();
@@ -18,11 +32,24 @@ function toErrorMessage(error) {
     return error.error.trim();
   }
 
-  try {
-    return JSON.stringify(error);
-  } catch (_) {
-    return 'Unknown error';
+  if (typeof error?.data === 'string' && error.data.trim()) {
+    return error.data.trim();
   }
+
+  if (typeof error?.data?.message === 'string' && error.data.message.trim()) {
+    return error.data.message.trim();
+  }
+
+  if (typeof error?.response?.data?.message === 'string' && error.response.data.message.trim()) {
+    return error.response.data.message.trim();
+  }
+
+  const json = safeJsonStringify(error);
+  if (json && json !== '{}' && json !== '[]') {
+    return json;
+  }
+
+  return 'Unknown error';
 }
 
 function normalizeMessage(message) {
@@ -31,11 +58,21 @@ function normalizeMessage(message) {
     .trim();
 }
 
+function makeCleanUserMessage(message, fallback) {
+  const normalized = normalizeMessage(message);
+
+  if (!normalized || normalized === '[object Object]') {
+    return fallback;
+  }
+
+  return normalized;
+}
+
 function mapSwapErrorToUserMessage(error) {
   const raw = normalizeMessage(toErrorMessage(error));
   const lower = raw.toLowerCase();
 
-  if (!raw) {
+  if (!raw || raw === '[object Object]') {
     return 'Swap failed for an unknown reason. Please try again.';
   }
 
@@ -45,7 +82,8 @@ function mapSwapErrorToUserMessage(error) {
     lower.includes('rejected by user') ||
     lower.includes('cancelled') ||
     lower.includes('canceled') ||
-    lower.includes('declined')
+    lower.includes('declined') ||
+    lower.includes('transaction was cancelled in the wallet')
   ) {
     return 'Transaction was cancelled in the wallet.';
   }
@@ -55,9 +93,12 @@ function mapSwapErrorToUserMessage(error) {
     lower.includes('tronweb is not available') ||
     lower.includes('wallet address is not available') ||
     lower.includes('owner address is invalid') ||
-    lower.includes('recipient address is invalid')
+    lower.includes('recipient address is invalid') ||
+    lower.includes('wallet connection is not ready') ||
+    lower.includes('owner_address is not set') ||
+    lower.includes('owner_address isn\'t set')
   ) {
-    return 'Wallet connection is not ready. Reconnect the wallet and try again.';
+    return 'Wallet connection is not ready. Please reconnect the wallet and try again.';
   }
 
   if (
@@ -82,7 +123,8 @@ function mapSwapErrorToUserMessage(error) {
   if (
     lower.includes('insufficient output amount') ||
     lower.includes('amountoutmin') ||
-    lower.includes('slippage')
+    lower.includes('slippage') ||
+    lower.includes('price changed before confirmation')
   ) {
     return 'Price changed before confirmation. Try again or increase slippage slightly.';
   }
@@ -108,14 +150,16 @@ function mapSwapErrorToUserMessage(error) {
     lower.includes('out of energy') ||
     lower.includes('bandwidth') ||
     lower.includes('fee limit') ||
-    lower.includes('not enough energy')
+    lower.includes('not enough energy') ||
+    lower.includes('network fee estimation unsuccessful')
   ) {
     return 'Not enough network resources for the transaction. Add more TRX for fees or energy and try again.';
   }
 
   if (
     lower.includes('allowance') ||
-    lower.includes('approve')
+    lower.includes('approve') ||
+    lower.includes('approval failed')
   ) {
     return 'Token approval failed. Please confirm approval in the wallet and try again.';
   }
@@ -129,7 +173,18 @@ function mapSwapErrorToUserMessage(error) {
     return 'This route is not supported by the current widget version yet. Please try another quote.';
   }
 
-  return raw;
+  if (
+    lower.includes('third-party contract execution error') ||
+    lower.includes('the swap transaction was rejected by the target contract')
+  ) {
+    return 'The swap route could not be executed. Please try another route or try again later.';
+  }
+
+  if (isPlainObject(error)) {
+    return 'Swap failed. Please try again.';
+  }
+
+  return makeCleanUserMessage(raw, 'Swap failed. Please try again.');
 }
 
 function makeStepReporter(reportProgress) {
@@ -289,8 +344,14 @@ export async function executeSwapFlow({
       confirmation
     });
 
+    const receiveSymbol = selectedRoute?.toToken || 'tokens';
+    const receiveAmount = selectedRoute?.expectedOut || null;
+    const successMessage = receiveAmount
+      ? `Swap completed successfully. Estimated received: ${receiveAmount} ${receiveSymbol}.`
+      : `Swap completed successfully. ${receiveSymbol} received.`;
+
     step('success', {
-      message: 'Swap completed successfully.',
+      message: successMessage,
       txid: swapResult.txid,
       approvalTxid: approval?.txid || null,
       confirmation
@@ -306,24 +367,28 @@ export async function executeSwapFlow({
       approvalConfirmation,
       confirmation,
       route: selectedRoute,
-      result: swapResult
+      result: swapResult,
+      successMessage,
+      shouldResetForm: true
     };
   } catch (error) {
     const userMessage = mapSwapErrorToUserMessage(error);
+    const rawMessage = makeCleanUserMessage(toErrorMessage(error), userMessage);
 
     step('error', {
       message: userMessage,
-      rawMessage: toErrorMessage(error)
+      rawMessage
     });
 
     return {
       ok: false,
       status: 'error',
       message: userMessage,
-      rawMessage: toErrorMessage(error),
+      rawMessage,
       route: selectedRoute || null
     };
   }
 }
 
 export { mapSwapErrorToUserMessage };
+export const executeSwapRoute = executeSwapFlow;
