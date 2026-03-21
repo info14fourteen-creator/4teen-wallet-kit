@@ -25,7 +25,11 @@ export async function getSwapQuotes({
     }))
   ];
 
-  return allRoutes.sort(
-    (a, b) => Number(b.expectedOut || 0) - Number(a.expectedOut || 0)
-  );
+  return allRoutes.sort((a, b) => {
+    if (Boolean(a.isExecutable) !== Boolean(b.isExecutable)) {
+      return a.isExecutable ? -1 : 1;
+    }
+
+    return Number(b.expectedOut || 0) - Number(a.expectedOut || 0);
+  });
 }
