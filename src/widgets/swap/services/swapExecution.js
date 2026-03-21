@@ -6,13 +6,11 @@ import {
   SUNIO_MAINNET_DEFAULTS
 } from '../providers/sunio.js';
 
-function getErrorMessage(error) {
-  if (!error) {
-    return '';
-  }
+function getReadableErrorMessage(error, fallback = 'Swap execution failed.') {
+  if (!error) return fallback;
 
   if (typeof error === 'string') {
-    return error;
+    return error || fallback;
   }
 
   if (typeof error?.message === 'string' && error.message.trim()) {
@@ -27,24 +25,18 @@ function getErrorMessage(error) {
     return error.data.message;
   }
 
-  try {
-    return JSON.stringify(error);
-  } catch (_) {
-    return String(error);
-  }
+  return fallback;
 }
 
 function isUserRejectedError(error) {
   const code = Number(error?.code);
-  const message = getErrorMessage(error);
+  const message = getReadableErrorMessage(error, '');
 
   return (
     code === 4001 ||
     message.includes('User denied') ||
     message.includes('user denied') ||
-    message.includes('Request Signature: User denied request signature') ||
-    message.includes('cancelled by user') ||
-    message.includes('canceled by user')
+    message.includes('Request Signature: User denied request signature')
   );
 }
 
@@ -102,7 +94,7 @@ export async function executeSwapRoute({
 
       emitProgress(onProgress, {
         step: 'approval-submitted',
-        message: 'Unlimited approval requested...',
+        message: 'Approving 4TEEN...',
         approvalTxid: approvalResult?.txid || null
       });
 
@@ -135,7 +127,7 @@ export async function executeSwapRoute({
 
     emitProgress(onProgress, {
       step: 'swap-submitting',
-      message: 'Swap requested...'
+      message: route?.toToken === 'TRX' ? 'Swap requested for TRX...' : 'Swap requested...'
     });
 
     const swapResult = await executeSunioSwap({
@@ -154,9 +146,10 @@ export async function executeSwapRoute({
 
     emitProgress(onProgress, {
       step: 'swap-submitted',
-      message: route?.toToken === 'TRX'
-        ? 'Swap completed. TRX received.'
-        : 'Swap completed.',
+      message:
+        route?.toToken === 'TRX'
+          ? 'Swap completed. TRX received.'
+          : `Swap completed. ${route?.toToken || 'Token'} received.`,
       swapTxid: swapResult?.txid || null
     });
 
@@ -182,6 +175,6 @@ export async function executeSwapRoute({
       };
     }
 
-    throw new Error(getErrorMessage(error) || 'Swap execution failed.');
+    throw new Error(getReadableErrorMessage(error));
   }
 }
