@@ -525,7 +525,8 @@ export function mountSwap(target, config = {}) {
       : formatNumber(0, estimateDecimals);
   }
 
-  function renderRoutes() {
+  function renderRoutes(options = {}) {
+    const preserveStatus = Boolean(options.preserveStatus);
     const count = currentRoutes.length;
     routesSummaryEl.textContent = `${count} ${count === 1 ? 'route' : 'routes'} found via ${sourceLabel}`;
 
@@ -608,18 +609,21 @@ export function mountSwap(target, config = {}) {
 
     updateSwapButtonsDisabledState();
 
-    const best = currentRoutes[0];
-    if (best) {
-      setStatus(`Best route: ${best.providerName} · ${formatNumber(getDisplayedReceive(best), estimateDecimals)} ${best.toToken}`);
-    } else {
-      setStatus('');
+    if (!preserveStatus) {
+      const best = currentRoutes[0];
+      if (best) {
+        setStatus(`Best route: ${best.providerName} · ${formatNumber(getDisplayedReceive(best), estimateDecimals)} ${best.toToken}`);
+      } else {
+        setStatus('');
+      }
     }
   }
 
-  async function syncQuotes() {
+  async function syncQuotes(options = {}) {
+    const preserveStatus = Boolean(options.preserveStatus);
     await buildRoutes();
     renderEstimate();
-    renderRoutes();
+    renderRoutes({ preserveStatus });
   }
 
   function handleAmountInput() {
@@ -716,6 +720,8 @@ export function mountSwap(target, config = {}) {
     setStatus(`Preparing ${route.providerName} swap...`);
     showNeutralNotice(`Preparing ${route.providerName} swap...`, 2200);
 
+    let didRefreshRoutesAfterExecution = false;
+
     try {
       const result = await executeSwapRoute({
         wallet,
@@ -742,7 +748,8 @@ export function mountSwap(target, config = {}) {
         await refreshBalancesSafe();
 
         try {
-          await syncQuotes();
+          await syncQuotes({ preserveStatus: true });
+          didRefreshRoutesAfterExecution = true;
         } catch (syncError) {
           console.error('[4TEEN] post-approval quotes refresh failed', syncError);
         }
@@ -761,7 +768,8 @@ export function mountSwap(target, config = {}) {
         await refreshBalancesSafe();
 
         try {
-          await syncQuotes();
+          await syncQuotes({ preserveStatus: true });
+          didRefreshRoutesAfterExecution = true;
         } catch (syncError) {
           console.error('[4TEEN] post-swap quotes refresh failed', syncError);
         }
@@ -779,7 +787,10 @@ export function mountSwap(target, config = {}) {
     } finally {
       isSwapPending = false;
       updateSwapButtonsDisabledState();
-      renderRoutes();
+
+      if (!didRefreshRoutesAfterExecution) {
+        renderRoutes({ preserveStatus: true });
+      }
     }
   }
 
