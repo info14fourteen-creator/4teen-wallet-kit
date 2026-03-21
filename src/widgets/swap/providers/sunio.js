@@ -473,7 +473,7 @@ function extractContractError(error) {
   }
 
   if (lower.includes('network fee estimation unsuccessful')) {
-    return 'Network fee estimation failed. Please try again in a moment.';
+    return 'Network fee estimation failed. Please try a simpler route or try again in a moment.';
   }
 
   if (lower.includes('third-party contract execution error')) {
@@ -518,13 +518,58 @@ function hasUnsupportedPoolVersion(poolVersions = []) {
   return poolVersions.some((version) => String(version || '').toLowerCase() === 'v4');
 }
 
-function isRouteExecutableByWidget({ tokens = [], poolVersions = [], versionLen = [] } = {}) {
+function isSimpleUsdtExecutionRoute(tokens = [], symbols = [], poolVersions = []) {
+  if (!Array.isArray(tokens) || tokens.length < 2) {
+    return false;
+  }
+
+  if (!Array.isArray(symbols) || symbols.length !== tokens.length) {
+    return false;
+  }
+
+  if (!Array.isArray(poolVersions) || poolVersions.length !== tokens.length - 1) {
+    return false;
+  }
+
+  if (tokens.length > 3) {
+    return false;
+  }
+
+  if (symbols[0] !== '4TEEN') {
+    return false;
+  }
+
+  if (symbols[symbols.length - 1] !== 'USDT') {
+    return false;
+  }
+
+  if (symbols.length === 3 && symbols[1] !== 'WTRX') {
+    return false;
+  }
+
+  return poolVersions.every((version) => {
+    const normalized = String(version || '').toLowerCase();
+    return normalized === 'v2' || normalized === 'v3';
+  });
+}
+
+function isRouteExecutableByWidget({
+  tokens = [],
+  symbols = [],
+  poolVersions = [],
+  versionLen = [],
+  targetToken = ''
+} = {}) {
   if (!Array.isArray(tokens) || tokens.length < 2) return false;
   if (!Array.isArray(poolVersions) || !poolVersions.length) return false;
   if (!Array.isArray(versionLen) || !versionLen.length) return false;
 
   if (hasUnsupportedPoolVersion(poolVersions)) {
     return false;
+  }
+
+  if (targetToken === 'USDT') {
+    return isSimpleUsdtExecutionRoute(tokens, symbols, poolVersions);
   }
 
   return true;
@@ -538,8 +583,10 @@ function mapApiRouteToSunioRoute(apiRoute, targetToken, outputDecimals) {
   const versionLen = buildVersionLen(poolVersions);
   const isExecutable = isRouteExecutableByWidget({
     tokens,
+    symbols,
     poolVersions,
-    versionLen
+    versionLen,
+    targetToken
   });
 
   return {
