@@ -82,6 +82,28 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getReadableErrorMessage(error, fallback = 'Operation failed.') {
+  if (!error) return fallback;
+
+  if (typeof error === 'string') {
+    return error || fallback;
+  }
+
+  if (typeof error?.message === 'string' && error.message.trim()) {
+    return error.message;
+  }
+
+  if (typeof error?.error === 'string' && error.error.trim()) {
+    return error.error;
+  }
+
+  if (typeof error?.data?.message === 'string' && error.data.message.trim()) {
+    return error.data.message;
+  }
+
+  return fallback;
+}
+
 function getWalletSafe() {
   return window.FourteenKit || window.FourteenWallet || null;
 }
@@ -493,6 +515,7 @@ export function mountSwap(target, config = {}) {
 
     Array.from(routesListEl.querySelectorAll('[data-role="swap-route-button"]')).forEach((button) => {
       button.disabled = disabled;
+      button.textContent = isSwapPending ? 'Processing...' : 'Swap';
     });
   }
 
@@ -504,6 +527,7 @@ export function mountSwap(target, config = {}) {
       targetToken: selectedTarget,
       fromTokenAddress: tokenAddresses['4TEEN'],
       tokenAddresses: {
+        TRX: tokenAddresses['TRX'],
         WTRX: tokenAddresses['WTRX'],
         USDT: tokenAddresses['USDT']
       },
@@ -612,7 +636,12 @@ export function mountSwap(target, config = {}) {
     if (!preserveStatus) {
       const best = currentRoutes[0];
       if (best) {
-        setStatus(`Best route: ${best.providerName} · ${formatNumber(getDisplayedReceive(best), estimateDecimals)} ${best.toToken}`);
+        setStatus(
+          `Best route: ${best.providerName} · ${formatNumber(
+            getDisplayedReceive(best),
+            estimateDecimals
+          )} ${best.toToken}`
+        );
       } else {
         setStatus('');
       }
@@ -779,11 +808,12 @@ export function mountSwap(target, config = {}) {
         return;
       }
 
-      setStatus(result?.message || 'Swap execution is not ready yet.', true);
-      showErrorNotice(result?.message || 'Swap execution is not ready yet.');
+      const fallbackMessage = result?.message || 'Swap execution is not ready yet.';
+      setStatus(fallbackMessage, true);
+      showErrorNotice(fallbackMessage);
     } catch (error) {
       console.error('[4TEEN] swap execution failed', error);
-      const message = error?.message || 'Swap execution failed.';
+      const message = getReadableErrorMessage(error, 'Swap execution failed.');
       setStatus(message, true);
       showErrorNotice(message, 4200);
     } finally {
