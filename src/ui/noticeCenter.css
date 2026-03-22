@@ -22,8 +22,7 @@
   transform: translateX(-50%) translateY(-10px);
 
   width: min(92vw, 420px);
-  min-height: 92px;
-  padding: 18px 18px 16px;
+  padding: 18px 18px 18px;
 
   border-radius: 14px;
   background: rgba(26, 26, 26, 0.98);
@@ -55,10 +54,11 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding-right: 44px;
+  padding-right: 18px;
 }
 
 .fw-notice__message {
+  margin: 0;
   font-family: Inter, Arial, Helvetica, sans-serif;
   font-size: 15px;
   line-height: 1.45;
@@ -83,13 +83,13 @@
 /* CLOSE BUTTON */
 .fw-notice__close {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: -12px;
+  right: -12px;
 
-  width: 26px;
-  height: 26px;
+  width: 34px;
+  height: 34px;
 
-  border: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
 
   background: rgb(0, 0, 0);
@@ -102,17 +102,33 @@
   justify-content: center;
   padding: 0;
 
-  transition: transform 0.15s ease;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
+
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .fw-notice__close:hover {
   transform: scale(1.08);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.fw-notice__close:active {
+  transform: scale(0.96);
 }
 
 .fw-notice__close svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   display: block;
+}
+
+.fw-notice__close path {
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
 }
 
 /* TIMER RING */
@@ -153,12 +169,28 @@
   .fw-notice {
     top: 14px;
     width: min(94vw, 380px);
-    min-height: 84px;
-    padding: 16px 16px 14px;
+    padding: 16px 16px 16px;
     border-radius: 12px;
+  }
+
+  .fw-notice__content {
+    gap: 12px;
+    padding-right: 14px;
   }
 
   .fw-notice__message {
     font-size: 14px;
+  }
+
+  .fw-notice__close {
+    top: -10px;
+    right: -10px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .fw-notice__close svg {
+    width: 13px;
+    height: 13px;
   }
 }
