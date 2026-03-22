@@ -17,7 +17,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+
+    "build:ai": "node scripts/build-ai-bundle.js",
+    "build:all": "vite build && node scripts/build-ai-bundle.js"
   },
   "dependencies": {
     "@tronweb3/tronwallet-abstract-adapter": "latest",
@@ -26,12 +29,5 @@
   },
   "devDependencies": {
     "vite": "latest"
-  }
-}
-{
-  "scripts": {
-    "build": "vite build",
-    "build:ai": "node scripts/build-ai-bundle.js",
-    "build:all": "vite build && node scripts/build-ai-bundle.js"
   }
 }
