@@ -1,0 +1,53 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Background -->
+  <circle cx="128" cy="128" r="100" fill="#FF6A00"/>
+
+  <!-- Left coin (BTC) -->
+  <circle cx="90" cy="120" r="36" fill="white"/>
+  <text x="90" y="130"
+        text-anchor="middle"
+        font-size="26"
+        font-weight="bold"
+        fill="#FF6A00"
+        font-family="Inter, Arial, sans-serif">
+    ₿
+  </text>
+
+  <!-- Right coin ($) -->
+  <circle cx="166" cy="140" r="36" fill="white"/>
+  <text x="166" y="150"
+        text-anchor="middle"
+        font-size="26"
+        font-weight="bold"
+        fill="#FF6A00"
+        font-family="Inter, Arial, sans-serif">
+    $
+  </text>
+
+  <!-- Swap arrows -->
+  <path d="M70 170 Q128 210 186 170"
+        stroke="white"
+        stroke-width="6"
+        stroke-linecap="round"
+        fill="none"/>
+
+  <path d="M182 170 L190 158 M182 170 L170 168"
+        stroke="white"
+        stroke-width="6"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <path d="M186 86 Q128 46 70 86"
+        stroke="white"
+        stroke-width="6"
+        stroke-linecap="round"
+        fill="none"/>
+
+  <path d="M74 86 L66 98 M74 86 L86 88"
+        stroke="white"
+        stroke-width="6"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+</svg>
