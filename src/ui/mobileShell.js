@@ -1,6 +1,7 @@
 // src/ui/mobileShell.js
 
 import './mobileShell.css';
+import { mountWalletButton } from './walletButton.js';
 import {
   MOBILE_MENU_LINKS,
   MOBILE_BOTTOM_NAV,
@@ -310,6 +311,12 @@ export function createMobileShell(options = {}) {
   const socialRotateMs =
     Number(options.socialRotateMs || MOBILE_SHELL_DEFAULTS.socialRotateMs) || 1500;
 
+  const walletButtonOptions = {
+    onConnectClick: options.onConnectClick,
+    onDisconnect: options.onDisconnect,
+    onRefresh: options.onRefresh
+  };
+
   const { navigation: mainMenuItems, contacts: contactMenuItems } = splitMenuItems(menuItems);
 
   const root = createElement('div', 'mobile-shell');
@@ -391,6 +398,8 @@ export function createMobileShell(options = {}) {
   let activePanel = null;
   let socialIndex = 0;
   let socialTimer = null;
+  let unmountTopWallet = null;
+  let unmountBottomWallet = null;
 
   function registerCleanup(fn) {
     cleanups.push(fn);
@@ -517,6 +526,17 @@ export function createMobileShell(options = {}) {
 
   target.innerHTML = '';
   target.appendChild(root);
+
+  unmountTopWallet = mountWalletButton(topWalletSlot, {
+    ...walletButtonOptions,
+    variant: 'compact'
+  });
+
+  unmountBottomWallet = mountWalletButton(bottomWalletSlot, {
+    ...walletButtonOptions,
+    variant: 'mobile'
+  });
+
   startSocialRotation();
 
   const instance = {
@@ -532,6 +552,14 @@ export function createMobileShell(options = {}) {
 
       stopSocialRotation();
       closePanels();
+
+      try {
+        unmountTopWallet?.();
+      } catch (_) {}
+
+      try {
+        unmountBottomWallet?.();
+      } catch (_) {}
 
       cleanups.forEach((cleanup) => {
         try {
