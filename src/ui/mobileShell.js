@@ -10,6 +10,13 @@ import {
 } from './mobileShell.config.js';
 
 const MOBILE_SHELL_INSTANCE_KEY = '__fourteenMobileShellInstance__';
+const EXCLUDED_MENU_IDS = new Set(['buy', 'swap', 'unlock', 'liquidity']);
+const EXCLUDED_MENU_HREFS = new Set([
+  'https://4teen.me/bt',
+  'https://4teen.me/sw',
+  'https://4teen.me/ult',
+  'https://4teen.me/lc'
+]);
 
 function ensureTarget(target) {
   if (!target) return document.body;
@@ -95,6 +102,13 @@ function shouldOpenInNewTab(href = '') {
   }
 }
 
+function shouldHideFromBurgerMenu(item = {}) {
+  const id = String(item.id || '').trim().toLowerCase();
+  const href = normalizeUrl(item.href || '');
+
+  return EXCLUDED_MENU_IDS.has(id) || EXCLUDED_MENU_HREFS.has(href);
+}
+
 function splitMenuItems(items = []) {
   const navigation = [];
   const contacts = [];
@@ -104,6 +118,10 @@ function splitMenuItems(items = []) {
 
     if (href.startsWith('tel:') || href.startsWith('mailto:')) {
       contacts.push(item);
+      return;
+    }
+
+    if (shouldHideFromBurgerMenu(item)) {
       return;
     }
 
@@ -237,11 +255,8 @@ function buildRotatingSocialButton() {
   return { button, icon };
 }
 
-function buildWalletSlot(variant) {
-  const slot = createElement('div', 'ms-wallet-slot');
-  slot.setAttribute('data-fourteen-wallet', '');
-  slot.setAttribute('data-variant', variant);
-  return slot;
+function buildWalletHost(className = '') {
+  return createElement('div', className ? `ms-wallet-host ${className}` : 'ms-wallet-host');
 }
 
 function buildBottomLink(item = {}) {
@@ -307,7 +322,6 @@ export function createMobileShell(options = {}) {
   const menuItems = options.menuItems || MOBILE_MENU_LINKS;
   const bottomNavItems = options.bottomNavItems || MOBILE_BOTTOM_NAV;
   const socials = options.socials || MOBILE_SOCIALS;
-  const brandText = options.brandText || MOBILE_SHELL_DEFAULTS.brandText;
   const socialRotateMs =
     Number(options.socialRotateMs || MOBILE_SHELL_DEFAULTS.socialRotateMs) || 1500;
 
@@ -369,14 +383,9 @@ export function createMobileShell(options = {}) {
   const contactsBlock = buildContacts(contactMenuItems);
   const socialMenuLinks = buildSocialMenu(socials);
   const rotatingSocialButton = buildRotatingSocialButton();
-  const topWalletSlot = buildWalletSlot('compact');
-  const bottomWalletSlot = buildWalletSlot('mobile');
+  const topWalletHost = buildWalletHost('ms-wallet-host-top');
+  const bottomWalletHost = buildWalletHost('ms-wallet-host-bottom');
   const bottomGroups = buildBottomGroups(bottomNavItems);
-
-  if (brandText) {
-    const brand = createElement('div', 'ms-brand-mark', brandText);
-    menuShell.appendChild(brand);
-  }
 
   menuShell.appendChild(menuLinks);
 
@@ -387,10 +396,10 @@ export function createMobileShell(options = {}) {
   socialShell.appendChild(socialMenuLinks);
 
   topActions.appendChild(rotatingSocialButton.button);
-  topActions.appendChild(topWalletSlot);
+  topActions.appendChild(topWalletHost);
 
   bottomLeft.appendChild(bottomGroups.leftWrap);
-  bottomCenter.appendChild(bottomWalletSlot);
+  bottomCenter.appendChild(bottomWalletHost);
   bottomRight.appendChild(bottomGroups.rightWrap);
 
   const cleanups = [];
@@ -398,8 +407,8 @@ export function createMobileShell(options = {}) {
   let activePanel = null;
   let socialIndex = 0;
   let socialTimer = null;
-  let unmountTopWallet = null;
-  let unmountBottomWallet = null;
+  let topWalletInstance = null;
+  let bottomWalletInstance = null;
 
   function registerCleanup(fn) {
     cleanups.push(fn);
@@ -527,12 +536,12 @@ export function createMobileShell(options = {}) {
   target.innerHTML = '';
   target.appendChild(root);
 
-  unmountTopWallet = mountWalletButton(topWalletSlot, {
+  topWalletInstance = mountWalletButton(topWalletHost, {
     ...walletButtonOptions,
     variant: 'compact'
   });
 
-  unmountBottomWallet = mountWalletButton(bottomWalletSlot, {
+  bottomWalletInstance = mountWalletButton(bottomWalletHost, {
     ...walletButtonOptions,
     variant: 'mobile'
   });
@@ -544,8 +553,6 @@ export function createMobileShell(options = {}) {
     openMenu,
     openSocialMenu,
     close: closePanels,
-    topWalletSlot,
-    bottomWalletSlot,
     destroy() {
       if (isDestroyed) return;
       isDestroyed = true;
@@ -554,11 +561,19 @@ export function createMobileShell(options = {}) {
       closePanels();
 
       try {
-        unmountTopWallet?.();
+        if (typeof topWalletInstance?.destroy === 'function') {
+          topWalletInstance.destroy();
+        } else if (typeof topWalletInstance === 'function') {
+          topWalletInstance();
+        }
       } catch (_) {}
 
       try {
-        unmountBottomWallet?.();
+        if (typeof bottomWalletInstance?.destroy === 'function') {
+          bottomWalletInstance.destroy();
+        } else if (typeof bottomWalletInstance === 'function') {
+          bottomWalletInstance();
+        }
       } catch (_) {}
 
       cleanups.forEach((cleanup) => {
