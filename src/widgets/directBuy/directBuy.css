@@ -389,3 +389,58 @@
     height: 52px;
   }
 }
+.fourteen-buy-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 12px;
+}
+
+.fourteen-buy-wallet {
+  font-size: 14px;
+  line-height: 1.3;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.fourteen-buy-connect-slot {
+  margin: 0 0 18px;
+}
+
+.fourteen-buy-connect-slot__desktop {
+  display: block;
+}
+
+.fourteen-buy-connect-slot__mobile {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .fourteen-buy-connect-slot__desktop {
+    display: none;
+  }
+
+  .fourteen-buy-connect-slot__mobile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 64px;
+    padding: 0 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 14px;
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  .fourteen-buy-topbar {
+    margin: 18px 0 10px;
+  }
+
+  .fourteen-buy-connect-slot {
+    margin: 0 0 16px;
+  }
+}
