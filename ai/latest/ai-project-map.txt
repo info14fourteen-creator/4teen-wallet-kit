@@ -1,8 +1,8 @@
 ===== AI PROJECT MAP =====
-Generated: 2026-03-22T13:33:33.232Z
+Generated: 2026-03-22T13:39:51.640Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
-Total files: 123
+Total files: 124
 
 ===== LINKS =====
 AI bundle: https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/ai-project-bundle.txt
@@ -168,6 +168,8 @@ src/
     liquidityController/
       index.js
       liquidityController.css
+    mobileShell/
+      index.js
     swap/
       providers/
         justmoney.js
@@ -301,6 +303,7 @@ src/widgets/directBuy/directBuy.css
 src/widgets/directBuy/index.js
 src/widgets/liquidityController/index.js
 src/widgets/liquidityController/liquidityController.css
+src/widgets/mobileShell/index.js
 src/widgets/swap/constants.js
 src/widgets/swap/index.js
 src/widgets/swap/providers/justmoney.js
