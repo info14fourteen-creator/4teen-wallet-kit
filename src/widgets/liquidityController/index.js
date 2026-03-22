@@ -42,6 +42,8 @@ const LIQUIDITY_CONTROLLER_ABI = [
   }
 ];
 
+const EVENTS_LIMIT = 10;
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -484,7 +486,7 @@ export function mountLiquidityController(target, config = {}) {
     return contract;
   }
 
-  async function fetchEvents(eventName, limit = 20) {
+  async function fetchEvents(eventName, limit = EVENTS_LIMIT) {
     const resp = await fetch(
       `${eventsBase}/${controllerAddress}/events?event_name=${encodeURIComponent(eventName)}&limit=${limit}`,
       {
@@ -499,12 +501,12 @@ export function mountLiquidityController(target, config = {}) {
     }
 
     const json = await resp.json();
-    return Array.isArray(json?.data) ? json.data : [];
+    return Array.isArray(json?.data) ? json.data.slice(0, limit) : [];
   }
 
   async function loadExecuteEvents() {
     try {
-      const data = await fetchEvents('LiquidityExecuted', 20);
+      const data = await fetchEvents('LiquidityExecuted', EVENTS_LIMIT);
 
       if (!data.length) {
         renderExecEmpty('No execution data yet.');
@@ -588,7 +590,7 @@ export function mountLiquidityController(target, config = {}) {
 
   async function loadTrxReceived() {
     try {
-      const data = await fetchEvents('TRXReceived', 20);
+      const data = await fetchEvents('TRXReceived', EVENTS_LIMIT);
 
       if (!data.length) {
         renderTrxEmpty('No TRX received data yet.');
