@@ -395,3 +395,4 @@ export {
   assertWalletSigning,
   printWalletSigningDiagnostics
 };
+export { mountMobileShell } from './widgets/mobileShell/index.js';
