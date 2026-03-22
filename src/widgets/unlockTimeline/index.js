@@ -42,6 +42,10 @@ const TIMELINE_CONTRACT_ABI = [
   }
 ];
 
+const BALANCE_REFRESH_INTERVAL_MS = 30_000;
+const RATE_REFRESH_INTERVAL_MS = 60_000;
+const BALANCE_UNLOCK_REFRESH_DEBOUNCE_MS = 1_500;
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -228,8 +232,8 @@ export function mountUnlockTimeline(target, config = {}) {
 
           <div class="fourteen-timeline-hero__text">
             <div class="fourteen-timeline-hero__title">
-  Token <span>Unlock</span> Timeline
-</div>
+              Token <span>Unlock</span> Timeline
+            </div>
             <div class="fourteen-timeline-hero__subtitle">${escapeHtml(subtitle)}</div>
           </div>
 
@@ -338,8 +342,13 @@ export function mountUnlockTimeline(target, config = {}) {
   let isDestroyed = false;
   let walletUnsubscribe = null;
   let countdownInterval = null;
+  let balanceRefreshInterval = null;
+  let rateRefreshInterval = null;
   let embeddedWalletUnmount = null;
   let resizeListenerBound = false;
+  let silentRefreshPromise = null;
+  let silentRefreshTimeout = null;
+  let lastHistoryEvents = [];
 
   let balances = {
     total: 0,
@@ -360,6 +369,23 @@ export function mountUnlockTimeline(target, config = {}) {
     if (countdownInterval) {
       clearInterval(countdownInterval);
       countdownInterval = null;
+    }
+  }
+
+  function stopBackgroundRefresh() {
+    if (balanceRefreshInterval) {
+      clearInterval(balanceRefreshInterval);
+      balanceRefreshInterval = null;
+    }
+
+    if (rateRefreshInterval) {
+      clearInterval(rateRefreshInterval);
+      rateRefreshInterval = null;
+    }
+
+    if (silentRefreshTimeout) {
+      clearTimeout(silentRefreshTimeout);
+      silentRefreshTimeout = null;
     }
   }
 
@@ -449,6 +475,8 @@ export function mountUnlockTimeline(target, config = {}) {
   }
 
   function renderEmptyHistory(message) {
+    lastHistoryEvents = [];
+
     tableBodyEl.innerHTML = `
       <tr>
         <td colspan="4" class="fourteen-timeline-muted">${escapeHtml(message)}</td>
@@ -461,6 +489,8 @@ export function mountUnlockTimeline(target, config = {}) {
   }
 
   function renderHistory(events) {
+    lastHistoryEvents = Array.isArray(events) ? events.slice() : [];
+
     const now = Date.now();
 
     tableBodyEl.innerHTML = events.map((event) => {
@@ -517,35 +547,6 @@ export function mountUnlockTimeline(target, config = {}) {
     }).join('');
   }
 
-  function startCountdownUpdater() {
-    stopCountdown();
-
-    countdownInterval = setInterval(() => {
-      const now = Date.now();
-      const nodes = Array.from(target.querySelectorAll('[data-unlock]'));
-
-      nodes.forEach((node) => {
-        const unlockMs = Number(node.getAttribute('data-unlock') || 0);
-        const countdownEl = node.querySelector('.fourteen-timeline-countdown');
-        const statusElLocal = node.querySelector('.fourteen-timeline-status-pill');
-
-        if (!countdownEl || !statusElLocal) return;
-
-        if (unlockMs <= now) {
-          countdownEl.textContent = '00:00:00';
-          statusElLocal.textContent = 'Unlocked';
-          statusElLocal.classList.add('unlocked');
-          statusElLocal.classList.remove('locked');
-        } else {
-          countdownEl.textContent = formatRemaining(unlockMs - now);
-          statusElLocal.textContent = 'Locked';
-          statusElLocal.classList.add('locked');
-          statusElLocal.classList.remove('unlocked');
-        }
-      });
-    }, 1000);
-  }
-
   function unmountEmbeddedWalletButton() {
     try {
       embeddedWalletUnmount?.();
@@ -590,6 +591,7 @@ export function mountUnlockTimeline(target, config = {}) {
 
     embeddedWalletUnmount = mountWalletButton(embeddedWalletButtonEl, {
       variant: 'hero',
+      text: connectText,
       onConnectClick: async (walletId) => {
         if (typeof wallet.connect === 'function') {
           await wallet.connect(walletId);
@@ -649,6 +651,85 @@ export function mountUnlockTimeline(target, config = {}) {
     }
 
     return null;
+  }
+
+  async function refreshRateSafe() {
+    if (!isConnectedSafe(wallet) || !isAlive()) {
+      return;
+    }
+
+    try {
+      const rate = await fetchSwapRate(1);
+
+      if (!isAlive()) return;
+
+      if (rate) {
+        rates.qsiToTrx = parseFloat(rate.amountOut).toFixed(6);
+        rates.qsiToUsd =
+          rate.outUsd !== undefined
+            ? parseFloat(rate.outUsd).toFixed(6)
+            : '—';
+      } else {
+        rates.qsiToTrx = '—';
+        rates.qsiToUsd = '—';
+      }
+
+      renderDetails();
+    } catch (error) {
+      console.error('[4TEEN] unlockTimeline refreshRateSafe failed', error);
+    }
+  }
+
+  async function refreshBalancesAndRenderSafe() {
+    if (!isConnectedSafe(wallet) || !isAlive()) {
+      return;
+    }
+
+    try {
+      await getBalances();
+
+      if (!isAlive()) return;
+
+      renderDetails();
+    } catch (error) {
+      console.error('[4TEEN] unlockTimeline refreshBalancesAndRenderSafe failed', error);
+    }
+  }
+
+  function scheduleSilentBalanceRefresh() {
+    if (silentRefreshTimeout) {
+      clearTimeout(silentRefreshTimeout);
+    }
+
+    silentRefreshTimeout = setTimeout(async () => {
+      if (silentRefreshPromise) {
+        return;
+      }
+
+      silentRefreshPromise = refreshBalancesAndRenderSafe()
+        .catch((error) => {
+          console.error('[4TEEN] unlockTimeline silent balance refresh failed', error);
+        })
+        .finally(() => {
+          silentRefreshPromise = null;
+        });
+    }, BALANCE_UNLOCK_REFRESH_DEBOUNCE_MS);
+  }
+
+  function startBackgroundRefresh() {
+    stopBackgroundRefresh();
+
+    balanceRefreshInterval = setInterval(() => {
+      refreshBalancesAndRenderSafe().catch((error) => {
+        console.error('[4TEEN] unlockTimeline periodic balance refresh failed', error);
+      });
+    }, BALANCE_REFRESH_INTERVAL_MS);
+
+    rateRefreshInterval = setInterval(() => {
+      refreshRateSafe().catch((error) => {
+        console.error('[4TEEN] unlockTimeline periodic rate refresh failed', error);
+      });
+    }, RATE_REFRESH_INTERVAL_MS);
   }
 
   async function getFilteredContractEvents() {
@@ -720,6 +801,48 @@ export function mountUnlockTimeline(target, config = {}) {
     startCountdownUpdater();
   }
 
+  function startCountdownUpdater() {
+    stopCountdown();
+
+    countdownInterval = setInterval(() => {
+      const now = Date.now();
+      const nodes = Array.from(target.querySelectorAll('[data-unlock]'));
+      let unlockStateChanged = false;
+
+      nodes.forEach((node) => {
+        const unlockMs = Number(node.getAttribute('data-unlock') || 0);
+        const countdownEl = node.querySelector('.fourteen-timeline-countdown');
+        const statusElLocal = node.querySelector('.fourteen-timeline-status-pill');
+
+        if (!countdownEl || !statusElLocal) return;
+
+        const wasUnlocked = statusElLocal.classList.contains('unlocked');
+        const isUnlocked = unlockMs <= now;
+
+        if (isUnlocked) {
+          countdownEl.textContent = '00:00:00';
+          statusElLocal.textContent = 'Unlocked';
+
+          if (!wasUnlocked) {
+            unlockStateChanged = true;
+          }
+
+          statusElLocal.classList.add('unlocked');
+          statusElLocal.classList.remove('locked');
+        } else {
+          countdownEl.textContent = formatRemaining(unlockMs - now);
+          statusElLocal.textContent = 'Locked';
+          statusElLocal.classList.add('locked');
+          statusElLocal.classList.remove('unlocked');
+        }
+      });
+
+      if (unlockStateChanged) {
+        scheduleSilentBalanceRefresh();
+      }
+    }, 1000);
+  }
+
   async function syncTimeline() {
     syncEmbeddedWalletUi();
 
@@ -727,6 +850,7 @@ export function mountUnlockTimeline(target, config = {}) {
       updateWalletLabel();
       balances = { total: 0, locked: 0, available: 0 };
       rates = { qsiToTrx: '—', qsiToUsd: '—' };
+      lastHistoryEvents = [];
       availableEl.textContent = '— 4TEEN';
       rateEl.textContent = '— TRX';
       renderPlaceholder();
@@ -734,6 +858,7 @@ export function mountUnlockTimeline(target, config = {}) {
       updateSwapLink();
       setStatus('');
       stopCountdown();
+      stopBackgroundRefresh();
       return;
     }
 
@@ -780,7 +905,10 @@ export function mountUnlockTimeline(target, config = {}) {
       }
 
       renderEmptyHistory('Unlock events are temporarily unavailable.');
+      stopCountdown();
     }
+
+    startBackgroundRefresh();
   }
 
   function handleWalletUpdate() {
@@ -813,6 +941,7 @@ export function mountUnlockTimeline(target, config = {}) {
     destroy() {
       isDestroyed = true;
       stopCountdown();
+      stopBackgroundRefresh();
       unmountEmbeddedWalletButton();
       infoToggleEl?.removeEventListener('click', togglePopover);
       document.removeEventListener('click', handleOutsideClick);
