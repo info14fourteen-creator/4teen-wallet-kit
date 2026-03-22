@@ -1,14 +1,40 @@
-<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Basket -->
-  <path d="M40 80 H160 L140 140 H60 Z" fill="#FF6A00"/>
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
   
-  <!-- Handles -->
-  <path d="M70 80 L95 50" stroke="#FF6A00" stroke-width="6" stroke-linecap="round"/>
-  <path d="M130 80 L105 50" stroke="#FF6A00" stroke-width="6" stroke-linecap="round"/>
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="100" fill="#FF6A00"/>
 
-  <!-- BTC circle -->
-  <circle cx="120" cy="140" r="30" fill="#FF6A00"/>
+  <!-- Basket body -->
+  <path d="M70 110 H186 L168 170 Q164 180 150 180 H106 Q92 180 88 170 Z"
+        fill="white"/>
+
+  <!-- Basket top line -->
+  <path d="M65 110 H191"
+        stroke="white"
+        stroke-width="6"
+        stroke-linecap="round"/>
+
+  <!-- Handles -->
+  <path d="M95 110 L120 70"
+        stroke="white"
+        stroke-width="6"
+        stroke-linecap="round"/>
+
+  <path d="M161 110 L136 70"
+        stroke="white"
+        stroke-width="6"
+        stroke-linecap="round"/>
+
+  <!-- BTC coin -->
+  <circle cx="165" cy="165" r="32" fill="#FF6A00" stroke="white" stroke-width="6"/>
 
   <!-- BTC symbol -->
-  <text x="120" y="150" text-anchor="middle" font-size="28" fill="white" font-family="Arial, sans-serif">₿</text>
+  <text x="165" y="175"
+        text-anchor="middle"
+        font-size="28"
+        font-weight="bold"
+        fill="white"
+        font-family="Inter, Arial, sans-serif">
+    ₿
+  </text>
+
 </svg>
