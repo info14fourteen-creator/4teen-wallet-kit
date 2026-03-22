@@ -59,6 +59,7 @@ import { mountDirectBuy } from './widgets/directBuy/index.js';
 import { mountUnlockTimeline } from './widgets/unlockTimeline/index.js';
 import { mountLiquidityController } from './widgets/liquidityController/index.js';
 import { mountSwap } from './widgets/swap/index.js';
+import { mountMobileShell } from './widgets/mobileShell/index.js';
 
 
 // ==========================
@@ -368,7 +369,8 @@ export {
   mountDirectBuy,
   mountUnlockTimeline,
   mountLiquidityController,
-  mountSwap
+  mountSwap,
+  mountMobileShell
 };
 
 // notices
@@ -386,7 +388,7 @@ export { createWalletAdapters };
 // balances
 export { refreshAllBalances };
 
-// diagnostics (single clean export)
+// diagnostics
 export {
   collectWalletDiagnostics,
   runWalletDiagnostics,
@@ -395,4 +397,3 @@ export {
   assertWalletSigning,
   printWalletSigningDiagnostics
 };
-export { mountMobileShell } from './widgets/mobileShell/index.js';
