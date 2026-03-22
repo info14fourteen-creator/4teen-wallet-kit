@@ -387,10 +387,11 @@
 }
 
 .fw-wallet-mobile__icon {
-  width: 15px;
-  height: 15px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
   display: block;
+  flex: 0 0 auto;
 }
 
 .fw-wallet-mobile__text {
@@ -403,7 +404,7 @@
   line-height: 1.1;
   font-weight: 800;
   letter-spacing: 0.01em;
-  color: var(--fw-graphite);
+  color: var(--fw-white);
 }
 
 .fw-wallet-mobile__text--animate {
@@ -472,7 +473,13 @@
     height: 52px;
   }
 
+  .fw-wallet-mobile__icon {
+    width: 26px;
+    height: 26px;
+  }
+
   .fw-wallet-mobile__text {
     font-size: 9px;
+    color: var(--fw-white);
   }
 }
