@@ -12,7 +12,6 @@
   --fw-radius-sm: 8px;
   --fw-border: 1px solid rgba(255, 255, 255, 0.08);
 
-  /* Reserved width for balance text to prevent button width jumping */
   --fw-balance-slot-standard: 12ch;
   --fw-balance-slot-compact: 11ch;
   --fw-balance-slot-hero: 13ch;
@@ -87,7 +86,7 @@
   gap: 8px;
   flex: 0 0 auto;
   justify-content: flex-end;
-  min-width: calc(var(--fw-balance-slot-standard) + 24px);
+  width: calc(var(--fw-balance-slot-standard) + 24px);
 }
 
 .fw-wallet-button--idle .fw-wallet-button__label {
@@ -163,7 +162,8 @@
   align-items: center;
   justify-content: flex-end;
   gap: 5px;
-  min-width: var(--fw-balance-slot-standard);
+  width: var(--fw-balance-slot-standard);
+  overflow: hidden;
   font-size: 12px;
   font-weight: 700;
   color: var(--fw-light);
@@ -203,6 +203,11 @@
 }
 
 .fw-wallet-button__balance-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+  text-align: right;
   color: var(--fw-white);
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -294,11 +299,11 @@
 }
 
 .fw-wallet-button--compact .fw-wallet-button__right {
-  min-width: calc(var(--fw-balance-slot-compact) + 22px);
+  width: calc(var(--fw-balance-slot-compact) + 22px);
 }
 
 .fw-wallet-button--compact .fw-wallet-button__balance {
-  min-width: var(--fw-balance-slot-compact);
+  width: var(--fw-balance-slot-compact);
 }
 
 .fw-wallet-button--standard {
@@ -323,11 +328,11 @@
 }
 
 .fw-wallet-button--hero .fw-wallet-button__right {
-  min-width: calc(var(--fw-balance-slot-hero) + 26px);
+  width: calc(var(--fw-balance-slot-hero) + 26px);
 }
 
 .fw-wallet-button--hero .fw-wallet-button__balance {
-  min-width: var(--fw-balance-slot-hero);
+  width: var(--fw-balance-slot-hero);
 }
 
 /* mobile button */
@@ -477,12 +482,12 @@
   }
 
   .fw-wallet-button__balance {
-    min-width: var(--fw-balance-slot-standard);
+    width: var(--fw-balance-slot-standard);
     font-size: 11px;
   }
 
   .fw-wallet-button__right {
-    min-width: calc(var(--fw-balance-slot-standard) + 22px);
+    width: calc(var(--fw-balance-slot-standard) + 22px);
   }
 
   .fw-wallet-button__icon {
@@ -504,7 +509,6 @@
     transform: translateX(-50%);
   }
 
-  /* Important: compact desktop-style button on mobile should open dropdown downward */
   .fw-wallet-root:has(.fw-wallet-button--compact) .fw-wallet-dropdown {
     top: calc(100% + 8px);
     bottom: auto;
@@ -514,11 +518,11 @@
   }
 
   .fw-wallet-button--compact .fw-wallet-button__balance {
-    min-width: var(--fw-balance-slot-compact);
+    width: var(--fw-balance-slot-compact);
   }
 
   .fw-wallet-button--compact .fw-wallet-button__right {
-    min-width: calc(var(--fw-balance-slot-compact) + 20px);
+    width: calc(var(--fw-balance-slot-compact) + 20px);
   }
 
   .fw-wallet-mobile__circle {
