@@ -34,8 +34,42 @@ function unlockBodyScroll() {
   document.body.classList.remove('mobile-shell-lock');
 }
 
-function isExternalLink(href = '') {
+function normalizeUrl(input = '') {
+  try {
+    const url = new URL(input, window.location.origin);
+    return `${url.origin}${url.pathname}`.replace(/\/+$/, '') || url.origin;
+  } catch {
+    return String(input).replace(/\/+$/, '');
+  }
+}
+
+function getCurrentComparableUrl() {
+  return normalizeUrl(window.location.href);
+}
+
+function isActiveHref(href = '') {
+  const current = getCurrentComparableUrl();
+
+  if (href.startsWith('tel:') || href.startsWith('mailto:')) {
+    return false;
+  }
+
+  return normalizeUrl(href) === current;
+}
+
+function isExternalHttpLink(href = '') {
   return /^https?:\/\//i.test(href);
+}
+
+function shouldOpenInNewTab(href = '') {
+  if (href.startsWith('tel:') || href.startsWith('mailto:')) return false;
+
+  try {
+    const url = new URL(href, window.location.origin);
+    return url.origin !== window.location.origin;
+  } catch {
+    return false;
+  }
 }
 
 function buildMenuLinks(items = []) {
@@ -47,11 +81,55 @@ function buildMenuLinks(items = []) {
     a.className = 'ms-menu-link';
     a.href = item.href || '#';
     a.textContent = item.label || 'link';
+    a.dataset.id = item.id || '';
 
-    if (isExternalLink(item.href)) {
+    if (isActiveHref(item.href)) {
+      a.classList.add('is-active');
+      a.setAttribute('aria-current', 'page');
+    }
+
+    if (shouldOpenInNewTab(item.href)) {
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
     }
+
+    nav.appendChild(a);
+  });
+
+  return nav;
+}
+
+function buildSocialMenu(items = []) {
+  const nav = createElement('nav', 'ms-social-menu-nav');
+  nav.setAttribute('aria-label', 'Social links');
+
+  items.forEach((item) => {
+    const a = document.createElement('a');
+    a.className = 'ms-social-menu-link';
+    a.href = item.href || '#';
+    a.dataset.id = item.id || '';
+    a.setAttribute('aria-label', item.alt || item.shortName || item.id || 'social');
+
+    if (isActiveHref(item.href)) {
+      a.classList.add('is-active');
+      a.setAttribute('aria-current', 'page');
+    }
+
+    if (isExternalHttpLink(item.href)) {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    }
+
+    a.innerHTML = `
+      <span class="ms-social-menu-link-icon-wrap">
+        <img
+          class="ms-social-menu-link-icon"
+          src="${item.icon || ''}"
+          alt="${item.alt || item.shortName || item.id || 'social'}"
+        >
+      </span>
+      <span class="ms-social-menu-link-label">${item.shortName || item.alt || item.id || 'social'}</span>
+    `;
 
     nav.appendChild(a);
   });
@@ -68,7 +146,12 @@ function buildBottomNav(items = []) {
     a.href = item.href || '#';
     a.dataset.id = item.id || '';
 
-    if (isExternalLink(item.href)) {
+    if (isActiveHref(item.href)) {
+      a.classList.add('is-active');
+      a.setAttribute('aria-current', 'page');
+    }
+
+    if (shouldOpenInNewTab(item.href)) {
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
     }
@@ -86,33 +169,19 @@ function buildBottomNav(items = []) {
   return wrap;
 }
 
-function buildSocials(items = []) {
-  const wrap = createElement('div', 'ms-socials');
-  const track = createElement('div', 'ms-socials-track');
-  wrap.appendChild(track);
+function buildRotatingSocialButton(items = []) {
+  const button = createElement('button', 'ms-social-toggle', '');
+  button.type = 'button';
+  button.setAttribute('aria-label', 'Open social links');
 
-  items.forEach((item, index) => {
-    const a = document.createElement('a');
-    a.className = 'ms-social-link';
-    a.href = item.href || '#';
-    a.setAttribute('aria-label', item.alt || item.id || `social-${index}`);
-    a.dataset.index = String(index);
+  const circle = createElement('span', 'ms-social-toggle-circle');
+  const icon = document.createElement('img');
+  icon.className = 'ms-social-toggle-icon';
+  icon.alt = 'Social';
+  circle.appendChild(icon);
+  button.appendChild(circle);
 
-    if (isExternalLink(item.href)) {
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-    }
-
-    a.innerHTML = `
-      <span class="ms-social-circle">
-        <img class="ms-social-icon" src="${item.icon || ''}" alt="${item.alt || item.id || 'social'}">
-      </span>
-    `;
-
-    track.appendChild(a);
-  });
-
-  return { wrap, track };
+  return { button, icon, items };
 }
 
 export function createMobileShell(options = {}) {
@@ -127,7 +196,7 @@ export function createMobileShell(options = {}) {
 
   const root = createElement('div', 'mobile-shell');
   root.innerHTML = `
-    <div class="ms-overlay" data-open="false"></div>
+    <div class="ms-overlay"></div>
 
     <header class="ms-topbar">
       <button class="ms-burger" type="button" aria-label="Open menu" aria-expanded="false">
@@ -138,14 +207,18 @@ export function createMobileShell(options = {}) {
 
       <div class="ms-brand">${brandText}</div>
 
-      <button class="ms-top-action" type="button" aria-label="${connectText}">
-        ${connectText}
-      </button>
+      <div class="ms-top-actions"></div>
     </header>
 
     <aside class="ms-menu-panel" aria-hidden="true">
       <div class="ms-menu-inner">
         <div class="ms-menu-header">menu</div>
+      </div>
+    </aside>
+
+    <aside class="ms-social-panel" aria-hidden="true">
+      <div class="ms-social-panel-inner">
+        <div class="ms-menu-header">socials</div>
       </div>
     </aside>
 
@@ -162,42 +235,45 @@ export function createMobileShell(options = {}) {
 
   const overlay = root.querySelector('.ms-overlay');
   const burger = root.querySelector('.ms-burger');
+  const topActions = root.querySelector('.ms-top-actions');
   const menuPanel = root.querySelector('.ms-menu-panel');
+  const socialPanel = root.querySelector('.ms-social-panel');
   const menuInner = root.querySelector('.ms-menu-inner');
-  const topAction = root.querySelector('.ms-top-action');
+  const socialPanelInner = root.querySelector('.ms-social-panel-inner');
   const connectFab = root.querySelector('.ms-connect-fab');
   const bottomBar = root.querySelector('.ms-bottombar');
 
   const menuLinks = buildMenuLinks(menuItems);
+  const socialMenuLinks = buildSocialMenu(socials);
   const bottomNav = buildBottomNav(bottomNavItems);
-  const { wrap: socialsWrap, track: socialsTrack } = buildSocials(socials);
+  const rotatingSocialButton = buildRotatingSocialButton(socials);
 
   menuInner.appendChild(menuLinks);
-  menuInner.appendChild(socialsWrap);
+  socialPanelInner.appendChild(socialMenuLinks);
   bottomBar.appendChild(bottomNav);
+  topActions.appendChild(rotatingSocialButton.button);
 
-  let isOpen = false;
+  let activePanel = null;
   let socialIndex = 0;
   let socialTimer = null;
 
-  const socialNodes = Array.from(socialsTrack.querySelectorAll('.ms-social-link'));
-
-  function renderSocialRotation() {
-    socialNodes.forEach((node, index) => {
-      node.classList.toggle('is-active', index === socialIndex);
-    });
+  function updateRotatingSocialIcon() {
+    if (!socials.length) return;
+    const current = socials[socialIndex % socials.length];
+    rotatingSocialButton.icon.src = current.icon || '';
+    rotatingSocialButton.icon.alt = current.alt || current.shortName || 'Social';
   }
 
   function startSocialRotation() {
     stopSocialRotation();
 
-    if (!socialNodes.length) return;
+    if (!socials.length) return;
 
-    renderSocialRotation();
+    updateRotatingSocialIcon();
 
     socialTimer = window.setInterval(() => {
-      socialIndex = (socialIndex + 1) % socialNodes.length;
-      renderSocialRotation();
+      socialIndex = (socialIndex + 1) % socials.length;
+      updateRotatingSocialIcon();
     }, socialRotateMs);
   }
 
@@ -208,61 +284,79 @@ export function createMobileShell(options = {}) {
     }
   }
 
-  function openMenu() {
-    isOpen = true;
-    root.classList.add('is-open');
-    overlay.dataset.open = 'true';
-    burger.setAttribute('aria-expanded', 'true');
-    menuPanel.setAttribute('aria-hidden', 'false');
-    lockBodyScroll();
-  }
+  function setPanelState(panelName) {
+    activePanel = panelName;
 
-  function closeMenu() {
-    isOpen = false;
-    root.classList.remove('is-open');
-    overlay.dataset.open = 'false';
-    burger.setAttribute('aria-expanded', 'false');
-    menuPanel.setAttribute('aria-hidden', 'true');
-    unlockBodyScroll();
-  }
+    const menuOpen = panelName === 'menu';
+    const socialOpen = panelName === 'social';
 
-  function toggleMenu() {
-    if (isOpen) {
-      closeMenu();
+    root.classList.toggle('is-open', Boolean(panelName));
+    root.classList.toggle('is-menu-open', menuOpen);
+    root.classList.toggle('is-social-open', socialOpen);
+
+    burger.setAttribute('aria-expanded', menuOpen ? 'true' : 'false');
+    menuPanel.setAttribute('aria-hidden', menuOpen ? 'false' : 'true');
+    socialPanel.setAttribute('aria-hidden', socialOpen ? 'false' : 'true');
+
+    if (panelName) {
+      lockBodyScroll();
     } else {
-      openMenu();
+      unlockBodyScroll();
     }
   }
 
+  function openMenu() {
+    setPanelState('menu');
+  }
+
+  function openSocialMenu() {
+    setPanelState('social');
+  }
+
+  function closePanels() {
+    setPanelState(null);
+  }
+
+  function toggleMenu() {
+    if (activePanel === 'menu') {
+      closePanels();
+      return;
+    }
+    openMenu();
+  }
+
+  function toggleSocialMenu() {
+    if (activePanel === 'social') {
+      closePanels();
+      return;
+    }
+    openSocialMenu();
+  }
+
   burger.addEventListener('click', toggleMenu);
-  overlay.addEventListener('click', closeMenu);
+  rotatingSocialButton.button.addEventListener('click', toggleSocialMenu);
+  overlay.addEventListener('click', closePanels);
 
   menuLinks.querySelectorAll('a').forEach((link) => {
     link.addEventListener('click', () => {
-      closeMenu();
+      closePanels();
+    });
+  });
+
+  socialMenuLinks.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => {
+      closePanels();
     });
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && isOpen) {
-      closeMenu();
+    if (event.key === 'Escape' && activePanel) {
+      closePanels();
     }
   });
 
   if (typeof options.onConnectClick === 'function') {
-    topAction.addEventListener('click', options.onConnectClick);
     connectFab.addEventListener('click', options.onConnectClick);
-  }
-
-  if (typeof options.onMenuOpen === 'function') {
-    burger.addEventListener('click', () => {
-      if (!isOpen) return;
-      options.onMenuOpen();
-    });
-  }
-
-  if (typeof options.onMenuClose === 'function') {
-    overlay.addEventListener('click', options.onMenuClose);
   }
 
   target.appendChild(root);
@@ -270,9 +364,9 @@ export function createMobileShell(options = {}) {
 
   return {
     root,
-    open: openMenu,
-    close: closeMenu,
-    toggle: toggleMenu,
+    openMenu,
+    openSocialMenu,
+    close: closePanels,
     destroy() {
       stopSocialRotation();
       unlockBodyScroll();
