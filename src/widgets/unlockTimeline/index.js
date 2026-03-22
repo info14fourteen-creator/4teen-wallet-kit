@@ -414,6 +414,8 @@ export function mountUnlockTimeline(target, config = {}) {
     qsiToUsd: '—'
   };
 
+  let timelineEvents = [];
+
   function isAlive() {
     return !isDestroyed && document.body.contains(target);
   }
@@ -518,6 +520,8 @@ export function mountUnlockTimeline(target, config = {}) {
   }
 
   function renderEmptyHistory(message) {
+    timelineEvents = [];
+
     tableBodyEl.innerHTML = `
       <tr>
         <td colspan="4" class="fourteen-timeline-muted">${escapeHtml(message)}</td>
@@ -530,6 +534,8 @@ export function mountUnlockTimeline(target, config = {}) {
   }
 
   function renderHistory(events) {
+    timelineEvents = Array.isArray(events) ? events.slice() : [];
+
     const now = Date.now();
 
     tableBodyEl.innerHTML = events.map((event) => {
@@ -586,12 +592,26 @@ export function mountUnlockTimeline(target, config = {}) {
     }).join('');
   }
 
+  function recomputeLockedFromTimeline() {
+    const now = Date.now();
+    const locked = timelineEvents.reduce((sum, event) => {
+      if (Number(event.unlockMs) > now) {
+        return sum + Number(event.amount || 0);
+      }
+      return sum;
+    }, 0);
+
+    balances.locked = Number(locked.toFixed(6));
+    balances.available = Math.max(0, Number((balances.total - balances.locked).toFixed(6)));
+  }
+
   function startCountdownUpdater() {
     stopCountdown();
 
     countdownInterval = setInterval(() => {
       const now = Date.now();
       const nodes = Array.from(target.querySelectorAll('[data-unlock]'));
+      let changed = false;
 
       nodes.forEach((node) => {
         const unlockMs = Number(node.getAttribute('data-unlock') || 0);
@@ -600,11 +620,18 @@ export function mountUnlockTimeline(target, config = {}) {
 
         if (!countdownEl || !statusElLocal) return;
 
-        if (unlockMs <= now) {
+        const isUnlockedNow = unlockMs <= now;
+        const wasUnlocked = statusElLocal.classList.contains('unlocked');
+
+        if (isUnlockedNow) {
           countdownEl.textContent = '00:00:00';
           statusElLocal.textContent = 'Unlocked';
           statusElLocal.classList.add('unlocked');
           statusElLocal.classList.remove('locked');
+
+          if (!wasUnlocked) {
+            changed = true;
+          }
         } else {
           countdownEl.textContent = formatRemaining(unlockMs - now);
           statusElLocal.textContent = 'Locked';
@@ -612,6 +639,11 @@ export function mountUnlockTimeline(target, config = {}) {
           statusElLocal.classList.remove('unlocked');
         }
       });
+
+      if (changed) {
+        recomputeLockedFromTimeline();
+        renderDetails();
+      }
     }, 1000);
   }
 
@@ -692,27 +724,8 @@ export function mountUnlockTimeline(target, config = {}) {
       decimals
     );
 
-    let locked = 0;
-
-    try {
-      locked = await readContractUint256(
-        userAddress,
-        contractAddress,
-        'lockedBalanceOf',
-        decimals
-      );
-    } catch (error) {
-      console.error('[4TEEN] unlockTimeline lockedBalanceOf read failed', error);
-      locked = 0;
-    }
-
-    const available = Math.max(0, Number((total - locked).toFixed(6)));
-
-    balances = {
-      total,
-      locked,
-      available
-    };
+    balances.total = total;
+    recomputeLockedFromTimeline();
   }
 
   async function fetchSwapRate(amount = 1) {
@@ -763,6 +776,7 @@ export function mountUnlockTimeline(target, config = {}) {
 
     if (!data || !Array.isArray(data.data) || data.data.length === 0) {
       renderEmptyHistory('No unlock events found.');
+      recomputeLockedFromTimeline();
       return;
     }
 
@@ -779,6 +793,7 @@ export function mountUnlockTimeline(target, config = {}) {
 
     if (!filtered.length) {
       renderEmptyHistory('No matching unlock events found.');
+      recomputeLockedFromTimeline();
       return;
     }
 
@@ -800,6 +815,7 @@ export function mountUnlockTimeline(target, config = {}) {
     });
 
     renderHistory(mapped);
+    recomputeLockedFromTimeline();
     startCountdownUpdater();
   }
 
@@ -836,6 +852,7 @@ export function mountUnlockTimeline(target, config = {}) {
       updateWalletLabel();
       balances = { total: 0, locked: 0, available: 0 };
       rates = { qsiToTrx: '—', qsiToUsd: '—' };
+      timelineEvents = [];
       availableEl.textContent = '— 4TEEN';
       rateEl.textContent = '— TRX';
       renderPlaceholder();
@@ -850,10 +867,32 @@ export function mountUnlockTimeline(target, config = {}) {
     updateWalletLabel();
 
     try {
+      await getFilteredContractEvents();
+      setStatus('');
+    } catch (error) {
+      console.error('[4TEEN] unlockTimeline events failed', error);
+
+      if (String(error?.message || '').includes('429')) {
+        setStatus('Unlock events are temporarily rate-limited. Please try again in a few moments.', true);
+      } else {
+        setStatus('Could not load unlock events right now.', true);
+      }
+
+      renderEmptyHistory('Unlock events are temporarily unavailable.');
+      timelineEvents = [];
+      balances.locked = 0;
+    }
+
+    try {
       await getBalances();
     } catch (error) {
       console.error('[4TEEN] unlockTimeline getBalances failed', error);
-      balances = { total: 0, locked: 0, available: 0 };
+      balances = {
+        total: 0,
+        locked: Number(balances.locked || 0),
+        available: 0
+      };
+      balances.available = Math.max(0, Number((balances.total - balances.locked).toFixed(6)));
     }
 
     try {
@@ -876,22 +915,6 @@ export function mountUnlockTimeline(target, config = {}) {
     }
 
     renderDetails();
-
-    try {
-      await getFilteredContractEvents();
-      setStatus('');
-    } catch (error) {
-      console.error('[4TEEN] unlockTimeline events failed', error);
-
-      if (String(error?.message || '').includes('429')) {
-        setStatus('Unlock events are temporarily rate-limited. Please try again in a few moments.', true);
-      } else {
-        setStatus('Could not load unlock events right now.', true);
-      }
-
-      renderEmptyHistory('Unlock events are temporarily unavailable.');
-    }
-
     startBalanceRefresh();
   }
 
