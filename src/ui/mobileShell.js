@@ -1,3 +1,5 @@
+// src/ui/mobileShell.js
+
 import './mobileShell.css';
 import {
   MOBILE_MENU_LINKS,
