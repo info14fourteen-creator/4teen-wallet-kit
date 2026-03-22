@@ -35,7 +35,9 @@ body.mobile-shell-lock {
 .ms-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.9);
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 106, 0, 0.08), transparent 26%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.94) 0%, rgba(0, 0, 0, 0.985) 100%);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -75,8 +77,9 @@ body.mobile-shell-lock {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(26, 28, 34, 0.96) 0%, rgba(24, 27, 34, 0.92) 100%);
+    linear-gradient(180deg, rgba(18, 20, 25, 0.96) 0%, rgba(12, 14, 18, 0.92) 100%);
   backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   z-index: -1;
 }
 
@@ -166,6 +169,16 @@ body.mobile-shell-lock {
   box-shadow:
     inset 0 0 0 1px rgba(255,255,255,0.04),
     0 4px 14px rgba(0,0,0,0.18);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.ms-social-toggle:hover,
+.ms-social-toggle:active {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.09);
 }
 
 .ms-social-toggle-circle {
@@ -174,7 +187,7 @@ body.mobile-shell-lock {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .ms-social-toggle-icon {
@@ -207,7 +220,7 @@ body.mobile-shell-lock {
   top: calc(var(--ms-top-h) + var(--ms-safe-top) + 2px);
   left: 0;
   right: 0;
-  bottom: calc(var(--ms-bottom-h) + var(--ms-safe-bottom) + 8px);
+  bottom: 0;
   z-index: var(--ms-z-panel);
   opacity: 0;
   visibility: hidden;
@@ -231,7 +244,21 @@ body.mobile-shell-lock {
 .ms-social-panel-inner {
   height: 100%;
   overflow: auto;
-  padding: 20px 22px 24px;
+  padding: 18px 18px calc(var(--ms-bottom-h) + var(--ms-safe-bottom) + 28px);
+  background:
+    linear-gradient(180deg, rgba(10, 11, 14, 0.98) 0%, rgba(4, 4, 6, 0.995) 100%);
+}
+
+.ms-menu-shell {
+  min-height: 100%;
+  padding: 18px;
+  border-radius: 28px 28px 0 0;
+  background:
+    radial-gradient(circle at top left, rgba(255, 106, 0, 0.09), transparent 28%),
+    linear-gradient(180deg, rgba(18, 19, 24, 0.96) 0%, rgba(8, 9, 12, 0.985) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.04),
+    0 18px 40px rgba(0,0,0,0.22);
 }
 
 .ms-menu-header {
@@ -240,7 +267,14 @@ body.mobile-shell-lock {
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
+}
+
+.ms-menu-copy {
+  color: var(--ms-text-soft);
+  font-size: 14px;
+  line-height: 1.45;
+  margin-bottom: 22px;
 }
 
 /* =========================
@@ -250,31 +284,54 @@ body.mobile-shell-lock {
 .ms-menu-nav {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .ms-menu-link {
-  width: fit-content;
+  width: 100%;
   text-decoration: none;
   color: var(--ms-text);
-  font-size: clamp(28px, 5.8vw, 40px);
+  font-size: clamp(24px, 5.2vw, 34px);
   line-height: 1;
   font-weight: 800;
   letter-spacing: -0.03em;
+  padding: 18px 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
   transition:
     color 180ms ease,
     transform 180ms ease,
-    opacity 180ms ease;
+    opacity 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+  animation: ms-rise-in 320ms ease both;
+  animation-delay: calc(var(--ms-menu-index, 0) * 36ms);
 }
 
 .ms-menu-link:hover,
 .ms-menu-link:active {
   color: var(--ms-accent);
   transform: translateX(6px);
+  background: rgba(255, 106, 0, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255,106,0,0.16);
 }
 
 .ms-menu-link.is-active {
   color: var(--ms-accent);
+  background: rgba(255, 106, 0, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255,106,0,0.22);
+}
+
+@keyframes ms-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* =========================
@@ -291,8 +348,8 @@ body.mobile-shell-lock {
   display: flex;
   align-items: center;
   gap: 14px;
-  min-height: 58px;
-  padding: 10px 12px;
+  min-height: 62px;
+  padding: 12px 14px;
   border-radius: 18px;
   text-decoration: none;
   color: var(--ms-text);
@@ -302,6 +359,8 @@ body.mobile-shell-lock {
     transform 180ms ease,
     background 180ms ease,
     box-shadow 180ms ease;
+  animation: ms-rise-in 320ms ease both;
+  animation-delay: calc(var(--ms-social-index, 0) * 32ms);
 }
 
 .ms-social-menu-link:hover,
@@ -312,13 +371,13 @@ body.mobile-shell-lock {
 }
 
 .ms-social-menu-link-icon-wrap {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .ms-social-menu-link-icon {
@@ -350,6 +409,13 @@ body.mobile-shell-lock {
     12px
     calc(12px + var(--ms-safe-bottom));
   z-index: var(--ms-z-bars);
+  pointer-events: none;
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.mobile-shell.is-open .ms-bottombar {
+  opacity: 0;
+  transform: translateY(16px);
   pointer-events: none;
 }
 
@@ -396,6 +462,81 @@ body.mobile-shell-lock {
   transform: translateX(-50%);
   bottom: calc(16px + var(--ms-safe-bottom));
   z-index: var(--ms-z-center);
+}
+
+/* =========================
+   BOTTOM NAV BUTTONS
+========================= */
+
+.ms-bottom-links-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.ms-bottom-link {
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 6px 8px;
+  border-radius: 18px;
+  text-decoration: none;
+  color: var(--ms-text);
+  background:
+    linear-gradient(180deg, rgba(12, 12, 14, 0.96) 0%, rgba(5, 5, 7, 0.98) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,106,0,0.18),
+    0 8px 20px rgba(0,0,0,0.18);
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ms-bottom-link:hover,
+.ms-bottom-link:active {
+  transform: translateY(-1px);
+  background:
+    linear-gradient(180deg, rgba(20, 20, 24, 0.98) 0%, rgba(8, 8, 12, 0.995) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,106,0,0.34),
+    0 12px 28px rgba(0,0,0,0.24);
+}
+
+.ms-bottom-link.is-active {
+  box-shadow:
+    inset 0 0 0 1px rgba(255,106,0,0.5),
+    0 12px 26px rgba(255,106,0,0.14);
+}
+
+.ms-bottom-link-icon-wrap {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.ms-bottom-link-icon {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  display: block;
+}
+
+.ms-bottom-link-label {
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.15;
+  font-weight: 700;
+  color: var(--ms-text);
+  opacity: 0.95;
 }
 
 /* =========================
@@ -459,11 +600,26 @@ body.mobile-shell-lock {
   }
 
   .ms-menu-link {
-    font-size: clamp(24px, 5.6vw, 34px);
+    font-size: clamp(22px, 5.4vw, 30px);
+    padding: 16px 16px;
   }
 
   .ms-social-menu-link-label {
     font-size: 17px;
+  }
+
+  .ms-bottom-link {
+    min-height: 78px;
+    border-radius: 16px;
+  }
+
+  .ms-bottom-link-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .ms-bottom-link-label {
+    font-size: 10px;
   }
 }
 
