@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-03-22T15:08:50.769Z",
+  "generatedAt": "2026-03-22T15:18:50.449Z",
   "repository": "info14fourteen-creator/4teen-wallet-kit",
   "branch": "main",
-  "totalFiles": 135,
+  "totalFiles": 136,
   "bundleUrl": "https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/ai-project-bundle.txt",
   "mapUrl": "https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/ai-project-map.txt",
   "rulesUrl": "https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/WORKING_RULES.md",
@@ -104,6 +104,7 @@
     "src/ui/noticeCenter.css",
     "src/ui/noticeCenter.js",
     "src/ui/src/assets/menu/buy_menu.svg",
+    "src/ui/src/assets/menu/iquidity_menu.svg",
     "src/ui/src/assets/menu/swap_menu.svg",
     "src/ui/src/assets/menu/unlock_menu.svg",
     "src/ui/wallet/openWalletPicker.js",
