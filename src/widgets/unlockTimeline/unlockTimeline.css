@@ -29,6 +29,10 @@
   box-shadow: none;
 }
 
+/* -------------------------------------------------------
+   HERO / HEADER
+------------------------------------------------------- */
+
 .fourteen-timeline-hero {
   position: relative;
   display: flex;
@@ -59,9 +63,14 @@
   min-width: 0;
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .fourteen-timeline-hero__title {
+  position: relative;
+  z-index: 1;
   margin: 0;
   font-size: 42px;
   font-weight: 900;
@@ -92,7 +101,7 @@
   gap: 10px;
   flex: 0 0 auto;
   position: relative;
-  z-index: 1;
+  z-index: 3;
 }
 
 .fourteen-timeline-badge {
@@ -150,7 +159,7 @@
   background: rgba(15, 15, 15, 0.98);
   border: 1px solid var(--fourteen-timeline-border);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
-  z-index: 40;
+  z-index: 999;
   backdrop-filter: blur(14px);
 }
 
@@ -167,6 +176,10 @@
   line-height: 1.55;
   color: var(--fourteen-timeline-text-soft);
 }
+
+/* -------------------------------------------------------
+   TOPBAR / CONNECT
+------------------------------------------------------- */
 
 .fourteen-timeline-topbar {
   display: flex;
@@ -212,7 +225,7 @@
 }
 
 .fourteen-timeline-connect-slot {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .fourteen-timeline-connect-slot__desktop {
@@ -241,6 +254,10 @@
   text-align: center;
 }
 
+/* -------------------------------------------------------
+   SUMMARY / DETAILS
+------------------------------------------------------- */
+
 .fourteen-timeline-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -249,20 +266,22 @@
 }
 
 .fourteen-timeline-summary-card {
+  border: 1px solid var(--fourteen-timeline-border);
+  border-radius: 14px;
+  padding: 12px 14px;
   background: linear-gradient(
     180deg,
     rgba(30, 30, 30, 0.98) 0%,
     rgba(18, 18, 18, 0.98) 100%
   );
-  border: 1px solid var(--fourteen-timeline-border);
-  border-radius: 14px;
-  padding: 12px 14px;
+  box-shadow: none;
 }
 
 .fourteen-timeline-summary-label {
-  font-size: 11px;
-  color: var(--fourteen-timeline-text-faint);
   margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--fourteen-timeline-text-faint);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -271,6 +290,7 @@
   font-size: 16px;
   font-weight: 800;
   color: var(--fourteen-timeline-text);
+  line-height: 1.35;
   word-break: break-word;
 }
 
@@ -295,20 +315,21 @@
 }
 
 .fourteen-timeline-info-card {
+  border: 1px solid var(--fourteen-timeline-border);
+  border-radius: 14px;
+  padding: 14px;
   background: linear-gradient(
     180deg,
     rgba(30, 30, 30, 0.98) 0%,
     rgba(18, 18, 18, 0.98) 100%
   );
-  border: 1px solid var(--fourteen-timeline-border);
-  border-radius: 14px;
-  padding: 14px;
 }
 
 .fourteen-timeline-info-label {
-  font-size: 11px;
-  color: var(--fourteen-timeline-text-faint);
   margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--fourteen-timeline-text-faint);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -339,6 +360,10 @@
 .fourteen-timeline-status {
   margin-top: 10px;
   min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   font-size: 11px;
   line-height: 1.45;
   color: var(--fourteen-timeline-text-soft);
@@ -347,6 +372,14 @@
 .fourteen-timeline-status[data-state="error"] {
   color: #ffd4db;
 }
+
+.fourteen-timeline-status[data-state="success"] {
+  color: rgba(170, 255, 189, 0.95);
+}
+
+/* -------------------------------------------------------
+   HISTORY
+------------------------------------------------------- */
 
 .fourteen-timeline-history {
   margin-top: 18px;
@@ -375,6 +408,7 @@
 .fourteen-timeline-history-subtitle {
   margin-top: 4px;
   font-size: 12px;
+  line-height: 1.45;
   color: var(--fourteen-timeline-text-soft);
 }
 
@@ -392,16 +426,17 @@
 
 .fourteen-timeline-table th,
 .fourteen-timeline-table td {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   padding: 12px 14px;
   text-align: left;
   white-space: nowrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   color: var(--fourteen-timeline-text);
 }
 
 .fourteen-timeline-table th {
   background: rgba(255, 255, 255, 0.01);
   font-size: 11px;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--fourteen-timeline-text-faint);
@@ -419,6 +454,7 @@
   color: #ffffff;
   text-decoration: none;
   font-weight: 700;
+  transition: color 0.18s ease;
 }
 
 .fourteen-timeline-link:hover {
@@ -449,6 +485,7 @@
 .fourteen-timeline-event-amount {
   font-size: 15px;
   font-weight: 800;
+  line-height: 1.35;
   color: var(--fourteen-timeline-text);
   text-decoration: none;
   word-break: break-word;
@@ -465,9 +502,10 @@
 }
 
 .fourteen-timeline-event-label {
-  font-size: 11px;
-  color: var(--fourteen-timeline-text-faint);
   margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--fourteen-timeline-text-faint);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -490,8 +528,8 @@
   align-items: center;
   justify-content: center;
   min-height: 24px;
-  border-radius: 999px;
   padding: 0 10px;
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -512,8 +550,13 @@
 .fourteen-timeline-muted {
   padding: 16px;
   font-size: 13px;
+  line-height: 1.5;
   color: var(--fourteen-timeline-text-soft);
 }
+
+/* -------------------------------------------------------
+   RESPONSIVE
+------------------------------------------------------- */
 
 @media (max-width: 860px) {
   .fourteen-timeline-details-grid {
@@ -522,6 +565,11 @@
 
   .fourteen-timeline-hero__title {
     font-size: 36px;
+  }
+
+  .fourteen-timeline-popover {
+    right: 0;
+    left: auto;
   }
 }
 
@@ -554,7 +602,7 @@
 
 @media (max-width: 560px) {
   .fourteen-timeline-hero {
-    align-items: center;
+    align-items: flex-start;
   }
 
   .fourteen-timeline-hero__title {
@@ -562,6 +610,7 @@
   }
 
   .fourteen-timeline-hero__subtitle {
+    margin-top: 7px;
     font-size: 11px;
   }
 
@@ -580,8 +629,25 @@
     width: min(320px, 94vw);
   }
 
+  .fourteen-timeline-connect-slot {
+    margin-bottom: 14px;
+  }
+
   .fourteen-timeline-connect-slot__mobile {
-    font-size: 11px;
     padding: 11px 12px;
+    font-size: 11px;
+  }
+
+  .fourteen-timeline-history-head {
+    padding: 13px 14px;
+  }
+
+  .fourteen-timeline-mobile-list {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .fourteen-timeline-event-card {
+    padding: 13px;
   }
 }
