@@ -276,7 +276,6 @@ export function mountDirectBuy(target, config = {}) {
     contractAddress,
     inputLabel,
     buttonBuyText,
-    title,
     subtitle,
     connectText,
     mobileConnectHint
@@ -355,7 +354,7 @@ export function mountDirectBuy(target, config = {}) {
         </div>
 
         <div class="fourteen-buy-topbar">
-          <div class="fourteen-buy-wallet-label" data-role="wallet-label">Wallet not connected</div>
+          <div class="fourteen-buy-wallet" data-role="wallet-label">Wallet not connected</div>
         </div>
 
         <div class="fourteen-buy-connect-slot">
