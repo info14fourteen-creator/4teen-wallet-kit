@@ -1,0 +1,428 @@
+/* src/ui/mobileShell.css */
+
+:root {
+  --ms-bg: #050505;
+  --ms-panel: rgba(14, 14, 16, 0.92);
+  --ms-panel-soft: rgba(255, 255, 255, 0.04);
+  --ms-line: rgba(255, 132, 0, 0.35);
+  --ms-text: #ffffff;
+  --ms-text-soft: rgba(255, 255, 255, 0.72);
+  --ms-text-dim: rgba(255, 255, 255, 0.48);
+  --ms-accent: #ff6a00;
+  --ms-accent-glow: rgba(255, 106, 0, 0.35);
+  --ms-radius: 22px;
+  --ms-top-h: 74px;
+  --ms-bottom-h: 114px;
+  --ms-center-size: 132px;
+  --ms-side-gap: 16px;
+  --ms-safe-top: env(safe-area-inset-top, 0px);
+  --ms-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ms-z-overlay: 1200;
+  --ms-z-menu: 1250;
+  --ms-z-bars: 1300;
+  --ms-z-fab: 1350;
+}
+
+html.mobile-shell-lock,
+body.mobile-shell-lock {
+  overflow: hidden;
+  touch-action: none;
+}
+
+.mobile-shell {
+  position: relative;
+  z-index: 1;
+}
+
+.ms-overlay {
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.97) 100%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 260ms ease,
+    visibility 260ms ease;
+  z-index: var(--ms-z-overlay);
+}
+
+.mobile-shell.is-open .ms-overlay {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.ms-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--ms-top-h) + var(--ms-safe-top));
+  padding:
+    calc(var(--ms-safe-top) + 10px)
+    var(--ms-side-gap)
+    10px;
+  display: grid;
+  grid-template-columns: 54px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  z-index: var(--ms-z-bars);
+  pointer-events: auto;
+}
+
+.ms-topbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(11, 14, 20, 0.88);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  z-index: -1;
+}
+
+.ms-burger,
+.ms-top-action {
+  appearance: none;
+  border: 0;
+  outline: none;
+  cursor: pointer;
+}
+
+.ms-burger {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.ms-burger-line {
+  position: absolute;
+  width: 22px;
+  height: 2px;
+  border-radius: 999px;
+  background: #ffffff;
+  transition:
+    transform 240ms ease,
+    opacity 180ms ease,
+    top 240ms ease;
+}
+
+.ms-burger-line:nth-child(1) {
+  top: 20px;
+}
+
+.ms-burger-line:nth-child(2) {
+  top: 26px;
+}
+
+.ms-burger-line:nth-child(3) {
+  top: 32px;
+}
+
+.mobile-shell.is-open .ms-burger-line:nth-child(1) {
+  top: 26px;
+  transform: rotate(45deg);
+}
+
+.mobile-shell.is-open .ms-burger-line:nth-child(2) {
+  opacity: 0;
+}
+
+.mobile-shell.is-open .ms-burger-line:nth-child(3) {
+  top: 26px;
+  transform: rotate(-45deg);
+}
+
+.ms-brand {
+  min-width: 0;
+  padding: 0 14px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ms-text);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-top-action {
+  min-width: 122px;
+  height: 54px;
+  padding: 0 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ff7a00 0%, #ff5a00 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 24px rgba(255, 106, 0, 0.25);
+}
+
+.ms-menu-panel {
+  position: fixed;
+  top: calc(var(--ms-top-h) + var(--ms-safe-top));
+  left: 0;
+  right: 0;
+  bottom: calc(var(--ms-bottom-h) + var(--ms-safe-bottom) + 22px);
+  z-index: var(--ms-z-menu);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(18px);
+  transition:
+    opacity 260ms ease,
+    visibility 260ms ease,
+    transform 260ms ease;
+}
+
+.mobile-shell.is-open .ms-menu-panel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.ms-menu-inner {
+  height: 100%;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.ms-menu-header {
+  color: rgba(255, 255, 255, 0.26);
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  font-size: 12px;
+  margin-bottom: 18px;
+}
+
+.ms-menu-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ms-menu-link {
+  color: var(--ms-text);
+  text-decoration: none;
+  font-size: clamp(26px, 5vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  width: fit-content;
+  transition:
+    color 180ms ease,
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+.ms-menu-link:hover,
+.ms-menu-link:active {
+  color: var(--ms-accent);
+  transform: translateX(6px);
+}
+
+.ms-socials {
+  margin-top: 34px;
+  min-height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-socials-track {
+  position: relative;
+  width: 96px;
+  height: 96px;
+}
+
+.ms-social-link {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: scale(0.82) rotate(-8deg);
+  transition:
+    opacity 260ms ease,
+    transform 260ms ease;
+  pointer-events: none;
+}
+
+.ms-social-link.is-active {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+  pointer-events: auto;
+}
+
+.ms-social-circle {
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  display: grid;
+  place-items: center;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 14px 28px rgba(0, 0, 0, 0.24);
+}
+
+.ms-social-icon {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.ms-connect-fab-wrap {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--ms-bottom-h) - 54px + var(--ms-safe-bottom));
+  transform: translateX(-50%);
+  z-index: var(--ms-z-fab);
+  pointer-events: none;
+}
+
+.ms-connect-fab {
+  width: var(--ms-center-size);
+  height: var(--ms-center-size);
+  border-radius: 999px;
+  border: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  background:
+    radial-gradient(circle at 50% 40%, #ff8b16 0%, #ff6a00 46%, #f45b00 100%);
+  box-shadow:
+    0 14px 34px rgba(255, 106, 0, 0.38),
+    0 0 0 1px rgba(255, 140, 40, 0.2);
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.ms-connect-fab-core {
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 35%, #2f2a24 0%, #1f1d1b 65%, #171513 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.06),
+    0 8px 24px rgba(0,0,0,0.35);
+  display: grid;
+  place-items: center;
+  padding: 10px;
+}
+
+.ms-connect-fab-text {
+  color: #ffffff;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-transform: lowercase;
+}
+
+.ms-bottombar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--ms-bottom-h) + var(--ms-safe-bottom));
+  padding:
+    0
+    10px
+    calc(10px + var(--ms-safe-bottom));
+  display: flex;
+  align-items: flex-end;
+  z-index: var(--ms-z-bars);
+  pointer-events: auto;
+}
+
+.ms-bottombar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(7, 8, 10, 0.96);
+  backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(255, 106, 0, 0.32);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.24);
+  z-index: -1;
+}
+
+.ms-bottom-nav-list {
+  width: 100%;
+  min-height: 92px;
+  display: grid;
+  grid-template-columns: 1fr 1fr var(--ms-center-size) 1fr 1fr;
+  align-items: center;
+}
+
+.ms-bottom-link {
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 92px;
+  color: var(--ms-text);
+}
+
+.ms-bottom-link:nth-child(1) {
+  grid-column: 1;
+}
+
+.ms-bottom-link:nth-child(2) {
+  grid-column: 2;
+}
+
+.ms-bottom-link:nth-child(3) {
+  grid-column: 4;
+}
+
+.ms-bottom-link:nth-child(4) {
+  grid-column: 5;
+}
+
+.ms-bottom-link-icon-wrap {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+}
+
+.ms-bottom-link-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.ms-bottom-link-label {
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.05;
+  font-weight: 500;
+  white-space: normal;
+}
+
+@media (min-width: 769px) {
+  .mobile-shell {
+    display: none;
+  }
+}
