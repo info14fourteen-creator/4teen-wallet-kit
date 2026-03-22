@@ -1,124 +1,323 @@
-# 4teen-wallet-kit
+# 4TEEN Wallet Kit
 
-Core wallet connectivity and balance-reading layer for the 4TEEN ecosystem on TRON.
+TRON-focused wallet runtime, services layer, and ready-to-use UI widgets for the 4TEEN ecosystem.
 
-This repository is designed as a reusable foundation for:
-- website integration
-- future Telegram Mini App integration
-- standalone widgets
-- buy / swap / liquidity / unlock / timeline modules
+## What this project is
 
-## Scope of v1
+4TEEN Wallet Kit is not just a wallet connector.
 
-Version 1 is focused on one thing:
+It is a modular frontend SDK that combines:
 
-**stable wallet connection on TRON with reliable balance reads immediately after connect**
+- multi-wallet adapter support
+- wallet drivers and registry
+- wallet runtime and session flow
+- balance and readonly services
+- diagnostics helpers
+- reusable UI components
+- product widgets such as swap, direct buy, liquidity control, and unlock timeline
 
-### Supported network
-- TRON Mainnet only
+## Project architecture
 
-### Supported token
-- 4TEEN: `TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A`
+The repository is split into several layers.
 
-### Planned wallets for v1
+### 1. Adapters
+
+Located in `src/adapters/`
+
+This layer contains:
+
+- wallet adapter creation
+- wallet priority rules
+- per-wallet drivers
+- driver registry
+- shared adapter utilities
+
+Structure:
+
+- `src/adapters/createAdapters.js`
+- `src/adapters/priority.js`
+- `src/adapters/drivers/*`
+- `src/adapters/registry/*`
+- `src/adapters/shared/*`
+
+Supported wallet drivers in the current structure:
+
 - TronLink
-- OKX Wallet
-- Binance Wallet
-- Trust Wallet
-- Bitget Wallet
+- OKX
+- Binance
 - TokenPocket
-- MetaMask (TRON-compatible flow)
-- WalletConnect fallback
+- Bitget
+- Trust
+- MetaMask
 - imToken
 - FoxWallet
+- WalletConnect
 
-## Main goals
+The adapter factory builds adapters with browser-aware ordering and WalletConnect metadata.
 
-After a wallet connection is established, the module must reliably provide:
-- connected address
-- TRX balance
-- 4TEEN token balance
-- normalized wallet state for external modules
+### 2. Core
 
-The kit is internally UI-agnostic, while also exposing a ready-to-use wallet button component for fast website integration.
+Located in `src/core/`
 
-## UX target
+This layer contains shared application-level primitives:
 
-### Initial state
-`CONNECT WALLET`
+- config
+- wallet store
+- address / format / tron utils
 
-### Connected state example
-`TJodT...zfwJ6 31.11 [TRX_ICON] 35.24 [4TEEN_ICON]`
+Structure:
 
-## Architecture
+- `src/core/config/*`
+- `src/core/store/walletStore.js`
+- `src/core/utils/*`
 
-The repository is split into the following layers:
+### 3. Wallet runtime
 
-- `core/` — constants, config, store, normalized wallet state
-- `adapters/` — wallet-specific drivers, browser detection, registry, provider resolution
-- `wallet/` — connect, disconnect, restore, runtime scheduling, session lifecycle
-- `services/` — TRX and token balance reads
-- `ui/` — wallet button, wallet picker, notices
-- `assets/` — wallet and token icons
-- `debug/` — debug overlay and wallet health inspection
-- `diagnostics/` — signing and connection diagnostics
-- `examples/` — plain website integration examples
+Located in `src/wallet/`
 
-## Design principles
+This is the runtime flow for wallet lifecycle management.
 
-1. Reown/AppKit handles modal and session UX where applicable.
-2. The internal wallet store is the single source of truth.
-3. A wallet is treated as fully connected only after:
-   - address is resolved
-   - TRX balance is resolved
-   - 4TEEN balance is resolved
-4. All downstream modules consume the same normalized wallet API.
-5. Wallet-specific quirks are handled inside drivers, not scattered across the app.
-6. The repository targets TRON Mainnet only.
-7. Testnet support is intentionally out of scope for this repository.
+It contains:
 
-## Connection model
+- wallet actions
+- wallet manager
+- runtime helpers
+- session finalization / failure logic
+- wallet service bootstrapping
 
-The kit is built around a driver-based architecture.
+Structure:
 
-Each wallet driver is responsible for:
-- resolving the correct provider
-- handling wallet-specific connect flow
-- waiting for address availability
-- binding provider / tronWeb state when needed
-- exposing signing readiness
-- subscribing to wallet events
+- `src/wallet/actions/*`
+- `src/wallet/core/walletManager.js`
+- `src/wallet/runtime/*`
+- `src/wallet/services/*`
+- `src/wallet/session/*`
 
-This keeps the external API stable while allowing wallet-specific behavior internally.
+### 4. Services
 
-## Connectivity contract
+Located in `src/services/`
 
-A wallet session is considered usable when the kit can provide:
-- wallet identity
-- resolved TRON address
-- provider / tronWeb binding
-- TRX balance
-- 4TEEN token balance
+This layer contains app-facing logic for:
 
-Signing readiness is tracked separately so that wallet-specific execution modules can decide when to require strict signing checks.
+- balances
+- readonly token data
+- TRC20 contract helpers
+- wallet connect / disconnect / init / restore flows
 
-## Public API target
+Structure:
 
-```ts
-initWalletKit(config)
-initFourteenConnect(config)
+- `src/services/balances/*`
+- `src/services/contracts/*`
+- `src/services/readonly/*`
+- `src/services/wallet/*`
 
-openWalletModal()
-connectWallet()
-disconnectWallet()
-restoreWalletSession()
+### 5. Diagnostics
 
-refreshWalletBalances()
-refreshAllBalances()
+Located in `src/diagnostics/`
 
-getWalletState()
-getWalletAddress()
-getTrxBalance()
-getFourteenBalance()
+This layer is responsible for wallet diagnostics and signing assertions.
 
-subscribeWalletState(listener)
+Structure:
+
+- `src/diagnostics/assertWalletSigning.js`
+- `src/diagnostics/walletDiagnostics.js`
+
+### 6. UI
+
+Located in `src/ui/`
+
+Reusable user interface primitives:
+
+- wallet button
+- wallet picker
+- wallet dropdown
+- notice center
+- wallet icons
+
+Structure:
+
+- `src/ui/wallet/*`
+- `src/ui/walletButton.js`
+- `src/ui/walletDropdown.js`
+- `src/ui/walletPicker.js`
+- `src/ui/noticeCenter.js`
+- `src/ui/icons.js`
+
+### 7. Widgets
+
+Located in `src/widgets/`
+
+This is the product/widget layer built on top of the wallet and services stack.
+
+Current widgets in the repository:
+
+- `src/widgets/directBuy/`
+- `src/widgets/liquidityController/`
+- `src/widgets/swap/`
+- `src/widgets/unlockTimeline/`
+
+These are not placeholder names in README terms — they are actual modules present in the project structure.
+
+## Current widgets
+
+### Direct Buy
+
+Located in `src/widgets/directBuy/`
+
+Contains:
+
+- `index.js`
+- `directBuy.css`
+
+### Liquidity Controller
+
+Located in `src/widgets/liquidityController/`
+
+Contains:
+
+- `index.js`
+- `liquidityController.css`
+
+### Swap
+
+Located in `src/widgets/swap/`
+
+Contains:
+
+- providers
+- quote services
+- execution service
+- constants
+- widget entry
+- styles
+
+Structure:
+
+- `src/widgets/swap/providers/justmoney.js`
+- `src/widgets/swap/providers/sunio.js`
+- `src/widgets/swap/services/quotes.js`
+- `src/widgets/swap/services/swapExecution.js`
+- `src/widgets/swap/constants.js`
+- `src/widgets/swap/index.js`
+- `src/widgets/swap/swap.css`
+
+### Unlock Timeline
+
+Located in `src/widgets/unlockTimeline/`
+
+Contains:
+
+- `index.js`
+- `unlockTimeline.css`
+
+## Wallet model
+
+The current codebase is built around a driver-based wallet architecture.
+
+Important parts:
+
+- adapter creation
+- wallet priority
+- driver registry
+- wallet runtime
+- session restore
+- diagnostics
+- balance refresh
+
+This means the project is not structured as a single connect button package.
+It is structured as a wallet-aware application kit.
+
+## Signing and diagnostics
+
+The repository includes explicit signing diagnostics and readiness logic.
+
+Relevant files:
+
+- `src/adapters/shared/signingReadiness.js`
+- `src/diagnostics/assertWalletSigning.js`
+- `src/diagnostics/walletDiagnostics.js`
+
+This is an important part of the system because the project needs to support real wallet flows, not only passive connection state.
+
+## Balance and readonly services
+
+The project includes dedicated balance and readonly data services.
+
+Balances:
+
+- `src/services/balances/getFourteenBalance.js`
+- `src/services/balances/getTokenBalance.js`
+- `src/services/balances/getTrxBalance.js`
+- `src/services/balances/refreshAllBalances.js`
+
+Readonly token data:
+
+- `src/services/readonly/getTokenContractData.js`
+- `src/services/readonly/getTokenDecimals.js`
+- `src/services/readonly/getTokenSymbol.js`
+- `src/services/readonly/getTokenTotalSupply.js`
+
+Contracts:
+
+- `src/services/contracts/trc20.js`
+
+## UI and product direction
+
+Based on the actual structure, 4TEEN Wallet Kit is closer to a frontend product SDK than to a minimal wallet connector.
+
+It currently includes:
+
+- wallet connectivity
+- wallet runtime
+- balances
+- readonly token helpers
+- diagnostics
+- reusable wallet UI
+- end-user widgets
+
+So the honest positioning is:
+
+> 4TEEN Wallet Kit is a TRON-focused frontend SDK that combines wallet infrastructure, app services, reusable UI, and product widgets for the 4TEEN ecosystem.
+
+## Project tree summary
+
+```text
+src/
+  adapters/
+    createAdapters.js
+    priority.js
+    drivers/
+    registry/
+    shared/
+  assets/
+  core/
+    config/
+    store/
+    utils/
+  debug/
+  diagnostics/
+  polyfills/
+  services/
+    balances/
+    contracts/
+    readonly/
+    wallet/
+  ui/
+    wallet/
+    icons.js
+    noticeCenter.js
+    walletButton.js
+    walletDropdown.js
+    walletPicker.js
+  wallet/
+    actions/
+    core/
+    runtime/
+    services/
+    session/
+  widgets/
+    directBuy/
+    liquidityController/
+    swap/
+    unlockTimeline/
+  index.js
