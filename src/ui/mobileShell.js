@@ -98,12 +98,13 @@ function buildMenuLinks(items = []) {
   const nav = createElement('nav', 'ms-menu-nav');
   nav.setAttribute('aria-label', 'Mobile menu');
 
-  items.forEach((item) => {
+  items.forEach((item, index) => {
     const a = document.createElement('a');
     a.className = 'ms-menu-link';
     a.href = item.href || '#';
     a.textContent = item.label || 'link';
     a.dataset.id = item.id || '';
+    a.style.setProperty('--ms-menu-index', String(index));
 
     if (isActiveHref(item.href || '')) {
       a.classList.add('is-active');
@@ -125,12 +126,13 @@ function buildSocialMenu(items = []) {
   const nav = createElement('nav', 'ms-social-menu-nav');
   nav.setAttribute('aria-label', 'Social links');
 
-  items.forEach((item) => {
+  items.forEach((item, index) => {
     const a = document.createElement('a');
     a.className = 'ms-social-menu-link';
     a.href = item.href || '#';
     a.dataset.id = item.id || '';
     a.setAttribute('aria-label', item.alt || item.shortName || item.id || 'social');
+    a.style.setProperty('--ms-social-index', String(index));
 
     if (isExternalHttpLink(item.href || '')) {
       a.target = '_blank';
@@ -182,6 +184,7 @@ function buildBottomLink(item = {}) {
   a.className = 'ms-bottom-link';
   a.href = item.href || '#';
   a.dataset.id = item.id || '';
+  a.setAttribute('aria-label', item.label || item.id || 'navigation item');
 
   if (isActiveHref(item.href || '')) {
     a.classList.add('is-active');
@@ -261,13 +264,19 @@ export function createMobileShell(options = {}) {
 
     <aside class="ms-menu-panel" aria-hidden="true">
       <div class="ms-menu-inner">
-        <div class="ms-menu-header">${brandText}</div>
+        <div class="ms-menu-shell">
+          <div class="ms-menu-header">${brandText}</div>
+          <div class="ms-menu-copy">Navigate the 4TEEN ecosystem</div>
+        </div>
       </div>
     </aside>
 
     <aside class="ms-social-panel" aria-hidden="true">
       <div class="ms-social-panel-inner">
-        <div class="ms-menu-header">socials</div>
+        <div class="ms-menu-shell">
+          <div class="ms-menu-header">socials</div>
+          <div class="ms-menu-copy">Official 4TEEN community channels</div>
+        </div>
       </div>
     </aside>
 
@@ -283,8 +292,8 @@ export function createMobileShell(options = {}) {
   const topActions = root.querySelector('.ms-top-actions');
   const menuPanel = root.querySelector('.ms-menu-panel');
   const socialPanel = root.querySelector('.ms-social-panel');
-  const menuInner = root.querySelector('.ms-menu-inner');
-  const socialPanelInner = root.querySelector('.ms-social-panel-inner');
+  const menuShell = root.querySelector('.ms-menu-panel .ms-menu-shell');
+  const socialShell = root.querySelector('.ms-social-panel .ms-menu-shell');
   const bottomLeft = root.querySelector('.ms-bottom-left');
   const bottomCenter = root.querySelector('.ms-bottom-center');
   const bottomRight = root.querySelector('.ms-bottom-right');
@@ -296,8 +305,8 @@ export function createMobileShell(options = {}) {
   const bottomWalletSlot = buildWalletSlot('mobile');
   const bottomGroups = buildBottomGroups(bottomNavItems);
 
-  menuInner.appendChild(menuLinks);
-  socialPanelInner.appendChild(socialMenuLinks);
+  menuShell.appendChild(menuLinks);
+  socialShell.appendChild(socialMenuLinks);
 
   topActions.appendChild(rotatingSocialButton.button);
   topActions.appendChild(topWalletSlot);
@@ -418,6 +427,14 @@ export function createMobileShell(options = {}) {
   });
 
   socialMenuLinks.querySelectorAll('a').forEach((link) => {
+    on(link, 'click', closePanels);
+  });
+
+  bottomLeft.querySelectorAll('a').forEach((link) => {
+    on(link, 'click', closePanels);
+  });
+
+  bottomRight.querySelectorAll('a').forEach((link) => {
     on(link, 'click', closePanels);
   });
 
