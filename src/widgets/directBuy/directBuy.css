@@ -29,19 +29,89 @@
   box-shadow: none;
 }
 
+/* -------------------------------------------------------
+   HERO / HEADER
+------------------------------------------------------- */
+
+.fourteen-buy-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 14px 0 12px 0;
+  overflow: visible;
+}
+
+.fourteen-buy-hero__bg {
+  position: absolute;
+  left: -14px;
+  top: -18px;
+  width: 60px;
+  height: 60px;
+  background-image: url('../../assets/text_bg.svg');
+  background-position: left top;
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 1;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.fourteen-buy-hero__text,
+.fourteen-buy-heading__text {
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fourteen-buy-hero__title {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  line-height: 0.95;
+  color: #ffffff;
+}
+
+.fourteen-buy-hero__title span {
+  color: #ff6900;
+  text-shadow: 0 0 14px rgba(255, 105, 0, 0.28);
+}
+
+.fourteen-buy-hero__subtitle {
+  position: relative;
+  z-index: 1;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.fourteen-buy-hero__actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 3;
+}
+
+/* legacy compact heading support */
 .fourteen-buy-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 12px;
-}
-
-.fourteen-buy-heading__text {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .fourteen-buy-title {
@@ -55,6 +125,22 @@
   font-size: 12px;
   line-height: 1.4;
   color: var(--fourteen-buy-text-soft);
+}
+
+.fourteen-buy-badge {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 105, 0, 0.22);
+  background: rgba(255, 105, 0, 0.08);
+  color: var(--fourteen-buy-accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .fourteen-buy-info-toggle-wrap {
@@ -90,13 +176,13 @@
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  width: min(360px, 92vw);
+  width: min(420px, 92vw);
   padding: 14px;
   border-radius: 14px;
   background: rgba(15, 15, 15, 0.98);
   border: 1px solid var(--fourteen-buy-border);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
-  z-index: 40;
+  z-index: 999;
   backdrop-filter: blur(14px);
 }
 
@@ -133,6 +219,59 @@
   color: var(--fourteen-buy-text-soft);
 }
 
+/* -------------------------------------------------------
+   TOPBAR / CONNECT
+------------------------------------------------------- */
+
+.fourteen-buy-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.fourteen-buy-wallet {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--fourteen-buy-text-soft);
+}
+
+.fourteen-buy-connect-slot {
+  margin-bottom: 16px;
+}
+
+.fourteen-buy-connect-slot__desktop {
+  display: block;
+  width: 100%;
+}
+
+.fourteen-buy-connect-slot__desktop > .fw-wallet-root {
+  display: block;
+  width: 100%;
+}
+
+.fourteen-buy-connect-slot__desktop .fw-wallet-button {
+  width: 100%;
+}
+
+.fourteen-buy-connect-slot__mobile {
+  display: none;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--fourteen-buy-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--fourteen-buy-text-soft);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+/* -------------------------------------------------------
+   FORM
+------------------------------------------------------- */
+
 .fourteen-buy-form {
   display: flex;
   flex-direction: column;
@@ -141,8 +280,9 @@
 
 .fourteen-buy-input-label {
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   color: var(--fourteen-buy-text-soft);
 }
 
@@ -161,14 +301,14 @@
 
 .fourteen-buy-input {
   width: 100%;
-  min-height: 48px;
-  padding: 0 56px 0 14px;
-  border-radius: 14px;
+  min-height: 52px;
+  padding: 0 64px 0 16px;
+  border-radius: 16px;
   border: 1px solid var(--fourteen-buy-border);
   background: linear-gradient(180deg, rgba(30, 30, 30, 0.98) 0%, rgba(18, 18, 18, 0.98) 100%);
   color: var(--fourteen-buy-text);
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 800;
   outline: none;
   transition:
     border-color 0.18s ease,
@@ -188,17 +328,20 @@
 .fourteen-buy-input-suffix {
   position: absolute;
   right: 14px;
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--fourteen-buy-text-faint);
   pointer-events: none;
 }
 
 .fourteen-buy-button {
-  min-width: 102px;
-  min-height: 48px;
-  padding: 0 16px;
+  min-width: 118px;
+  min-height: 52px;
+  padding: 0 18px;
   border: 1px solid rgba(255, 105, 0, 0.34);
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255, 145, 52, 1) 0%, rgba(255, 105, 0, 0.96) 100%);
@@ -216,7 +359,7 @@
     filter 0.18s ease;
 }
 
-.fourteen-buy-button:hover {
+.fourteen-buy-button:hover:not(:disabled):not([aria-disabled="true"]) {
   transform: translateY(-1px);
   box-shadow: 0 14px 30px rgba(255, 105, 0, 0.28);
 }
@@ -233,6 +376,10 @@
   box-shadow: none;
   filter: grayscale(0.12);
 }
+
+/* -------------------------------------------------------
+   META / STATUS
+------------------------------------------------------- */
 
 .fourteen-buy-estimate {
   display: inline-flex;
@@ -263,17 +410,21 @@
 
 .fourteen-buy-status {
   min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   font-size: 11px;
   line-height: 1.45;
   color: var(--fourteen-buy-text-soft);
-  display: inline-flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
 }
 
 .fourteen-buy-status[data-state="error"] {
   color: #ffd4db;
+}
+
+.fourteen-buy-status[data-state="success"] {
+  color: rgba(170, 255, 189, 0.95);
 }
 
 .fourteen-buy-status__link {
@@ -282,54 +433,9 @@
   font-weight: 700;
 }
 
-.fourteen-buy-hero {
-  position: relative;
-  margin-bottom: 20px;
-  padding: 14px 0 12px 0;
-  overflow: visible;
-}
-
-.fourteen-buy-hero__bg {
-  position: absolute;
-  left: -14px;
-  top: -18px;
-  width: 60px;
-  height: 60px;
-  background-image: url('../../assets/text_bg.svg');
-  background-position: left top;
-  background-repeat: no-repeat;
-  background-size: contain;
-  opacity: 1;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.fourteen-buy-hero__title {
-  position: relative;
-  z-index: 1;
-  margin: 0;
-  font-size: 42px;
-  font-weight: 900;
-  letter-spacing: 0.01em;
-  line-height: 0.95;
-  color: #ffffff;
-}
-
-.fourteen-buy-hero__title span {
-  color: #ff6900;
-  text-shadow: 0 0 14px rgba(255, 105, 0, 0.28);
-}
-
-.fourteen-buy-hero__subtitle {
-  position: relative;
-  z-index: 1;
-  margin-top: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
-}
+/* -------------------------------------------------------
+   RESPONSIVE
+------------------------------------------------------- */
 
 @media (max-width: 860px) {
   .fourteen-buy-form-row {
@@ -346,7 +452,21 @@
   }
 }
 
+@media (max-width: 640px) {
+  .fourteen-buy-connect-slot__desktop {
+    display: none;
+  }
+
+  .fourteen-buy-connect-slot__mobile {
+    display: block;
+  }
+}
+
 @media (max-width: 560px) {
+  .fourteen-buy-hero {
+    align-items: flex-start;
+  }
+
   .fourteen-buy-heading {
     align-items: center;
   }
@@ -360,12 +480,13 @@
   }
 
   .fourteen-buy-input {
-    min-height: 46px;
-    font-size: 15px;
+    min-height: 48px;
+    padding: 0 58px 0 14px;
+    font-size: 16px;
   }
 
   .fourteen-buy-button {
-    min-height: 46px;
+    min-height: 48px;
     font-size: 11px;
   }
 
@@ -382,65 +503,23 @@
     font-size: 34px;
   }
 
+  .fourteen-buy-hero__subtitle {
+    margin-top: 7px;
+    font-size: 11px;
+  }
+
   .fourteen-buy-hero__bg {
     left: -10px;
     top: -14px;
     width: 52px;
     height: 52px;
   }
-}
-.fourteen-buy-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 18px 0 12px;
-}
-
-.fourteen-buy-wallet {
-  font-size: 14px;
-  line-height: 1.3;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.fourteen-buy-connect-slot {
-  margin: 0 0 18px;
-}
-
-.fourteen-buy-connect-slot__desktop {
-  display: block;
-}
-
-.fourteen-buy-connect-slot__mobile {
-  display: none;
-}
-
-@media (max-width: 640px) {
-  .fourteen-buy-connect-slot__desktop {
-    display: none;
-  }
-
-  .fourteen-buy-connect-slot__mobile {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 64px;
-    padding: 0 18px;
-    border-radius: 22px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.03);
-    color: rgba(255, 255, 255, 0.72);
-    font-size: 14px;
-    line-height: 1.35;
-    text-align: center;
-  }
 
   .fourteen-buy-topbar {
-    margin: 18px 0 10px;
+    margin-bottom: 10px;
   }
 
   .fourteen-buy-connect-slot {
-    margin: 0 0 16px;
+    margin-bottom: 14px;
   }
 }
