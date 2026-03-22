@@ -1,5 +1,6 @@
 import './unlockTimeline.css';
 import { mountWalletButton } from '../../ui/walletButton.js';
+import { createReadonlyTronWeb } from '../../adapters/shared/createReadonlyTronWeb.js';
 
 const ACTIVE_INSTANCES = new WeakMap();
 
@@ -21,30 +22,7 @@ const DEFAULT_CONFIG = {
     'When you buy 4TEEN, your tokens are created and automatically locked for 14 days. This protects the market from instant sell-offs and gives early holders a fair, stable entry. The timeline on the right displays every one of your purchases, showing the exact unlock date in GMT, a live countdown, and your current Locked/Unlocked status.\n\nEach row includes a direct link to the on-chain transaction on Tronscan, so you can always verify the data yourself — block time, amount received, and event ID. As soon as the 14-day period ends, the status updates automatically and your tokens become freely tradable, with no action required from your side.\n\nThis gives you complete clarity: you always know when your tokens unlock, how close you are to the next release, and where to check everything on the blockchain.'
 };
 
-const TIMELINE_CONTRACT_ABI = [
-  {
-    constant: true,
-    inputs: [{ name: 'account', type: 'address' }],
-    name: 'balanceOf',
-    outputs: [{ name: '', type: 'uint256' }],
-    payable: false,
-    stateMutability: 'view',
-    type: 'function'
-  },
-  {
-    constant: true,
-    inputs: [{ name: 'account', type: 'address' }],
-    name: 'lockedBalanceOf',
-    outputs: [{ name: '', type: 'uint256' }],
-    payable: false,
-    stateMutability: 'view',
-    type: 'function'
-  }
-];
-
 const BALANCE_REFRESH_INTERVAL_MS = 30_000;
-const RATE_REFRESH_INTERVAL_MS = 60_000;
-const BALANCE_UNLOCK_REFRESH_DEBOUNCE_MS = 1_500;
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -182,6 +160,85 @@ function isMobileViewport() {
   return window.innerWidth <= 640;
 }
 
+function isUsableAddress(value) {
+  return typeof value === 'string' && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
+}
+
+function normalizeTokenUnits(value, decimals = 6) {
+  const num = Number(value ?? 0);
+
+  if (!Number.isFinite(num)) {
+    return null;
+  }
+
+  return Number((num / Math.pow(10, decimals)).toFixed(6));
+}
+
+function decodeHexUint256(hexValue) {
+  if (!hexValue || typeof hexValue !== 'string') {
+    return null;
+  }
+
+  try {
+    return parseInt(hexValue, 16);
+  } catch (_) {
+    return null;
+  }
+}
+
+async function readContractUint256(address, contractAddress, methodName, decimals = 6) {
+  if (!isUsableAddress(address)) {
+    throw new Error(`${methodName}: invalid wallet address`);
+  }
+
+  if (!isUsableAddress(contractAddress)) {
+    throw new Error(`${methodName}: invalid contract address`);
+  }
+
+  const tronWeb = createReadonlyTronWeb({
+    address
+  });
+
+  try {
+    const contract = await tronWeb.contract().at(contractAddress);
+    const raw = await contract[methodName](address).call();
+
+    const value =
+      typeof raw === 'object' && raw !== null && typeof raw.toString === 'function'
+        ? raw.toString()
+        : String(raw);
+
+    const normalized = normalizeTokenUnits(value, decimals);
+
+    if (normalized === null) {
+      throw new Error(`${methodName}: invalid result`);
+    }
+
+    return normalized;
+  } catch (contractError) {
+    const ownerHex = tronWeb.address.toHex(address);
+    const contractHex = tronWeb.address.toHex(contractAddress);
+
+    const result = await tronWeb.transactionBuilder.triggerConstantContract(
+      contractHex,
+      `${methodName}(address)`,
+      {},
+      [{ type: 'address', value: address }],
+      ownerHex
+    );
+
+    const hexValue = result?.constant_result?.[0] || null;
+    const decoded = decodeHexUint256(hexValue);
+    const normalized = normalizeTokenUnits(decoded, decimals);
+
+    if (normalized === null) {
+      throw contractError;
+    }
+
+    return normalized;
+  }
+}
+
 export function mountUnlockTimeline(target, config = {}) {
   const {
     contractAddress,
@@ -232,8 +289,8 @@ export function mountUnlockTimeline(target, config = {}) {
 
           <div class="fourteen-timeline-hero__text">
             <div class="fourteen-timeline-hero__title">
-              Token <span>Unlock</span> Timeline
-            </div>
+  Token <span>Unlock</span> Timeline
+</div>
             <div class="fourteen-timeline-hero__subtitle">${escapeHtml(subtitle)}</div>
           </div>
 
@@ -343,12 +400,8 @@ export function mountUnlockTimeline(target, config = {}) {
   let walletUnsubscribe = null;
   let countdownInterval = null;
   let balanceRefreshInterval = null;
-  let rateRefreshInterval = null;
   let embeddedWalletUnmount = null;
   let resizeListenerBound = false;
-  let silentRefreshPromise = null;
-  let silentRefreshTimeout = null;
-  let lastHistoryEvents = [];
 
   let balances = {
     total: 0,
@@ -372,20 +425,10 @@ export function mountUnlockTimeline(target, config = {}) {
     }
   }
 
-  function stopBackgroundRefresh() {
+  function stopBalanceRefresh() {
     if (balanceRefreshInterval) {
       clearInterval(balanceRefreshInterval);
       balanceRefreshInterval = null;
-    }
-
-    if (rateRefreshInterval) {
-      clearInterval(rateRefreshInterval);
-      rateRefreshInterval = null;
-    }
-
-    if (silentRefreshTimeout) {
-      clearTimeout(silentRefreshTimeout);
-      silentRefreshTimeout = null;
     }
   }
 
@@ -475,8 +518,6 @@ export function mountUnlockTimeline(target, config = {}) {
   }
 
   function renderEmptyHistory(message) {
-    lastHistoryEvents = [];
-
     tableBodyEl.innerHTML = `
       <tr>
         <td colspan="4" class="fourteen-timeline-muted">${escapeHtml(message)}</td>
@@ -489,8 +530,6 @@ export function mountUnlockTimeline(target, config = {}) {
   }
 
   function renderHistory(events) {
-    lastHistoryEvents = Array.isArray(events) ? events.slice() : [];
-
     const now = Date.now();
 
     tableBodyEl.innerHTML = events.map((event) => {
@@ -545,6 +584,35 @@ export function mountUnlockTimeline(target, config = {}) {
         </div>
       `;
     }).join('');
+  }
+
+  function startCountdownUpdater() {
+    stopCountdown();
+
+    countdownInterval = setInterval(() => {
+      const now = Date.now();
+      const nodes = Array.from(target.querySelectorAll('[data-unlock]'));
+
+      nodes.forEach((node) => {
+        const unlockMs = Number(node.getAttribute('data-unlock') || 0);
+        const countdownEl = node.querySelector('.fourteen-timeline-countdown');
+        const statusElLocal = node.querySelector('.fourteen-timeline-status-pill');
+
+        if (!countdownEl || !statusElLocal) return;
+
+        if (unlockMs <= now) {
+          countdownEl.textContent = '00:00:00';
+          statusElLocal.textContent = 'Unlocked';
+          statusElLocal.classList.add('unlocked');
+          statusElLocal.classList.remove('locked');
+        } else {
+          countdownEl.textContent = formatRemaining(unlockMs - now);
+          statusElLocal.textContent = 'Locked';
+          statusElLocal.classList.add('locked');
+          statusElLocal.classList.remove('unlocked');
+        }
+      });
+    }, 1000);
   }
 
   function unmountEmbeddedWalletButton() {
@@ -611,21 +679,34 @@ export function mountUnlockTimeline(target, config = {}) {
   }
 
   async function getBalances() {
-    const tronWeb = getTronWebSafe(wallet);
+    const userAddress = getConnectedAddress(wallet);
 
-    if (!tronWeb?.defaultAddress?.base58) {
+    if (!isUsableAddress(userAddress)) {
       throw new Error('Wallet address not available');
     }
 
-    const userAddress = tronWeb.defaultAddress.base58;
-    const contract = await tronWeb.contract(TIMELINE_CONTRACT_ABI, contractAddress);
+    const total = await readContractUint256(
+      userAddress,
+      contractAddress,
+      'balanceOf',
+      decimals
+    );
 
-    const totalRaw = await contract.balanceOf(userAddress).call();
-    const lockedRaw = await contract.lockedBalanceOf(userAddress).call();
+    let locked = 0;
 
-    const total = parseFloat(totalRaw?.toString?.() || '0') / Math.pow(10, decimals);
-    const locked = parseFloat(lockedRaw?.toString?.() || '0') / Math.pow(10, decimals);
-    const available = Math.max(0, total - locked);
+    try {
+      locked = await readContractUint256(
+        userAddress,
+        contractAddress,
+        'lockedBalanceOf',
+        decimals
+      );
+    } catch (error) {
+      console.error('[4TEEN] unlockTimeline lockedBalanceOf read failed', error);
+      locked = 0;
+    }
+
+    const available = Math.max(0, Number((total - locked).toFixed(6)));
 
     balances = {
       total,
@@ -651,85 +732,6 @@ export function mountUnlockTimeline(target, config = {}) {
     }
 
     return null;
-  }
-
-  async function refreshRateSafe() {
-    if (!isConnectedSafe(wallet) || !isAlive()) {
-      return;
-    }
-
-    try {
-      const rate = await fetchSwapRate(1);
-
-      if (!isAlive()) return;
-
-      if (rate) {
-        rates.qsiToTrx = parseFloat(rate.amountOut).toFixed(6);
-        rates.qsiToUsd =
-          rate.outUsd !== undefined
-            ? parseFloat(rate.outUsd).toFixed(6)
-            : '—';
-      } else {
-        rates.qsiToTrx = '—';
-        rates.qsiToUsd = '—';
-      }
-
-      renderDetails();
-    } catch (error) {
-      console.error('[4TEEN] unlockTimeline refreshRateSafe failed', error);
-    }
-  }
-
-  async function refreshBalancesAndRenderSafe() {
-    if (!isConnectedSafe(wallet) || !isAlive()) {
-      return;
-    }
-
-    try {
-      await getBalances();
-
-      if (!isAlive()) return;
-
-      renderDetails();
-    } catch (error) {
-      console.error('[4TEEN] unlockTimeline refreshBalancesAndRenderSafe failed', error);
-    }
-  }
-
-  function scheduleSilentBalanceRefresh() {
-    if (silentRefreshTimeout) {
-      clearTimeout(silentRefreshTimeout);
-    }
-
-    silentRefreshTimeout = setTimeout(async () => {
-      if (silentRefreshPromise) {
-        return;
-      }
-
-      silentRefreshPromise = refreshBalancesAndRenderSafe()
-        .catch((error) => {
-          console.error('[4TEEN] unlockTimeline silent balance refresh failed', error);
-        })
-        .finally(() => {
-          silentRefreshPromise = null;
-        });
-    }, BALANCE_UNLOCK_REFRESH_DEBOUNCE_MS);
-  }
-
-  function startBackgroundRefresh() {
-    stopBackgroundRefresh();
-
-    balanceRefreshInterval = setInterval(() => {
-      refreshBalancesAndRenderSafe().catch((error) => {
-        console.error('[4TEEN] unlockTimeline periodic balance refresh failed', error);
-      });
-    }, BALANCE_REFRESH_INTERVAL_MS);
-
-    rateRefreshInterval = setInterval(() => {
-      refreshRateSafe().catch((error) => {
-        console.error('[4TEEN] unlockTimeline periodic rate refresh failed', error);
-      });
-    }, RATE_REFRESH_INTERVAL_MS);
   }
 
   async function getFilteredContractEvents() {
@@ -801,46 +803,30 @@ export function mountUnlockTimeline(target, config = {}) {
     startCountdownUpdater();
   }
 
-  function startCountdownUpdater() {
-    stopCountdown();
+  async function refreshBalancesAndRenderSafe() {
+    if (!isConnectedSafe(wallet) || !isAlive()) {
+      return;
+    }
 
-    countdownInterval = setInterval(() => {
-      const now = Date.now();
-      const nodes = Array.from(target.querySelectorAll('[data-unlock]'));
-      let unlockStateChanged = false;
+    try {
+      await getBalances();
 
-      nodes.forEach((node) => {
-        const unlockMs = Number(node.getAttribute('data-unlock') || 0);
-        const countdownEl = node.querySelector('.fourteen-timeline-countdown');
-        const statusElLocal = node.querySelector('.fourteen-timeline-status-pill');
+      if (!isAlive()) return;
 
-        if (!countdownEl || !statusElLocal) return;
+      renderDetails();
+    } catch (error) {
+      console.error('[4TEEN] unlockTimeline refreshBalancesAndRenderSafe failed', error);
+    }
+  }
 
-        const wasUnlocked = statusElLocal.classList.contains('unlocked');
-        const isUnlocked = unlockMs <= now;
+  function startBalanceRefresh() {
+    stopBalanceRefresh();
 
-        if (isUnlocked) {
-          countdownEl.textContent = '00:00:00';
-          statusElLocal.textContent = 'Unlocked';
-
-          if (!wasUnlocked) {
-            unlockStateChanged = true;
-          }
-
-          statusElLocal.classList.add('unlocked');
-          statusElLocal.classList.remove('locked');
-        } else {
-          countdownEl.textContent = formatRemaining(unlockMs - now);
-          statusElLocal.textContent = 'Locked';
-          statusElLocal.classList.add('locked');
-          statusElLocal.classList.remove('unlocked');
-        }
+    balanceRefreshInterval = setInterval(() => {
+      refreshBalancesAndRenderSafe().catch((error) => {
+        console.error('[4TEEN] unlockTimeline periodic balance refresh failed', error);
       });
-
-      if (unlockStateChanged) {
-        scheduleSilentBalanceRefresh();
-      }
-    }, 1000);
+    }, BALANCE_REFRESH_INTERVAL_MS);
   }
 
   async function syncTimeline() {
@@ -850,7 +836,6 @@ export function mountUnlockTimeline(target, config = {}) {
       updateWalletLabel();
       balances = { total: 0, locked: 0, available: 0 };
       rates = { qsiToTrx: '—', qsiToUsd: '—' };
-      lastHistoryEvents = [];
       availableEl.textContent = '— 4TEEN';
       rateEl.textContent = '— TRX';
       renderPlaceholder();
@@ -858,7 +843,7 @@ export function mountUnlockTimeline(target, config = {}) {
       updateSwapLink();
       setStatus('');
       stopCountdown();
-      stopBackgroundRefresh();
+      stopBalanceRefresh();
       return;
     }
 
@@ -905,10 +890,9 @@ export function mountUnlockTimeline(target, config = {}) {
       }
 
       renderEmptyHistory('Unlock events are temporarily unavailable.');
-      stopCountdown();
     }
 
-    startBackgroundRefresh();
+    startBalanceRefresh();
   }
 
   function handleWalletUpdate() {
@@ -941,7 +925,7 @@ export function mountUnlockTimeline(target, config = {}) {
     destroy() {
       isDestroyed = true;
       stopCountdown();
-      stopBackgroundRefresh();
+      stopBalanceRefresh();
       unmountEmbeddedWalletButton();
       infoToggleEl?.removeEventListener('click', togglePopover);
       document.removeEventListener('click', handleOutsideClick);
