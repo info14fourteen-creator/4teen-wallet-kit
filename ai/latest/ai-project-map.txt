@@ -1,8 +1,8 @@
 ===== AI PROJECT MAP =====
-Generated: 2026-03-22T15:06:32.503Z
+Generated: 2026-03-22T15:08:50.515Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
-Total files: 134
+Total files: 135
 
 ===== LINKS =====
 AI bundle: https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/ai-project-bundle.txt
@@ -137,6 +137,7 @@ src/
         menu/
           buy_menu.svg
           swap_menu.svg
+          unlock_menu.svg
     wallet/
       openWalletPicker.js
     icons.js
@@ -298,6 +299,7 @@ src/ui/noticeCenter.css
 src/ui/noticeCenter.js
 src/ui/src/assets/menu/buy_menu.svg
 src/ui/src/assets/menu/swap_menu.svg
+src/ui/src/assets/menu/unlock_menu.svg
 src/ui/wallet/openWalletPicker.js
 src/ui/walletButton.css
 src/ui/walletButton.js
