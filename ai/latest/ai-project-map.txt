@@ -1,8 +1,8 @@
 ===== AI PROJECT MAP =====
-Generated: 2026-03-22T13:44:43.558Z
+Generated: 2026-03-22T14:42:28.294Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
-Total files: 124
+Total files: 133
 
 ===== LINKS =====
 AI bundle: https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/ai-project-bundle.txt
@@ -64,7 +64,16 @@ src/
     priority.js
   assets/
     socials/
+      discord_social.svg
       facebook_social.svg
+      github_social.svg
+      instagram_social.svg
+      telegram_social.svg
+      threads_social.svg
+      tiktok_social.svg
+      whatsapp_social.svg
+      x_social.svg
+      youtube_social.svg
     4teen_swap.svg
     4teen.svg
     binance.svg
@@ -233,7 +242,16 @@ src/assets/imtoken.svg
 src/assets/justmoney_swap.svg
 src/assets/metamask.svg
 src/assets/okx.svg
+src/assets/socials/discord_social.svg
 src/assets/socials/facebook_social.svg
+src/assets/socials/github_social.svg
+src/assets/socials/instagram_social.svg
+src/assets/socials/telegram_social.svg
+src/assets/socials/threads_social.svg
+src/assets/socials/tiktok_social.svg
+src/assets/socials/whatsapp_social.svg
+src/assets/socials/x_social.svg
+src/assets/socials/youtube_social.svg
 src/assets/sunio_swap.svg
 src/assets/swap_arrows.svg
 src/assets/text_bg.svg
