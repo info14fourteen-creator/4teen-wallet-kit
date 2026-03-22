@@ -1,4 +1,5 @@
 import './directBuy.css';
+import { mountWalletButton } from '../../ui/walletButton.js';
 import {
   showSuccessNotice,
   showErrorNotice,
@@ -10,7 +11,21 @@ const SUN = 1_000_000;
 const DEFAULT_CONTRACT_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
 const DEFAULT_TOKEN_PRICE_SUN = 1_147_500;
 
+const DEFAULT_CONFIG = {
+  contractAddress: DEFAULT_CONTRACT_ADDRESS,
+  inputLabel: 'Enter TRX amount',
+  buttonBuyText: 'Buy',
+  title: 'Direct Buy',
+  subtitle: 'Mint-on-Purchase Issuance',
+  connectText: 'Connect Wallet',
+  mobileConnectHint: 'Tap connect below to continue.'
+};
+
 function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -167,6 +182,22 @@ function getActiveTronWeb(wallet) {
   return wallet?.getTronWeb?.() || wallet?.getState?.()?.tronWeb || null;
 }
 
+function shortenAddress(address) {
+  if (!address || typeof address !== 'string') return '';
+  if (address.length <= 12) return address;
+  return `${address.slice(0, 6)}...${address.slice(-6)}`;
+}
+
+function isMobileViewport() {
+  if (typeof window === 'undefined') return false;
+
+  if (typeof window.matchMedia === 'function') {
+    return window.matchMedia('(max-width: 640px)').matches;
+  }
+
+  return window.innerWidth <= 640;
+}
+
 function buildContractAbi() {
   return [
     {
@@ -240,16 +271,17 @@ function buildPriceText(tokenPriceSun) {
   return `Current price: 1 4TEEN = ${formatTrx(trxPerToken, 6)} TRX`;
 }
 
-export function mountDirectBuy(
-  target,
-  {
-    contractAddress = DEFAULT_CONTRACT_ADDRESS,
-    inputLabel = 'Enter TRX amount',
-    buttonBuyText = 'Buy',
-    title = 'Direct Buy',
-    subtitle = 'Mint-on-Purchase Issuance'
-  } = {}
-) {
+export function mountDirectBuy(target, config = {}) {
+  const {
+    contractAddress,
+    inputLabel,
+    buttonBuyText,
+    title,
+    subtitle,
+    connectText,
+    mobileConnectHint
+  } = { ...DEFAULT_CONFIG, ...config };
+
   if (!target) {
     throw new Error('mountDirectBuy: target is required');
   }
@@ -274,16 +306,16 @@ export function mountDirectBuy(
         <div class="fourteen-buy-heading">
           <div class="fourteen-buy-heading__text">
             <div class="fourteen-buy-hero">
-  <div class="fourteen-buy-hero__bg"></div>
+              <div class="fourteen-buy-hero__bg"></div>
 
-  <h2 class="fourteen-buy-hero__title">
-    Buy <span>4teen</span> Directly
-  </h2>
+              <h2 class="fourteen-buy-hero__title">
+                Buy <span>4teen</span> Directly
+              </h2>
 
-  <div class="fourteen-buy-hero__subtitle">
-    ${escapeHtml(subtitle)}
-  </div>
-</div>
+              <div class="fourteen-buy-hero__subtitle">
+                ${escapeHtml(subtitle)}
+              </div>
+            </div>
           </div>
 
           <div class="fourteen-buy-info-toggle-wrap">
@@ -319,6 +351,17 @@ export function mountDirectBuy(
                 <span class="fourteen-buy-popover__value">Around 9 TRX may be needed only if the wallet has no energy and bandwidth.</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div class="fourteen-buy-topbar">
+          <div class="fourteen-buy-wallet-label" data-role="wallet-label">Wallet not connected</div>
+        </div>
+
+        <div class="fourteen-buy-connect-slot">
+          <div class="fourteen-buy-connect-slot__desktop" data-role="embedded-wallet-button"></div>
+          <div class="fourteen-buy-connect-slot__mobile" data-role="mobile-connect-hint" hidden>
+            ${escapeHtml(mobileConnectHint)}
           </div>
         </div>
 
@@ -364,11 +407,16 @@ export function mountDirectBuy(
   const priceInfoEl = target.querySelector('[data-buy-info="price"]');
   const infoToggleEl = target.querySelector('.fourteen-buy-info-toggle');
   const popoverEl = target.querySelector('.fourteen-buy-popover');
+  const walletLabelEl = target.querySelector('[data-role="wallet-label"]');
+  const embeddedWalletButtonEl = target.querySelector('[data-role="embedded-wallet-button"]');
+  const mobileConnectHintEl = target.querySelector('[data-role="mobile-connect-hint"]');
 
   let isDestroyed = false;
   let isSubmitting = false;
   let tokenPriceSun = DEFAULT_TOKEN_PRICE_SUN;
   let walletUnsubscribe = null;
+  let embeddedWalletUnmount = null;
+  let resizeListenerBound = false;
 
   function isAlive() {
     return !isDestroyed && document.body.contains(target);
@@ -380,7 +428,9 @@ export function mountDirectBuy(
     infoToggleEl.setAttribute('aria-expanded', 'false');
   }
 
-  function togglePopover() {
+  function togglePopover(event) {
+    event?.stopPropagation?.();
+
     if (!popoverEl || !infoToggleEl) return;
 
     const nextHidden = !popoverEl.hidden;
@@ -425,6 +475,17 @@ export function mountDirectBuy(
     estimateValueEl.textContent = formatNumber(estimatedTokens);
   }
 
+  function updateWalletLabel() {
+    const address = getWalletAddressSafe(wallet);
+
+    if (!isConnectedSafe(wallet) || !address) {
+      walletLabelEl.textContent = 'Wallet not connected';
+      return;
+    }
+
+    walletLabelEl.textContent = `Wallet ${shortenAddress(address)}`;
+  }
+
   function setButtonState() {
     const connected = isConnectedSafe(wallet);
     const trxAmount = parsePositiveNumber(inputEl.value);
@@ -450,6 +511,90 @@ export function mountDirectBuy(
     }
 
     syncEstimate();
+  }
+
+  async function refreshBalancesSafe() {
+    if (!wallet || typeof wallet.refreshBalances !== 'function') {
+      return;
+    }
+
+    try {
+      await wallet.refreshBalances();
+    } catch (_) {}
+  }
+
+  function unmountEmbeddedWalletButton() {
+    try {
+      embeddedWalletUnmount?.();
+    } catch (_) {}
+
+    embeddedWalletUnmount = null;
+
+    if (embeddedWalletButtonEl) {
+      embeddedWalletButtonEl.innerHTML = '';
+    }
+  }
+
+  function syncEmbeddedWalletUi() {
+    const connected = isConnectedSafe(wallet);
+    const mobile = isMobileViewport();
+
+    if (mobile) {
+      unmountEmbeddedWalletButton();
+
+      if (mobileConnectHintEl) {
+        mobileConnectHintEl.hidden = connected;
+      }
+
+      return;
+    }
+
+    if (mobileConnectHintEl) {
+      mobileConnectHintEl.hidden = true;
+    }
+
+    if (embeddedWalletUnmount || !embeddedWalletButtonEl) {
+      return;
+    }
+
+    embeddedWalletUnmount = mountWalletButton(embeddedWalletButtonEl, {
+      variant: 'hero',
+      connectText,
+      onConnectClick: async (walletId) => {
+        if (typeof wallet.connect === 'function') {
+          await wallet.connect(walletId);
+          await wait(450);
+          await refreshBalancesSafe();
+          await refreshUI();
+        }
+      },
+      onRefresh: async () => {
+        await refreshBalancesSafe();
+        await refreshUI();
+      },
+      onDisconnect: async () => {
+        if (typeof wallet.disconnect === 'function') {
+          await wallet.disconnect();
+        }
+
+        await refreshUI();
+      }
+    });
+  }
+
+  async function refreshPriceSafe() {
+    try {
+      await refreshPrice();
+    } catch (error) {
+      console.error('Direct buy price refresh failed:', error);
+
+      if (priceInfoEl) {
+        priceInfoEl.textContent = buildPriceText(DEFAULT_TOKEN_PRICE_SUN);
+      }
+
+      tokenPriceSun = DEFAULT_TOKEN_PRICE_SUN;
+      syncEstimate();
+    }
   }
 
   async function connectWallet() {
@@ -518,12 +663,13 @@ export function mountDirectBuy(
     try {
       if (!isConnectedSafe(wallet)) {
         await connectWallet();
-        await refreshPrice();
+        await refreshUI();
         setStatus('');
         return;
       }
 
       await buy();
+      updateWalletLabel();
     } catch (error) {
       console.error('Direct buy flow failed:', error);
     }
@@ -555,7 +701,9 @@ export function mountDirectBuy(
       return;
     }
 
-    await refreshPrice();
+    updateWalletLabel();
+    syncEmbeddedWalletUi();
+    await refreshPriceSafe();
     syncEstimate();
     setButtonState();
   }
@@ -566,14 +714,20 @@ export function mountDirectBuy(
     }
   }
 
+  function handleResize() {
+    if (!isAlive()) return;
+    syncEmbeddedWalletUi();
+  }
+
   buttonEl.addEventListener('click', handleButtonClick);
   inputEl.addEventListener('input', handleInput);
-  infoToggleEl?.addEventListener('click', (event) => {
-    event.stopPropagation();
-    togglePopover();
-  });
-
+  infoToggleEl?.addEventListener('click', togglePopover);
   document.addEventListener('click', handleOutsideClick);
+
+  if (typeof window !== 'undefined' && !resizeListenerBound) {
+    window.addEventListener('resize', handleResize);
+    resizeListenerBound = true;
+  }
 
   if (typeof wallet.subscribe === 'function') {
     walletUnsubscribe = wallet.subscribe(() => {
@@ -590,6 +744,12 @@ export function mountDirectBuy(
       inputEl.removeEventListener('input', handleInput);
       infoToggleEl?.removeEventListener('click', togglePopover);
       document.removeEventListener('click', handleOutsideClick);
+      unmountEmbeddedWalletButton();
+
+      if (resizeListenerBound && typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleResize);
+        resizeListenerBound = false;
+      }
 
       try {
         walletUnsubscribe?.();
