@@ -28,3 +28,10 @@
     "vite": "latest"
   }
 }
+{
+  "scripts": {
+    "build": "vite build",
+    "build:ai": "node scripts/build-ai-bundle.js",
+    "build:all": "vite build && node scripts/build-ai-bundle.js"
+  }
+}
