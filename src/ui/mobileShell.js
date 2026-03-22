@@ -94,17 +94,34 @@ function shouldOpenInNewTab(href = '') {
   }
 }
 
+function splitMenuItems(items = []) {
+  const navigation = [];
+  const contacts = [];
+
+  items.forEach((item) => {
+    const href = String(item?.href || '');
+
+    if (href.startsWith('tel:') || href.startsWith('mailto:')) {
+      contacts.push(item);
+      return;
+    }
+
+    navigation.push(item);
+  });
+
+  return { navigation, contacts };
+}
+
 function buildMenuLinks(items = []) {
   const nav = createElement('nav', 'ms-menu-nav');
   nav.setAttribute('aria-label', 'Mobile menu');
 
-  items.forEach((item, index) => {
+  items.forEach((item) => {
     const a = document.createElement('a');
     a.className = 'ms-menu-link';
     a.href = item.href || '#';
     a.textContent = item.label || 'link';
     a.dataset.id = item.id || '';
-    a.style.setProperty('--ms-menu-index', String(index));
 
     if (isActiveHref(item.href || '')) {
       a.classList.add('is-active');
@@ -122,17 +139,68 @@ function buildMenuLinks(items = []) {
   return nav;
 }
 
+function getContactMeta(item = {}) {
+  const href = String(item.href || '');
+
+  if (href.startsWith('tel:')) {
+    return {
+      emoji: '📞',
+      label: item.label || 'phone'
+    };
+  }
+
+  if (href.startsWith('mailto:')) {
+    return {
+      emoji: '✉️',
+      label: item.label || 'email'
+    };
+  }
+
+  return {
+    emoji: '•',
+    label: item.label || 'contact'
+  };
+}
+
+function buildContacts(items = []) {
+  if (!items.length) return null;
+
+  const wrap = createElement('div', 'ms-contacts');
+  const title = createElement('div', 'ms-contacts-title', 'Contacts');
+  const list = createElement('div', 'ms-contacts-list');
+
+  items.forEach((item) => {
+    const a = document.createElement('a');
+    const meta = getContactMeta(item);
+
+    a.className = 'ms-contact-link';
+    a.href = item.href || '#';
+    a.dataset.id = item.id || '';
+
+    a.innerHTML = `
+      <span class="ms-contact-link__emoji" aria-hidden="true">${meta.emoji}</span>
+      <span class="ms-contact-link__text">${meta.label}</span>
+    `;
+
+    list.appendChild(a);
+  });
+
+  wrap.appendChild(title);
+  wrap.appendChild(list);
+
+  return wrap;
+}
+
 function buildSocialMenu(items = []) {
   const nav = createElement('nav', 'ms-social-menu-nav');
   nav.setAttribute('aria-label', 'Social links');
 
-  items.forEach((item, index) => {
+  items.forEach((item) => {
     const a = document.createElement('a');
     a.className = 'ms-social-menu-link';
     a.href = item.href || '#';
     a.dataset.id = item.id || '';
     a.setAttribute('aria-label', item.alt || item.shortName || item.id || 'social');
-    a.style.setProperty('--ms-social-index', String(index));
 
     if (isExternalHttpLink(item.href || '')) {
       a.target = '_blank';
@@ -140,13 +208,11 @@ function buildSocialMenu(items = []) {
     }
 
     a.innerHTML = `
-      <span class="ms-social-menu-link-icon-wrap">
-        <img
-          class="ms-social-menu-link-icon"
-          src="${item.icon || ''}"
-          alt="${item.alt || item.shortName || item.id || 'social'}"
-        >
-      </span>
+      <img
+        class="ms-social-menu-link-icon"
+        src="${item.icon || ''}"
+        alt="${item.alt || item.shortName || item.id || 'social'}"
+      >
       <span class="ms-social-menu-link-label">${item.shortName || item.alt || item.id || 'social'}</span>
     `;
 
@@ -161,13 +227,11 @@ function buildRotatingSocialButton() {
   button.type = 'button';
   button.setAttribute('aria-label', 'Open social links');
 
-  const circle = createElement('span', 'ms-social-toggle-circle');
   const icon = document.createElement('img');
   icon.className = 'ms-social-toggle-icon';
   icon.alt = 'Social';
 
-  circle.appendChild(icon);
-  button.appendChild(circle);
+  button.appendChild(icon);
 
   return { button, icon };
 }
@@ -246,6 +310,8 @@ export function createMobileShell(options = {}) {
   const socialRotateMs =
     Number(options.socialRotateMs || MOBILE_SHELL_DEFAULTS.socialRotateMs) || 1500;
 
+  const { navigation: mainMenuItems, contacts: contactMenuItems } = splitMenuItems(menuItems);
+
   const root = createElement('div', 'mobile-shell');
   root.innerHTML = `
     <div class="ms-overlay"></div>
@@ -264,19 +330,13 @@ export function createMobileShell(options = {}) {
 
     <aside class="ms-menu-panel" aria-hidden="true">
       <div class="ms-menu-inner">
-        <div class="ms-menu-shell">
-          <div class="ms-menu-header">${brandText}</div>
-          <div class="ms-menu-copy">Navigate the 4TEEN ecosystem</div>
-        </div>
+        <div class="ms-menu-shell"></div>
       </div>
     </aside>
 
     <aside class="ms-social-panel" aria-hidden="true">
       <div class="ms-social-panel-inner">
-        <div class="ms-menu-shell">
-          <div class="ms-menu-header">socials</div>
-          <div class="ms-menu-copy">Official 4TEEN community channels</div>
-        </div>
+        <div class="ms-social-shell"></div>
       </div>
     </aside>
 
@@ -292,20 +352,31 @@ export function createMobileShell(options = {}) {
   const topActions = root.querySelector('.ms-top-actions');
   const menuPanel = root.querySelector('.ms-menu-panel');
   const socialPanel = root.querySelector('.ms-social-panel');
-  const menuShell = root.querySelector('.ms-menu-panel .ms-menu-shell');
-  const socialShell = root.querySelector('.ms-social-panel .ms-menu-shell');
+  const menuShell = root.querySelector('.ms-menu-shell');
+  const socialShell = root.querySelector('.ms-social-shell');
   const bottomLeft = root.querySelector('.ms-bottom-left');
   const bottomCenter = root.querySelector('.ms-bottom-center');
   const bottomRight = root.querySelector('.ms-bottom-right');
 
-  const menuLinks = buildMenuLinks(menuItems);
+  const menuLinks = buildMenuLinks(mainMenuItems);
+  const contactsBlock = buildContacts(contactMenuItems);
   const socialMenuLinks = buildSocialMenu(socials);
   const rotatingSocialButton = buildRotatingSocialButton();
   const topWalletSlot = buildWalletSlot('compact');
   const bottomWalletSlot = buildWalletSlot('mobile');
   const bottomGroups = buildBottomGroups(bottomNavItems);
 
+  if (brandText) {
+    const brand = createElement('div', 'ms-brand-mark', brandText);
+    menuShell.appendChild(brand);
+  }
+
   menuShell.appendChild(menuLinks);
+
+  if (contactsBlock) {
+    menuShell.appendChild(contactsBlock);
+  }
+
   socialShell.appendChild(socialMenuLinks);
 
   topActions.appendChild(rotatingSocialButton.button);
@@ -429,6 +500,12 @@ export function createMobileShell(options = {}) {
   socialMenuLinks.querySelectorAll('a').forEach((link) => {
     on(link, 'click', closePanels);
   });
+
+  if (contactsBlock) {
+    contactsBlock.querySelectorAll('a').forEach((link) => {
+      on(link, 'click', closePanels);
+    });
+  }
 
   bottomLeft.querySelectorAll('a').forEach((link) => {
     on(link, 'click', closePanels);
