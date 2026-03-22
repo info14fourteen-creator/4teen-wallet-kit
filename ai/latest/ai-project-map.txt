@@ -1,5 +1,5 @@
 ===== AI PROJECT MAP =====
-Generated: 2026-03-22T15:32:23.573Z
+Generated: 2026-03-22T16:09:47.526Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 Total files: 136
@@ -63,6 +63,11 @@ src/
     createAdapters.js
     priority.js
   assets/
+    menu/
+      buy_menu.svg
+      liquidity_menu.svg
+      swap_menu.svg
+      unlock_menu.svg
     socials/
       discord_social.svg
       facebook_social.svg
@@ -132,13 +137,6 @@ src/
       initWalletKit.js
       restoreSession.js
   ui/
-    src/
-      assets/
-        menu/
-          buy_menu.svg
-          iquidity_menu.svg
-          swap_menu.svg
-          unlock_menu.svg
     wallet/
       openWalletPicker.js
     icons.js
@@ -243,6 +241,10 @@ src/assets/bitget.svg
 src/assets/foxwallet.svg
 src/assets/imtoken.svg
 src/assets/justmoney_swap.svg
+src/assets/menu/buy_menu.svg
+src/assets/menu/liquidity_menu.svg
+src/assets/menu/swap_menu.svg
+src/assets/menu/unlock_menu.svg
 src/assets/metamask.svg
 src/assets/okx.svg
 src/assets/socials/discord_social.svg
@@ -298,10 +300,6 @@ src/ui/mobileShell.css
 src/ui/mobileShell.js
 src/ui/noticeCenter.css
 src/ui/noticeCenter.js
-src/ui/src/assets/menu/buy_menu.svg
-src/ui/src/assets/menu/iquidity_menu.svg
-src/ui/src/assets/menu/swap_menu.svg
-src/ui/src/assets/menu/unlock_menu.svg
 src/ui/wallet/openWalletPicker.js
 src/ui/walletButton.css
 src/ui/walletButton.js
