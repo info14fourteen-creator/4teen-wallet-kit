@@ -513,17 +513,24 @@ export function mountAmbassadorRegister(target, config = {}) {
       mobileConnectHintEl.hidden = true;
     }
 
-    if (embeddedWalletUnmount || !embeddedWalletButtonEl) {
+    if (!embeddedWalletButtonEl) {
       return;
     }
 
+    unmountEmbeddedWalletButton();
+
     embeddedWalletUnmount = mountWalletButton(embeddedWalletButtonEl, {
       variant: 'hero',
-      connectText: resolvedConfig.connectText,
+      text: resolvedConfig.connectText,
       onConnectClick: async (walletId) => {
         if (typeof wallet.connect === 'function') {
           await wallet.connect(walletId);
           await wait(450);
+
+          if (typeof wallet.refreshBalances === 'function') {
+            await wallet.refreshBalances();
+          }
+
           await refreshUi();
         }
       },
@@ -567,22 +574,22 @@ export function mountAmbassadorRegister(target, config = {}) {
       throw new Error('Slug is required');
     }
 
-    await checkSlugAvailability(resolvedConfig.backendBaseUrl, slug);
-
-    const slugHash = keccakUtf8ToHex(slug);
-    const metaHash = meta ? keccakUtf8ToHex(meta) : ZERO_BYTES32;
-
-    const contract = await tronWeb.contract(
-      buildContractAbi(),
-      resolvedConfig.controllerContractAddress
-    );
-
     state.loading = true;
     state.error = '';
     state.success = null;
     render();
 
     try {
+      await checkSlugAvailability(resolvedConfig.backendBaseUrl, slug);
+
+      const slugHash = keccakUtf8ToHex(slug);
+      const metaHash = meta ? keccakUtf8ToHex(meta) : ZERO_BYTES32;
+
+      const contract = await tronWeb.contract(
+        buildContractAbi(),
+        resolvedConfig.controllerContractAddress
+      );
+
       const txid = await contract.registerAsAmbassador(slugHash, metaHash).send();
 
       const completed = await completeRegistration(resolvedConfig.backendBaseUrl, {
@@ -614,6 +621,11 @@ export function mountAmbassadorRegister(target, config = {}) {
     try {
       if (!isConnectedSafe(wallet)) {
         await connectWallet();
+
+        if (typeof wallet.refreshBalances === 'function') {
+          await wallet.refreshBalances();
+        }
+
         await refreshUi();
         return;
       }
@@ -653,7 +665,6 @@ export function mountAmbassadorRegister(target, config = {}) {
 
     submitButton?.addEventListener('click', handleSubmit);
     infoToggleEl?.addEventListener('click', togglePopover);
-    document.addEventListener('click', handleOutsideClick);
   }
 
   async function refreshUi() {
@@ -670,6 +681,8 @@ export function mountAmbassadorRegister(target, config = {}) {
     syncEmbeddedWalletUi();
     bindEvents();
   }
+
+  document.addEventListener('click', handleOutsideClick);
 
   if (typeof wallet.subscribe === 'function') {
     walletUnsubscribe = wallet.subscribe(() => {
