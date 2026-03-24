@@ -1,0 +1,479 @@
+:root {
+  --fourteen-amb-bg: rgba(17, 17, 17, 0.92);
+  --fourteen-amb-bg-soft: rgba(255, 255, 255, 0.03);
+  --fourteen-amb-border: rgba(255, 255, 255, 0.08);
+  --fourteen-amb-text: rgba(255, 255, 255, 0.94);
+  --fourteen-amb-text-soft: rgba(255, 255, 255, 0.64);
+  --fourteen-amb-text-faint: rgba(255, 255, 255, 0.48);
+  --fourteen-amb-accent: rgb(255, 105, 0);
+  --fourteen-amb-accent-soft: rgba(255, 105, 0, 0.14);
+  --fourteen-amb-green: rgb(26, 224, 58);
+  --fourteen-amb-red: rgb(255, 48, 73);
+  --fourteen-amb-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  --fourteen-amb-radius: 16px;
+  --fourteen-amb-radius-sm: 12px;
+}
+
+.fourteen-ambassador-widget {
+  position: relative;
+  width: 100%;
+  font-family: TTNorm, Inter, Arial, Helvetica, sans-serif;
+  color: var(--fourteen-amb-text);
+}
+
+.fourteen-ambassador-shell {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* -------------------------------------------------------
+   HERO / HEADER
+------------------------------------------------------- */
+
+.fourteen-ambassador-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 14px 0 12px 0;
+  overflow: visible;
+}
+
+.fourteen-ambassador-hero__bg {
+  position: absolute;
+  left: -14px;
+  top: -18px;
+  width: 60px;
+  height: 60px;
+  background-image: url('../../assets/text_bg.svg');
+  background-position: left top;
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 1;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.fourteen-ambassador-hero__text {
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fourteen-ambassador-hero__title {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  line-height: 0.95;
+  color: #ffffff;
+}
+
+.fourteen-ambassador-hero__title span {
+  color: #ff6900;
+  text-shadow: 0 0 14px rgba(255, 105, 0, 0.28);
+}
+
+.fourteen-ambassador-hero__subtitle {
+  position: relative;
+  z-index: 1;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.fourteen-ambassador-hero__actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 3;
+}
+
+.fourteen-ambassador-badge {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 105, 0, 0.22);
+  background: rgba(255, 105, 0, 0.08);
+  color: var(--fourteen-amb-accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.fourteen-ambassador-info-toggle-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.fourteen-ambassador-info-toggle {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 0;
+  background: var(--fourteen-amb-accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(255, 105, 0, 0.22);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
+}
+
+.fourteen-ambassador-info-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(255, 105, 0, 0.28);
+  filter: brightness(1.03);
+}
+
+.fourteen-ambassador-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(420px, 92vw);
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(15, 15, 15, 0.98);
+  border: 1px solid var(--fourteen-amb-border);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
+  z-index: 999;
+  backdrop-filter: blur(14px);
+}
+
+.fourteen-ambassador-popover__title {
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--fourteen-amb-text);
+}
+
+.fourteen-ambassador-popover__text {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--fourteen-amb-text-soft);
+}
+
+/* -------------------------------------------------------
+   TOPBAR / CONNECT
+------------------------------------------------------- */
+
+.fourteen-ambassador-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.fourteen-ambassador-wallet {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--fourteen-amb-text-soft);
+}
+
+.fourteen-ambassador-connect-slot {
+  margin-bottom: 16px;
+}
+
+.fourteen-ambassador-connect-slot__desktop {
+  display: block;
+  width: 100%;
+}
+
+.fourteen-ambassador-connect-slot__desktop > .fw-wallet-root {
+  display: block;
+  width: 100%;
+}
+
+.fourteen-ambassador-connect-slot__desktop .fw-wallet-button {
+  width: 100%;
+}
+
+.fourteen-ambassador-connect-slot__mobile {
+  display: none;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--fourteen-amb-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--fourteen-amb-text-soft);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+/* -------------------------------------------------------
+   FORM
+------------------------------------------------------- */
+
+.fourteen-ambassador-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fourteen-ambassador-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fourteen-ambassador-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fourteen-amb-text-soft);
+}
+
+.fourteen-ambassador-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fourteen-ambassador-input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid var(--fourteen-amb-border);
+  background: linear-gradient(
+    180deg,
+    rgba(30, 30, 30, 0.98) 0%,
+    rgba(18, 18, 18, 0.98) 100%
+  );
+  color: var(--fourteen-amb-text);
+  font-size: 18px;
+  font-weight: 800;
+  outline: none;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.fourteen-ambassador-input::placeholder {
+  color: var(--fourteen-amb-text-faint);
+}
+
+.fourteen-ambassador-input:focus {
+  border-color: rgba(255, 105, 0, 0.58);
+  box-shadow: 0 0 0 4px rgba(255, 105, 0, 0.08);
+}
+
+.fourteen-ambassador-button {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 105, 0, 0.34);
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 145, 52, 1) 0%,
+    rgba(255, 105, 0, 0.96) 100%
+  );
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(255, 105, 0, 0.2);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease,
+    filter 0.18s ease;
+}
+
+.fourteen-ambassador-button:hover:not(:disabled):not([aria-disabled="true"]) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(255, 105, 0, 0.28);
+}
+
+.fourteen-ambassador-button:active {
+  transform: translateY(0);
+}
+
+.fourteen-ambassador-button:disabled,
+.fourteen-ambassador-button[aria-disabled="true"] {
+  opacity: 0.52;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  filter: grayscale(0.12);
+}
+
+/* -------------------------------------------------------
+   SUMMARY / STATUS
+------------------------------------------------------- */
+
+.fourteen-ambassador-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.fourteen-ambassador-summary-card {
+  border: 1px solid var(--fourteen-amb-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(30, 30, 30, 0.98) 0%,
+    rgba(18, 18, 18, 0.98) 100%
+  );
+}
+
+.fourteen-ambassador-summary-label {
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--fourteen-amb-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fourteen-ambassador-summary-value {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--fourteen-amb-text);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.fourteen-ambassador-status {
+  margin-top: 12px;
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--fourteen-amb-text-soft);
+}
+
+.fourteen-ambassador-status[data-state="error"] {
+  color: #ffd4db;
+}
+
+.fourteen-ambassador-status[data-state="success"] {
+  color: rgba(170, 255, 189, 0.95);
+}
+
+.fourteen-ambassador-link {
+  color: var(--fourteen-amb-accent);
+  text-decoration: none;
+  font-weight: 700;
+  transition: color 0.18s ease;
+}
+
+.fourteen-ambassador-link:hover {
+  color: #ffffff;
+}
+
+/* -------------------------------------------------------
+   RESPONSIVE
+------------------------------------------------------- */
+
+@media (max-width: 860px) {
+  .fourteen-ambassador-hero__title {
+    font-size: 36px;
+  }
+
+  .fourteen-ambassador-popover {
+    right: 0;
+    left: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .fourteen-ambassador-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .fourteen-ambassador-connect-slot__desktop {
+    display: none;
+  }
+
+  .fourteen-ambassador-connect-slot__mobile {
+    display: block;
+  }
+}
+
+@media (max-width: 560px) {
+  .fourteen-ambassador-hero {
+    align-items: flex-start;
+  }
+
+  .fourteen-ambassador-hero__title {
+    font-size: 32px;
+  }
+
+  .fourteen-ambassador-hero__subtitle {
+    margin-top: 7px;
+    font-size: 11px;
+  }
+
+  .fourteen-ambassador-hero__actions {
+    gap: 8px;
+  }
+
+  .fourteen-ambassador-hero__bg {
+    left: -10px;
+    top: -14px;
+    width: 52px;
+    height: 52px;
+  }
+
+  .fourteen-ambassador-popover {
+    width: min(320px, 94vw);
+  }
+
+  .fourteen-ambassador-connect-slot {
+    margin-bottom: 14px;
+  }
+
+  .fourteen-ambassador-connect-slot__mobile {
+    padding: 11px 12px;
+    font-size: 11px;
+  }
+
+  .fourteen-ambassador-input {
+    min-height: 48px;
+    font-size: 16px;
+    padding: 0 14px;
+  }
+
+  .fourteen-ambassador-button {
+    min-height: 48px;
+    font-size: 11px;
+  }
+}
