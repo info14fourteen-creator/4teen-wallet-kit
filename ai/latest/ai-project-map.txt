@@ -1,8 +1,8 @@
 ===== AI PROJECT MAP =====
-Generated: 2026-03-22T22:07:46.086Z
+Generated: 2026-03-24T21:06:02.206Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
-Total files: 136
+Total files: 137
 
 ===== LINKS =====
 AI bundle: https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/ai-project-bundle.txt
@@ -172,6 +172,8 @@ src/
       failWalletConnection.js
       finalizeWalletConnection.js
   widgets/
+    ambassadorRegister/
+      index.js
     directBuy/
       directBuy.css
       index.js
@@ -321,6 +323,7 @@ src/wallet/services/initWalletKit.js
 src/wallet/services/restoreSession.js
 src/wallet/session/failWalletConnection.js
 src/wallet/session/finalizeWalletConnection.js
+src/widgets/ambassadorRegister/index.js
 src/widgets/directBuy/directBuy.css
 src/widgets/directBuy/index.js
 src/widgets/liquidityController/index.js

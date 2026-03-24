@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-03-22T22:07:46.325Z",
+  "generatedAt": "2026-03-24T21:06:02.437Z",
   "repository": "info14fourteen-creator/4teen-wallet-kit",
   "branch": "main",
-  "totalFiles": 136,
+  "totalFiles": 137,
   "bundleUrl": "https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/ai-project-bundle.txt",
   "mapUrl": "https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/ai-project-map.txt",
   "rulesUrl": "https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/WORKING_RULES.md",
@@ -128,6 +128,7 @@
     "src/wallet/services/restoreSession.js",
     "src/wallet/session/failWalletConnection.js",
     "src/wallet/session/finalizeWalletConnection.js",
+    "src/widgets/ambassadorRegister/index.js",
     "src/widgets/directBuy/directBuy.css",
     "src/widgets/directBuy/index.js",
     "src/widgets/liquidityController/index.js",
