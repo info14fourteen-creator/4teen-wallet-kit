@@ -60,6 +60,7 @@ import { mountUnlockTimeline } from './widgets/unlockTimeline/index.js';
 import { mountLiquidityController } from './widgets/liquidityController/index.js';
 import { mountSwap } from './widgets/swap/index.js';
 import { mountMobileShell } from './widgets/mobileShell/index.js';
+import { mountAmbassadorRegister } from './widgets/ambassadorRegister/index.js';
 
 
 // ==========================
@@ -370,7 +371,8 @@ export {
   mountUnlockTimeline,
   mountLiquidityController,
   mountSwap,
-  mountMobileShell
+  mountMobileShell,
+  mountAmbassadorRegister
 };
 
 // notices
