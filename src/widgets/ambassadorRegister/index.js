@@ -527,8 +527,7 @@ export function mountAmbassadorRegister(target, config = {}) {
     }
 
     embeddedWalletUnmount = mountWalletButton(embeddedWalletButtonEl, {
-      variant: 'hero',
-      text: resolvedConfig.connectText,
+      variant: 'compact',
       onConnectClick: async (walletId) => {
         if (typeof wallet.connect === 'function') {
           await wallet.connect(walletId);
@@ -554,16 +553,6 @@ export function mountAmbassadorRegister(target, config = {}) {
         await refreshUi();
       }
     });
-  }
-
-  async function connectWallet() {
-    if (typeof wallet.connect === 'function') {
-      showNeutralNotice('Opening wallet...', 5000);
-      await wallet.connect();
-      return;
-    }
-
-    throw new Error('Wallet connect method is not available');
   }
 
   async function runRegistration() {
@@ -673,6 +662,7 @@ export function mountAmbassadorRegister(target, config = {}) {
   }
 
   function render() {
+    unmountEmbeddedWalletButton();
     root.innerHTML = createMarkup(resolvedConfig, state, isConnectedSafe(wallet));
     updateWalletLabel();
     syncEmbeddedWalletUi();
