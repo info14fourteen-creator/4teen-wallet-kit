@@ -11,6 +11,7 @@ import {
 const ACTIVE_INSTANCES = new WeakMap();
 const DEFAULT_CONTROLLER_CONTRACT = 'TF8yhohRfMxsdVRr7fFrYLh5fxK8sAFkeZ';
 const ZERO_BYTES32 = '0x0000000000000000000000000000000000000000000000000000000000000000';
+const SLUG_MAX_LENGTH = 24;
 
 const DEFAULT_CONFIG = {
   backendBaseUrl: 'https://fourteen-allocation-worker-6e0e920395d8.herokuapp.com',
@@ -20,8 +21,7 @@ const DEFAULT_CONFIG = {
   description: 'Reserve your referral slug and create your ambassador link.',
   connectText: 'Connect Wallet',
   mobileConnectHint: 'Tap connect below to continue.',
-  defaultSlug: '',
-  defaultMeta: ''
+  defaultSlug: ''
 };
 
 function wait(ms) {
@@ -67,7 +67,29 @@ function normalizeSlug(value) {
   return String(value || '')
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9_-]/g, '');
+    .replace(/[^a-z0-9_-]/g, '')
+    .slice(0, SLUG_MAX_LENGTH);
+}
+
+function generateRandomSlug() {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let suffix = '';
+
+  for (let i = 0; i < 6; i += 1) {
+    suffix += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+
+  return `amb-${suffix}`;
+}
+
+function resolveInitialSlug(config) {
+  const normalized = normalizeSlug(config.defaultSlug);
+
+  if (normalized) {
+    return normalized;
+  }
+
+  return generateRandomSlug();
 }
 
 function shortenAddress(address) {
@@ -231,6 +253,10 @@ function normalizeError(error) {
     return 'Wallet is not connected.';
   }
 
+  if (text.includes('Slug is required')) {
+    return 'Slug is required.';
+  }
+
   if (text.includes('contract validate error')) {
     return text;
   }
@@ -278,7 +304,7 @@ function createMarkup(config, state) {
           </div>
 
           <div class="fourteen-ambassador-hero__actions">
-            <div class="fourteen-ambassador-badge">Referral Link</div>
+            <div class="fourteen-ambassador-badge">Slug Link</div>
 
             <div class="fourteen-ambassador-info-toggle-wrap">
               <button
@@ -293,10 +319,9 @@ function createMarkup(config, state) {
               <div class="fourteen-ambassador-popover" hidden>
                 <div class="fourteen-ambassador-popover__title">Registration Info</div>
                 <div class="fourteen-ambassador-popover__text">
-                  Choose a unique public slug. The system checks availability in backend,
-                  then registers your ambassador profile on-chain, and finally stores your
-                  referral handle off-chain so your referral link can be restored and shown
-                  in the cabinet.
+                  Choose a unique public slug. The system checks slug availability in backend,
+                  registers your ambassador profile on-chain, and stores the plain slug so
+                  your referral link can be restored and shown later.
                 </div>
               </div>
             </div>
@@ -323,22 +348,11 @@ function createMarkup(config, state) {
                 class="fourteen-ambassador-input"
                 type="text"
                 autocomplete="off"
-                placeholder="stan"
+                autocapitalize="off"
+                spellcheck="false"
+                maxlength="${SLUG_MAX_LENGTH}"
+                placeholder="amb-abc123"
                 value="${escapeHtml(state.slug)}"
-              />
-            </span>
-          </label>
-
-          <label class="fourteen-ambassador-field">
-            <span class="fourteen-ambassador-label">Meta (optional)</span>
-            <span class="fourteen-ambassador-input-wrap">
-              <input
-                id="fourteen-ambassador-meta"
-                class="fourteen-ambassador-input"
-                type="text"
-                autocomplete="off"
-                placeholder="about me"
-                value="${escapeHtml(state.meta)}"
               />
             </span>
           </label>
@@ -424,8 +438,7 @@ export function mountAmbassadorRegister(target, config = {}) {
   };
 
   const state = {
-    slug: normalizeOptional(resolvedConfig.defaultSlug),
-    meta: normalizeOptional(resolvedConfig.defaultMeta),
+    slug: resolveInitialSlug(resolvedConfig),
     loading: false,
     error: '',
     success: null
@@ -517,7 +530,9 @@ export function mountAmbassadorRegister(target, config = {}) {
       return;
     }
 
-    unmountEmbeddedWalletButton();
+    if (embeddedWalletUnmount) {
+      return;
+    }
 
     embeddedWalletUnmount = mountWalletButton(embeddedWalletButtonEl, {
       variant: 'hero',
@@ -568,7 +583,6 @@ export function mountAmbassadorRegister(target, config = {}) {
     }
 
     const slug = normalizeSlug(state.slug);
-    const meta = normalizeOptional(state.meta);
 
     if (!slug) {
       throw new Error('Slug is required');
@@ -583,7 +597,7 @@ export function mountAmbassadorRegister(target, config = {}) {
       await checkSlugAvailability(resolvedConfig.backendBaseUrl, slug);
 
       const slugHash = keccakUtf8ToHex(slug);
-      const metaHash = meta ? keccakUtf8ToHex(meta) : ZERO_BYTES32;
+      const metaHash = ZERO_BYTES32;
 
       const contract = await tronWeb.contract(
         buildContractAbi(),
@@ -646,21 +660,19 @@ export function mountAmbassadorRegister(target, config = {}) {
 
   function handleResize() {
     if (!isAlive()) return;
+    unmountEmbeddedWalletButton();
     syncEmbeddedWalletUi();
   }
 
   function bindEvents() {
     const slugInput = root.querySelector('#fourteen-ambassador-slug');
-    const metaInput = root.querySelector('#fourteen-ambassador-meta');
     const submitButton = root.querySelector('#fourteen-ambassador-submit');
     const infoToggleEl = root.querySelector('.fourteen-ambassador-info-toggle');
 
     slugInput?.addEventListener('input', () => {
-      state.slug = slugInput.value;
-    });
-
-    metaInput?.addEventListener('input', () => {
-      state.meta = metaInput.value;
+      const normalized = normalizeSlug(slugInput.value);
+      state.slug = normalized;
+      slugInput.value = normalized;
     });
 
     submitButton?.addEventListener('click', handleSubmit);
