@@ -273,7 +273,7 @@ function buildContractAbi() {
   ];
 }
 
-function createMarkup(config, state) {
+function createMarkup(config, state, isConnected) {
   const statusState = state.error
     ? 'error'
     : state.success
@@ -311,8 +311,7 @@ function createMarkup(config, state) {
               <div class="fourteen-ambassador-popover" hidden>
                 <div class="fourteen-ambassador-popover__title">Registration Info</div>
                 <div class="fourteen-ambassador-popover__text">
-                  Registration Info
-Choose your public ambassador slug — this will be your referral handle and it can be changed later. Registration is a real blockchain action, so your wallet may spend a small amount of TRX on bandwidth and energy if free resources are not available. Core registration data is written on-chain, while the service layer is stored separately in a protected two-layer database system for secure verification, matching, and recovery. This is a live registration step, not a demo.
+                  Choose your public ambassador slug - this will be your referral handle and it can be changed later. Registration is a real blockchain action, so your wallet may spend a small amount of TRX on bandwidth and energy if free resources are not available. Core registration data is written on-chain, while the service layer is stored separately in a protected two-layer database system for secure verification, matching, and recovery. This is a live registration step, not a demo.
                 </div>
               </div>
             </div>
@@ -352,7 +351,7 @@ Choose your public ambassador slug — this will be your referral handle and it 
             type="button"
             class="fourteen-ambassador-button"
             id="fourteen-ambassador-submit"
-            ${state.loading ? 'disabled aria-disabled="true"' : ''}
+            ${state.loading || !isConnected ? 'disabled aria-disabled="true"' : ''}
           >
             ${state.loading ? 'Registering...' : 'Register Ambassador'}
           </button>
@@ -364,7 +363,9 @@ Choose your public ambassador slug — this will be your referral handle and it 
               ? escapeHtml(state.error)
               : state.success
                 ? 'Registration completed successfully.'
-                : ''
+                : !isConnected
+                  ? 'Connect your wallet to activate registration.'
+                  : ''
           }
         </div>
 
@@ -625,13 +626,6 @@ export function mountAmbassadorRegister(target, config = {}) {
   async function handleSubmit() {
     try {
       if (!isConnectedSafe(wallet)) {
-        await connectWallet();
-
-        if (typeof wallet.refreshBalances === 'function') {
-          await wallet.refreshBalances();
-        }
-
-        await refreshUi();
         return;
       }
 
@@ -679,7 +673,7 @@ export function mountAmbassadorRegister(target, config = {}) {
   }
 
   function render() {
-    root.innerHTML = createMarkup(resolvedConfig, state);
+    root.innerHTML = createMarkup(resolvedConfig, state, isConnectedSafe(wallet));
     updateWalletLabel();
     syncEmbeddedWalletUi();
     bindEvents();
