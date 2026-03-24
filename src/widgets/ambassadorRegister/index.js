@@ -51,14 +51,6 @@ function assertNonEmpty(value, fieldName) {
   return normalized;
 }
 
-function normalizeOptional(value) {
-  if (value == null) {
-    return '';
-  }
-
-  return String(value).trim();
-}
-
 function normalizeBaseUrl(value) {
   return assertNonEmpty(value, 'backendBaseUrl').replace(/\/+$/, '');
 }
