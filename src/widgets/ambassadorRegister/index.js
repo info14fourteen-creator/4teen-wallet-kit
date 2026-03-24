@@ -311,9 +311,8 @@ function createMarkup(config, state) {
               <div class="fourteen-ambassador-popover" hidden>
                 <div class="fourteen-ambassador-popover__title">Registration Info</div>
                 <div class="fourteen-ambassador-popover__text">
-                  Choose a unique public slug. The system checks slug availability in backend,
-                  registers your ambassador profile on-chain, and stores the plain slug so
-                  your referral link can be restored and shown later.
+                  Registration Info
+Choose your public ambassador slug — this will be your referral handle and it can be changed later. Registration is a real blockchain action, so your wallet may spend a small amount of TRX on bandwidth and energy if free resources are not available. Core registration data is written on-chain, while the service layer is stored separately in a protected two-layer database system for secure verification, matching, and recovery. This is a live registration step, not a demo.
                 </div>
               </div>
             </div>
