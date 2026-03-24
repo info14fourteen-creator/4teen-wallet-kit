@@ -1,16 +1,51 @@
-function assertTarget(target) {
-  if (!target) {
-    throw new Error("target is required");
-  }
+import './ambassadorRegister.css';
+import { keccak_256 } from '@noble/hashes/sha3';
+import { utf8ToBytes } from '@noble/hashes/utils';
+import { mountWalletButton } from '../../ui/walletButton.js';
+import {
+  showSuccessNotice,
+  showErrorNotice,
+  showNeutralNotice
+} from '../../ui/noticeCenter.js';
 
-  return target;
+const ACTIVE_INSTANCES = new WeakMap();
+const DEFAULT_CONTROLLER_CONTRACT = 'TF8yhohRfMxsdVRr7fFrYLh5fxK8sAFkeZ';
+const ZERO_BYTES32 = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+const DEFAULT_CONFIG = {
+  backendBaseUrl: 'https://fourteen-allocation-worker-6e0e920395d8.herokuapp.com',
+  controllerContractAddress: DEFAULT_CONTROLLER_CONTRACT,
+  title: 'Become a 4TEEN Ambassador',
+  subtitle: 'Ambassador Registration',
+  description: 'Reserve your referral slug and create your ambassador link.',
+  connectText: 'Connect Wallet',
+  mobileConnectHint: 'Tap connect below to continue.',
+  defaultSlug: '',
+  defaultMeta: ''
+};
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
 function assertNonEmpty(value, fieldName) {
-  const normalized = String(value || "").trim();
+  const normalized = String(value || '').trim();
 
   if (!normalized) {
-    throw new Error(fieldName + " is required");
+    throw new Error(`${fieldName} is required`);
   }
 
   return normalized;
@@ -18,47 +53,84 @@ function assertNonEmpty(value, fieldName) {
 
 function normalizeOptional(value) {
   if (value == null) {
-    return "";
+    return '';
   }
 
   return String(value).trim();
 }
 
+function normalizeBaseUrl(value) {
+  return assertNonEmpty(value, 'backendBaseUrl').replace(/\/+$/, '');
+}
+
 function normalizeSlug(value) {
-  return String(value || "")
+  return String(value || '')
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9_-]/g, "");
+    .replace(/[^a-z0-9_-]/g, '');
+}
+
+function shortenAddress(address) {
+  if (!address || typeof address !== 'string') return '';
+  if (address.length <= 12) return address;
+  return `${address.slice(0, 6)}...${address.slice(-6)}`;
+}
+
+function isMobileViewport() {
+  if (typeof window === 'undefined') return false;
+
+  if (typeof window.matchMedia === 'function') {
+    return window.matchMedia('(max-width: 640px)').matches;
+  }
+
+  return window.innerWidth <= 640;
 }
 
 function bytesToHex(bytes) {
-  return Array.from(bytes, function (byte) {
-    return byte.toString(16).padStart(2, "0");
-  }).join("");
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function sha256Hex(value) {
-  const data = new TextEncoder().encode(value);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return "0x" + bytesToHex(new Uint8Array(hashBuffer));
+function keccakUtf8ToHex(value) {
+  const bytes = utf8ToBytes(String(value || ''));
+  return `0x${bytesToHex(keccak_256(bytes))}`;
 }
 
-function getZeroBytes32() {
-  return "0x0000000000000000000000000000000000000000000000000000000000000000";
+function getWalletSafe() {
+  return window.FourteenKit || window.FourteenWallet || null;
 }
 
-function getConnectedTronWeb() {
-  const tronWeb = window.tronWeb;
+function getWalletStateSafe(wallet) {
+  if (!wallet) return null;
 
-  if (!tronWeb || !tronWeb.defaultAddress || !tronWeb.defaultAddress.base58) {
-    throw new Error("Tron wallet is not connected");
+  if (typeof wallet.getWalletState === 'function') {
+    return wallet.getWalletState();
   }
 
-  return tronWeb;
+  if (typeof wallet.getState === 'function') {
+    return wallet.getState();
+  }
+
+  return null;
 }
 
-function normalizeBaseUrl(value) {
-  return assertNonEmpty(value, "backendBaseUrl").replace(/\/+$/, "");
+function isConnectedSafe(wallet) {
+  const state = getWalletStateSafe(wallet);
+  return !!state?.connected;
+}
+
+function getWalletAddressSafe(wallet) {
+  const state = getWalletStateSafe(wallet);
+
+  return (
+    state?.address ||
+    wallet?.getAddress?.() ||
+    wallet?.getTronWeb?.()?.defaultAddress?.base58 ||
+    null
+  );
+}
+
+function getActiveTronWeb(wallet) {
+  return wallet?.getTronWeb?.() || wallet?.getState?.()?.tronWeb || null;
 }
 
 async function readJson(response) {
@@ -71,11 +143,11 @@ async function readJson(response) {
 
 async function checkSlugAvailability(backendBaseUrl, slug) {
   const response = await fetch(
-    normalizeBaseUrl(backendBaseUrl) + "/slug/check?slug=" + encodeURIComponent(slug),
+    `${normalizeBaseUrl(backendBaseUrl)}/slug/check?slug=${encodeURIComponent(slug)}`,
     {
-      method: "GET",
+      method: 'GET',
       headers: {
-        "Content-Type": "application/json"
+        'Content-Type': 'application/json'
       }
     }
   );
@@ -83,230 +155,555 @@ async function checkSlugAvailability(backendBaseUrl, slug) {
   const payload = await readJson(response);
 
   if (!response.ok || !payload || !payload.ok) {
-    throw new Error((payload && payload.error) || "Failed to check slug");
+    throw new Error((payload && payload.error) || 'Failed to check slug');
   }
 
   if (!payload.available) {
-    throw new Error("Slug is already taken");
+    throw new Error('Slug is already taken');
   }
 
   return payload;
 }
 
 async function completeRegistration(backendBaseUrl, payload) {
-  const response = await fetch(normalizeBaseUrl(backendBaseUrl) + "/ambassador/register-complete", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
+  const response = await fetch(
+    `${normalizeBaseUrl(backendBaseUrl)}/ambassador/register-complete`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }
+  );
 
   const result = await readJson(response);
 
   if (!response.ok || !result || !result.ok) {
-    throw new Error((result && result.error) || "Failed to complete registration");
+    throw new Error((result && result.error) || 'Failed to complete registration');
   }
 
   return result.result;
 }
 
 function buildReferralLink(value) {
-  const normalized = assertNonEmpty(value, "referralLink");
+  const normalized = assertNonEmpty(value, 'referralLink');
 
   if (/^https?:\/\//i.test(normalized)) {
     return normalized;
   }
 
-  if (normalized.startsWith("?")) {
-    return window.location.origin + "/" + normalized;
+  if (normalized.startsWith('?')) {
+    return `${window.location.origin}/${normalized}`;
   }
 
-  if (normalized.startsWith("/")) {
-    return window.location.origin + normalized;
+  if (normalized.startsWith('/')) {
+    return `${window.location.origin}${normalized}`;
   }
 
-  return window.location.origin + "/" + normalized;
+  return `${window.location.origin}/${normalized}`;
 }
 
-function createMarkup(options, state) {
+function normalizeError(error) {
+  const raw =
+    error?.message ||
+    error?.error ||
+    error?.data?.message ||
+    error?.response?.data?.message ||
+    'Unknown error';
+
+  const text = String(raw);
+
+  if (
+    text.includes('User rejected') ||
+    text.includes('rejected') ||
+    text.includes('denied') ||
+    text.includes('Confirmation declined')
+  ) {
+    return 'Transaction was rejected in wallet.';
+  }
+
+  if (text.includes('Slug is already taken')) {
+    return 'Slug is already taken.';
+  }
+
+  if (text.includes('wallet is not connected') || text.includes('Wallet is not connected')) {
+    return 'Wallet is not connected.';
+  }
+
+  if (text.includes('contract validate error')) {
+    return text;
+  }
+
+  return text;
+}
+
+function buildContractAbi() {
+  return [
+    {
+      constant: false,
+      inputs: [
+        { name: 'slugHash', type: 'bytes32' },
+        { name: 'metaHash', type: 'bytes32' }
+      ],
+      name: 'registerAsAmbassador',
+      outputs: [],
+      payable: false,
+      stateMutability: 'nonpayable',
+      type: 'function'
+    }
+  ];
+}
+
+function createMarkup(config, state) {
+  const statusState = state.error
+    ? 'error'
+    : state.success
+      ? 'success'
+      : 'default';
+
   return `
-    <div class="fourteen-ambassador-register">
-      <div class="far-card">
-        <div class="far-head">
-          <div class="far-title">${options.title}</div>
-          <div class="far-description">${options.description}</div>
+    <div class="fourteen-ambassador-widget">
+      <div class="fourteen-ambassador-shell">
+        <div class="fourteen-ambassador-hero">
+          <div class="fourteen-ambassador-hero__bg"></div>
+
+          <div class="fourteen-ambassador-hero__text">
+            <h2 class="fourteen-ambassador-hero__title">
+              Become a <span>4TEEN</span> Ambassador
+            </h2>
+            <div class="fourteen-ambassador-hero__subtitle">
+              ${escapeHtml(config.subtitle)}
+            </div>
+          </div>
+
+          <div class="fourteen-ambassador-hero__actions">
+            <div class="fourteen-ambassador-badge">Referral Link</div>
+
+            <div class="fourteen-ambassador-info-toggle-wrap">
+              <button
+                type="button"
+                class="fourteen-ambassador-info-toggle"
+                aria-label="Show registration info"
+                aria-expanded="false"
+              >
+                i
+              </button>
+
+              <div class="fourteen-ambassador-popover" hidden>
+                <div class="fourteen-ambassador-popover__title">Registration Info</div>
+                <div class="fourteen-ambassador-popover__text">
+                  Choose a unique public slug. The system checks availability in backend,
+                  then registers your ambassador profile on-chain, and finally stores your
+                  referral handle off-chain so your referral link can be restored and shown
+                  in the cabinet.
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="far-body">
-          <label class="far-label">
-            <span class="far-label-text">Referral slug</span>
-            <input
-              class="far-input"
-              id="far-slug"
-              type="text"
-              autocomplete="off"
-              placeholder="stan"
-              value="${state.slug}"
-            />
+        <div class="fourteen-ambassador-topbar">
+          <div class="fourteen-ambassador-wallet" data-role="wallet-label">Wallet not connected</div>
+        </div>
+
+        <div class="fourteen-ambassador-connect-slot">
+          <div class="fourteen-ambassador-connect-slot__desktop" data-role="embedded-wallet-button"></div>
+          <div class="fourteen-ambassador-connect-slot__mobile" data-role="mobile-connect-hint" hidden>
+            ${escapeHtml(config.mobileConnectHint)}
+          </div>
+        </div>
+
+        <div class="fourteen-ambassador-form">
+          <label class="fourteen-ambassador-field">
+            <span class="fourteen-ambassador-label">Referral slug</span>
+            <span class="fourteen-ambassador-input-wrap">
+              <input
+                id="fourteen-ambassador-slug"
+                class="fourteen-ambassador-input"
+                type="text"
+                autocomplete="off"
+                placeholder="stan"
+                value="${escapeHtml(state.slug)}"
+              />
+            </span>
           </label>
 
-          <label class="far-label">
-            <span class="far-label-text">Meta (optional)</span>
-            <input
-              class="far-input"
-              id="far-meta"
-              type="text"
-              autocomplete="off"
-              placeholder="about me"
-              value="${state.meta}"
-            />
+          <label class="fourteen-ambassador-field">
+            <span class="fourteen-ambassador-label">Meta (optional)</span>
+            <span class="fourteen-ambassador-input-wrap">
+              <input
+                id="fourteen-ambassador-meta"
+                class="fourteen-ambassador-input"
+                type="text"
+                autocomplete="off"
+                placeholder="about me"
+                value="${escapeHtml(state.meta)}"
+              />
+            </span>
           </label>
 
-          <button class="far-button" id="far-submit" ${state.loading ? "disabled" : ""}>
-            ${state.loading ? "Registering..." : "Register Ambassador"}
+          <button
+            type="button"
+            class="fourteen-ambassador-button"
+            id="fourteen-ambassador-submit"
+            ${state.loading ? 'disabled aria-disabled="true"' : ''}
+          >
+            ${state.loading ? 'Registering...' : 'Register Ambassador'}
           </button>
+        </div>
 
+        <div class="fourteen-ambassador-status" data-state="${statusState}" role="status" aria-live="polite">
           ${
             state.error
-              ? `<div class="far-message far-error">${state.error}</div>`
-              : ""
-          }
-
-          ${
-            state.success
-              ? `
-                <div class="far-message far-success">Registration completed</div>
-                <div class="far-result">
-                  <div class="far-result-row"><strong>Slug:</strong> ${state.success.slug}</div>
-                  <div class="far-result-row"><strong>Referral link:</strong></div>
-                  <div class="far-result-row far-link-wrap">
-                    <a class="far-link" href="${state.success.referralLink}" target="_blank" rel="noreferrer">
-                      ${state.success.referralLink}
-                    </a>
-                  </div>
-                  <div class="far-result-row far-tx"><strong>Tx:</strong> ${state.success.txid}</div>
-                </div>
-              `
-              : ""
+              ? escapeHtml(state.error)
+              : state.success
+                ? 'Registration completed successfully.'
+                : ''
           }
         </div>
+
+        ${
+          state.success
+            ? `
+              <div class="fourteen-ambassador-summary">
+                <div class="fourteen-ambassador-summary-card">
+                  <div class="fourteen-ambassador-summary-label">Slug</div>
+                  <div class="fourteen-ambassador-summary-value">${escapeHtml(state.success.slug)}</div>
+                </div>
+
+                <div class="fourteen-ambassador-summary-card">
+                  <div class="fourteen-ambassador-summary-label">Tx</div>
+                  <div class="fourteen-ambassador-summary-value">${escapeHtml(state.success.txid)}</div>
+                </div>
+
+                <div class="fourteen-ambassador-summary-card" style="grid-column: 1 / -1;">
+                  <div class="fourteen-ambassador-summary-label">Referral link</div>
+                  <div class="fourteen-ambassador-summary-value">
+                    <a
+                      class="fourteen-ambassador-link"
+                      href="${escapeHtml(state.success.referralLink)}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      ${escapeHtml(state.success.referralLink)}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            `
+            : ''
+        }
       </div>
     </div>
   `;
 }
 
-function createState(options) {
-  return {
-    slug: normalizeOptional(options.defaultSlug),
-    meta: normalizeOptional(options.defaultMeta),
+export function mountAmbassadorRegister(target, config = {}) {
+  if (!target) {
+    throw new Error('mountAmbassadorRegister: target is required');
+  }
+
+  const wallet = getWalletSafe();
+
+  if (!wallet) {
+    throw new Error('Fourteen wallet instance is not loaded');
+  }
+
+  if (ACTIVE_INSTANCES.has(target)) {
+    try {
+      ACTIVE_INSTANCES.get(target).destroy();
+    } catch (error) {
+      console.error('Failed to destroy previous ambassador register instance:', error);
+    }
+  }
+
+  const resolvedConfig = {
+    ...DEFAULT_CONFIG,
+    ...config
+  };
+
+  const state = {
+    slug: normalizeOptional(resolvedConfig.defaultSlug),
+    meta: normalizeOptional(resolvedConfig.defaultMeta),
     loading: false,
-    error: "",
+    error: '',
     success: null
   };
-}
 
-function createOptions(options) {
-  return {
-    backendBaseUrl: normalizeBaseUrl(options.backendBaseUrl),
-    controllerContractAddress: assertNonEmpty(
-      options.controllerContractAddress || "TF8yhohRfMxsdVRr7fFrYLh5fxK8sAFkeZ",
-      "controllerContractAddress"
-    ),
-    title: normalizeOptional(options.title) || "Become a 4TEEN Ambassador",
-    description:
-      normalizeOptional(options.description) ||
-      "Reserve your referral slug and create your ambassador link.",
-    defaultSlug: normalizeOptional(options.defaultSlug),
-    defaultMeta: normalizeOptional(options.defaultMeta)
-  };
-}
+  let isDestroyed = false;
+  let walletUnsubscribe = null;
+  let embeddedWalletUnmount = null;
+  let resizeListenerBound = false;
 
-function mountAmbassadorRegister(target, inputOptions) {
-  const root = assertTarget(target);
-  const options = createOptions(inputOptions || {});
-  const state = createState(options);
+  const root = target;
 
-  function bindEvents() {
-    const slugInput = root.querySelector("#far-slug");
-    const metaInput = root.querySelector("#far-meta");
-    const submitButton = root.querySelector("#far-submit");
+  function isAlive() {
+    return !isDestroyed && document.body.contains(target);
+  }
 
-    if (!slugInput || !metaInput || !submitButton) {
+  function closePopover() {
+    const popoverEl = root.querySelector('.fourteen-ambassador-popover');
+    const infoToggleEl = root.querySelector('.fourteen-ambassador-info-toggle');
+
+    if (!popoverEl || !infoToggleEl) return;
+
+    popoverEl.hidden = true;
+    infoToggleEl.setAttribute('aria-expanded', 'false');
+  }
+
+  function togglePopover(event) {
+    event?.stopPropagation?.();
+
+    const popoverEl = root.querySelector('.fourteen-ambassador-popover');
+    const infoToggleEl = root.querySelector('.fourteen-ambassador-info-toggle');
+
+    if (!popoverEl || !infoToggleEl) return;
+
+    const nextHidden = !popoverEl.hidden;
+    popoverEl.hidden = nextHidden;
+    infoToggleEl.setAttribute('aria-expanded', nextHidden ? 'false' : 'true');
+  }
+
+  function updateWalletLabel() {
+    const walletLabelEl = root.querySelector('[data-role="wallet-label"]');
+    const address = getWalletAddressSafe(wallet);
+
+    if (!walletLabelEl) return;
+
+    if (!isConnectedSafe(wallet) || !address) {
+      walletLabelEl.textContent = 'Wallet not connected';
       return;
     }
 
-    slugInput.addEventListener("input", function () {
-      state.slug = slugInput.value;
-    });
+    walletLabelEl.textContent = `Wallet ${shortenAddress(address)}`;
+  }
 
-    metaInput.addEventListener("input", function () {
-      state.meta = metaInput.value;
-    });
+  function unmountEmbeddedWalletButton() {
+    try {
+      embeddedWalletUnmount?.();
+    } catch (_) {}
 
-    submitButton.addEventListener("click", async function () {
-      if (state.loading) {
+    embeddedWalletUnmount = null;
+
+    const embeddedWalletButtonEl = root.querySelector('[data-role="embedded-wallet-button"]');
+
+    if (embeddedWalletButtonEl) {
+      embeddedWalletButtonEl.innerHTML = '';
+    }
+  }
+
+  function syncEmbeddedWalletUi() {
+    const connected = isConnectedSafe(wallet);
+    const mobile = isMobileViewport();
+    const embeddedWalletButtonEl = root.querySelector('[data-role="embedded-wallet-button"]');
+    const mobileConnectHintEl = root.querySelector('[data-role="mobile-connect-hint"]');
+
+    if (mobile) {
+      unmountEmbeddedWalletButton();
+
+      if (mobileConnectHintEl) {
+        mobileConnectHintEl.hidden = connected;
+      }
+
+      return;
+    }
+
+    if (mobileConnectHintEl) {
+      mobileConnectHintEl.hidden = true;
+    }
+
+    if (embeddedWalletUnmount || !embeddedWalletButtonEl) {
+      return;
+    }
+
+    embeddedWalletUnmount = mountWalletButton(embeddedWalletButtonEl, {
+      variant: 'hero',
+      connectText: resolvedConfig.connectText,
+      onConnectClick: async (walletId) => {
+        if (typeof wallet.connect === 'function') {
+          await wallet.connect(walletId);
+          await wait(450);
+          await refreshUi();
+        }
+      },
+      onRefresh: async () => {
+        if (typeof wallet.refreshBalances === 'function') {
+          await wallet.refreshBalances();
+        }
+        await refreshUi();
+      },
+      onDisconnect: async () => {
+        if (typeof wallet.disconnect === 'function') {
+          await wallet.disconnect();
+        }
+        await refreshUi();
+      }
+    });
+  }
+
+  async function connectWallet() {
+    if (typeof wallet.connect === 'function') {
+      showNeutralNotice('Opening wallet...', 5000);
+      await wallet.connect();
+      return;
+    }
+
+    throw new Error('Wallet connect method is not available');
+  }
+
+  async function runRegistration() {
+    const tronWeb = getActiveTronWeb(wallet);
+    const walletAddress = getWalletAddressSafe(wallet);
+
+    if (!tronWeb || !walletAddress) {
+      throw new Error('Wallet is not connected');
+    }
+
+    const slug = normalizeSlug(state.slug);
+    const meta = normalizeOptional(state.meta);
+
+    if (!slug) {
+      throw new Error('Slug is required');
+    }
+
+    await checkSlugAvailability(resolvedConfig.backendBaseUrl, slug);
+
+    const slugHash = keccakUtf8ToHex(slug);
+    const metaHash = meta ? keccakUtf8ToHex(meta) : ZERO_BYTES32;
+
+    const contract = await tronWeb.contract(
+      buildContractAbi(),
+      resolvedConfig.controllerContractAddress
+    );
+
+    state.loading = true;
+    state.error = '';
+    state.success = null;
+    render();
+
+    try {
+      const txid = await contract.registerAsAmbassador(slugHash, metaHash).send();
+
+      const completed = await completeRegistration(resolvedConfig.backendBaseUrl, {
+        slug,
+        slugHash,
+        wallet: walletAddress
+      });
+
+      state.success = {
+        slug,
+        txid: assertNonEmpty(txid, 'txid'),
+        referralLink: buildReferralLink(completed.referralLink)
+      };
+
+      showSuccessNotice('Ambassador registration completed.', 10000);
+      await sleep(250);
+    } catch (error) {
+      const message = normalizeError(error);
+      state.error = message;
+      showErrorNotice(message, 10000);
+      throw error;
+    } finally {
+      state.loading = false;
+      render();
+    }
+  }
+
+  async function handleSubmit() {
+    try {
+      if (!isConnectedSafe(wallet)) {
+        await connectWallet();
+        await refreshUi();
         return;
       }
 
-      state.loading = true;
-      state.error = "";
-      state.success = null;
-      render();
+      await runRegistration();
+    } catch (error) {
+      console.error('Ambassador registration flow failed:', error);
+    }
+  }
 
-      try {
-        const tronWeb = getConnectedTronWeb();
-        const wallet = assertNonEmpty(tronWeb.defaultAddress.base58, "wallet");
-        const slug = normalizeSlug(state.slug);
-        const meta = normalizeOptional(state.meta);
+  function handleOutsideClick(event) {
+    const widgetEl = root.querySelector('.fourteen-ambassador-widget');
 
-        if (!slug) {
-          throw new Error("Slug is required");
-        }
+    if (!widgetEl?.contains(event.target)) {
+      closePopover();
+    }
+  }
 
-        await checkSlugAvailability(options.backendBaseUrl, slug);
+  function handleResize() {
+    if (!isAlive()) return;
+    syncEmbeddedWalletUi();
+  }
 
-        const slugHash = await sha256Hex(slug);
-        const metaHash = meta ? await sha256Hex(meta) : getZeroBytes32();
+  function bindEvents() {
+    const slugInput = root.querySelector('#fourteen-ambassador-slug');
+    const metaInput = root.querySelector('#fourteen-ambassador-meta');
+    const submitButton = root.querySelector('#fourteen-ambassador-submit');
+    const infoToggleEl = root.querySelector('.fourteen-ambassador-info-toggle');
 
-        const contract = await tronWeb.contract().at(options.controllerContractAddress);
-        const txid = await contract.registerAsAmbassador(slugHash, metaHash).send();
-
-        const completed = await completeRegistration(options.backendBaseUrl, {
-          slug: slug,
-          slugHash: slugHash,
-          wallet: wallet
-        });
-
-        state.success = {
-          slug: slug,
-          referralLink: buildReferralLink(completed.referralLink),
-          txid: assertNonEmpty(txid, "txid")
-        };
-      } catch (error) {
-        state.error =
-          error && typeof error === "object" && typeof error.message === "string"
-            ? error.message.trim() || "Registration failed"
-            : typeof error === "string" && error.trim()
-              ? error.trim()
-              : "Registration failed";
-      } finally {
-        state.loading = false;
-        render();
-      }
+    slugInput?.addEventListener('input', () => {
+      state.slug = slugInput.value;
     });
+
+    metaInput?.addEventListener('input', () => {
+      state.meta = metaInput.value;
+    });
+
+    submitButton?.addEventListener('click', handleSubmit);
+    infoToggleEl?.addEventListener('click', togglePopover);
+    document.addEventListener('click', handleOutsideClick);
+  }
+
+  async function refreshUi() {
+    if (!isAlive()) {
+      return;
+    }
+
+    render();
   }
 
   function render() {
-    root.innerHTML = createMarkup(options, state);
+    root.innerHTML = createMarkup(resolvedConfig, state);
+    updateWalletLabel();
+    syncEmbeddedWalletUi();
     bindEvents();
   }
 
+  if (typeof wallet.subscribe === 'function') {
+    walletUnsubscribe = wallet.subscribe(() => {
+      refreshUi().catch((error) => {
+        console.error('Ambassador widget wallet refresh failed:', error);
+      });
+    });
+  }
+
+  if (typeof window !== 'undefined' && !resizeListenerBound) {
+    window.addEventListener('resize', handleResize);
+    resizeListenerBound = true;
+  }
+
+  const instance = {
+    destroy() {
+      isDestroyed = true;
+      unmountEmbeddedWalletButton();
+      document.removeEventListener('click', handleOutsideClick);
+
+      if (resizeListenerBound && typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleResize);
+        resizeListenerBound = false;
+      }
+
+      try {
+        walletUnsubscribe?.();
+      } catch (_) {}
+    }
+  };
+
+  ACTIVE_INSTANCES.set(target, instance);
+
   render();
 
-  return {
-    refresh: render
-  };
+  return instance;
 }
-
-export { mountAmbassadorRegister };
