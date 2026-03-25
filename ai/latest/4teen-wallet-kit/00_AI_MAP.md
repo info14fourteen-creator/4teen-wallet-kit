@@ -1,0 +1,221 @@
+# AI MAP — 4teen-wallet-kit
+
+- Generated: 2026-03-25T17:07:08.199Z
+- Repository: info14fourteen-creator/4teen-wallet-kit
+- Branch: main
+- Total source files included: 137
+- Output folder: ai/latest/4teen-wallet-kit
+- Zip archive: ai/latest/4teen-wallet-kit.zip
+
+## Snapshot files
+
+- 01_PROJECT_OVERVIEW.md — PROJECT OVERVIEW (3 files)
+- 02_BUILD_AND_TOOLING.md — BUILD AND TOOLING (4 files)
+- 03_ENTRY_AND_EXPORTS.md — ENTRY AND EXPORTS (1 files)
+- 04_WALLET_CONNECTION.md — WALLET CONNECTION (40 files)
+- 05_BLOCKCHAIN_AND_CONTRACTS.md — BLOCKCHAIN AND CONTRACTS (0 files)
+- 06_WIDGETS_AND_COMPONENTS.md — WIDGETS AND COMPONENTS (28 files)
+- 07_HOOKS_AND_STATE.md — HOOKS AND STATE (0 files)
+- 08_PAGES_AND_FLOWS.md — PAGES AND FLOWS (0 files)
+- 09_SHARED_UTILS_AND_STYLES.md — SHARED UTILS AND STYLES (34 files)
+- 10_REMAINING_FILES.md — REMAINING FILES (27 files)
+
+## Project tree
+
+```text
+- .github/
+  - workflows/
+    - build-and-publish-ai-bundle.yml
+    - build-and-publish.yml
+- ai/
+  - WORKING_RULES.md
+- examples/
+  - vanilla/
+    - index.html
+    - main.js
+- scripts/
+  - build-ai-bundle.js
+- src/
+  - adapters/
+    - drivers/
+      - binance/
+        - index.js
+      - bitget/
+        - index.js
+      - foxwallet/
+        - index.js
+      - imtoken/
+        - index.js
+      - metamask/
+        - index.js
+      - okx/
+        - index.js
+      - tokenpocket/
+        - index.js
+      - tronlink/
+        - index.js
+      - trust/
+        - index.js
+      - walletconnect/
+        - index.js
+    - registry/
+      - getAvailableDrivers.js
+      - getDriverById.js
+      - getDriverMap.js
+      - pickWalletAdapter.js
+      - walletRegistry.js
+    - shared/
+      - accountRequests.js
+      - addressResolver.js
+      - browserDetection.js
+      - createReadonlyTronWeb.js
+      - providerResolver.js
+      - signingReadiness.js
+      - tokenBalanceReader.js
+      - trxBalanceReader.js
+    - createAdapters.js
+    - priority.js
+  - assets/
+    - menu/
+      - buy_menu.svg
+      - liquidity_menu.svg
+      - swap_menu.svg
+      - unlock_menu.svg
+    - socials/
+      - discord_social.svg
+      - facebook_social.svg
+      - github_social.svg
+      - instagram_social.svg
+      - telegram_social.svg
+      - threads_social.svg
+      - tiktok_social.svg
+      - whatsapp_social.svg
+      - x_social.svg
+      - youtube_social.svg
+    - 4teen_swap.svg
+    - 4teen.svg
+    - binance.svg
+    - bitget.svg
+    - foxwallet.svg
+    - imtoken.svg
+    - justmoney_swap.svg
+    - metamask.svg
+    - okx.svg
+    - sunio_swap.svg
+    - swap_arrows.svg
+    - text_bg.svg
+    - tokenpocket.svg
+    - tronlink.svg
+    - trust.svg
+    - trx_swap.svg
+    - trx.svg
+    - usdt_swap.svg
+    - wallet.svg
+    - walletconnect.svg
+  - core/
+    - config/
+      - appkit.js
+      - constants.js
+      - token.js
+      - wallets.js
+    - store/
+      - walletStore.js
+    - utils/
+      - address.js
+      - format.js
+      - tron.js
+  - debug/
+    - debugOverlay.js
+  - diagnostics/
+    - assertWalletSigning.js
+    - walletDiagnostics.js
+  - polyfills/
+    - node.js
+  - services/
+    - balances/
+      - getFourteenBalance.js
+      - getTokenBalance.js
+      - getTrxBalance.js
+      - refreshAllBalances.js
+    - contracts/
+      - trc20.js
+    - readonly/
+      - getTokenContractData.js
+      - getTokenDecimals.js
+      - getTokenSymbol.js
+      - getTokenTotalSupply.js
+    - wallet/
+      - connectWallet.js
+      - disconnectWallet.js
+      - initWalletKit.js
+      - restoreSession.js
+  - ui/
+    - wallet/
+      - openWalletPicker.js
+    - icons.js
+    - mobileShell.config.js
+    - mobileShell.css
+    - mobileShell.js
+    - noticeCenter.css
+    - noticeCenter.js
+    - walletButton.css
+    - walletButton.js
+    - walletDropdown.js
+    - walletPicker.css
+    - walletPicker.js
+  - wallet/
+    - actions/
+      - connectWallet.js
+      - disconnectWallet.js
+      - refreshWalletBalances.js
+      - restoreWalletSession.js
+    - core/
+      - walletManager.js
+    - runtime/
+      - bindAdapterEvents.js
+      - buildWalletKitRuntime.js
+      - refreshAvailableWallets.js
+      - resolveAutoWallet.js
+      - waitAdaptersReady.js
+      - walletScheduler.js
+    - services/
+      - initWalletKit.js
+      - restoreSession.js
+    - session/
+      - failWalletConnection.js
+      - finalizeWalletConnection.js
+  - widgets/
+    - ambassadorRegister/
+      - ambassadorRegister.css
+      - index.js
+    - directBuy/
+      - directBuy.css
+      - index.js
+    - liquidityController/
+      - index.js
+      - liquidityController.css
+    - mobileShell/
+      - index.js
+    - swap/
+      - providers/
+        - justmoney.js
+        - sunio.js
+      - services/
+        - quotes.js
+        - swapExecution.js
+      - constants.js
+      - index.js
+      - swap.css
+    - unlockTimeline/
+      - index.js
+      - unlockTimeline.css
+  - index.js
+- package.json
+- README.md
+- vite.config.js
+```
+
+## Raw links
+
+- Folder base: https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit
+- Working rules: https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/WORKING_RULES.md
