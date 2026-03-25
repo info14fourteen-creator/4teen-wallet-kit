@@ -18,7 +18,8 @@ const DEFAULT_CONFIG = {
   title: 'Direct Buy',
   subtitle: 'Mint-on-Purchase Issuance',
   connectText: 'Connect Wallet',
-  mobileConnectHint: 'Tap connect below to continue.'
+  mobileConnectHint: 'Tap connect below to continue.',
+  afterBuy: null
 };
 
 function sleep(ms) {
@@ -271,6 +272,10 @@ function buildPriceText(tokenPriceSun) {
   return `Current price: 1 4TEEN = ${formatTrx(trxPerToken, 6)} TRX`;
 }
 
+function isFunction(value) {
+  return typeof value === 'function';
+}
+
 export function mountDirectBuy(target, config = {}) {
   const {
     contractAddress,
@@ -278,7 +283,8 @@ export function mountDirectBuy(target, config = {}) {
     buttonBuyText,
     subtitle,
     connectText,
-    mobileConnectHint
+    mobileConnectHint,
+    afterBuy
   } = { ...DEFAULT_CONFIG, ...config };
 
   if (!target) {
@@ -606,6 +612,17 @@ export function mountDirectBuy(target, config = {}) {
     throw new Error('Wallet connect method is not available');
   }
 
+  async function runAfterBuyHook(txHash, buyerWallet) {
+    if (!isFunction(afterBuy)) {
+      return null;
+    }
+
+    return afterBuy({
+      txHash,
+      buyerWallet
+    });
+  }
+
   async function buy() {
     const tronWeb = getActiveTronWeb(wallet);
     const address = getWalletAddressSafe(wallet);
@@ -640,13 +657,29 @@ export function mountDirectBuy(target, config = {}) {
 
       const txid = extractTxid(result);
 
+      if (!txid) {
+        throw new Error('Transaction sent but txid was not returned');
+      }
+
       showSuccessNotice('Transaction sent successfully.', 10000);
       setStatus('Transaction sent successfully.', false, txid);
+
+      try {
+        await runAfterBuyHook(txid, address);
+      } catch (afterBuyError) {
+        console.error('Direct buy post-purchase hook failed:', afterBuyError);
+        showNeutralNotice('Purchase succeeded, but post-purchase attribution is pending.', 10000);
+      }
 
       inputEl.value = '';
       syncEstimate();
 
       await sleep(400);
+
+      return {
+        txid,
+        buyerWallet: address
+      };
     } catch (error) {
       const message = normalizeError(error);
       setStatus(message, true);
