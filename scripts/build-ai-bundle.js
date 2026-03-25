@@ -1,291 +1,558 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
+import { spawnSync } from "child_process";
 
-const root = process.cwd();
+const ROOT = process.cwd();
+const REPO_NAME = "4teen-wallet-kit";
 
-const OUTPUT_DIR = path.join(root, 'ai', 'latest');
-const MAP_FILE = path.join(OUTPUT_DIR, 'ai-project-map.txt');
-const BUNDLE_FILE = path.join(OUTPUT_DIR, 'ai-project-bundle.txt');
-const LINKS_FILE = path.join(OUTPUT_DIR, 'links.txt');
-const MANIFEST_FILE = path.join(OUTPUT_DIR, 'manifest.json');
-const RULES_FILE = path.join(root, 'ai', 'WORKING_RULES.md');
+const AI_DIR = path.join(ROOT, "ai");
+const LATEST_DIR = path.join(AI_DIR, "latest");
+const REPO_OUTPUT_DIR = path.join(LATEST_DIR, REPO_NAME);
+
+const RULES_FILE = path.join(ROOT, "ai", "WORKING_RULES.md");
 
 const IGNORE_DIRS = new Set([
-  '.git',
-  '.github-cache',
-  '.idea',
-  '.vscode',
-  'coverage',
-  'dist',
-  'node_modules'
+  ".git",
+  ".github-cache",
+  ".idea",
+  ".vscode",
+  "coverage",
+  "dist",
+  "node_modules",
+  "ai/latest"
 ]);
 
-const IGNORE_RELATIVE_PREFIXES = [
-  'ai/latest/'
+const IGNORE_EXACT = new Set([
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "yarn.lock"
+]);
+
+const IGNORE_PREFIXES = [
+  "ai/latest/"
 ];
 
 const ALLOWED_EXTENSIONS = new Set([
-  '.cjs',
-  '.css',
-  '.html',
-  '.js',
-  '.json',
-  '.jsx',
-  '.md',
-  '.mjs',
-  '.svg',
-  '.ts',
-  '.tsx',
-  '.txt',
-  '.yml',
-  '.yaml'
+  ".cjs",
+  ".css",
+  ".html",
+  ".js",
+  ".json",
+  ".jsx",
+  ".md",
+  ".mjs",
+  ".svg",
+  ".ts",
+  ".tsx",
+  ".txt",
+  ".yml",
+  ".yaml"
 ]);
 
-function toPosixPath(value) {
-  return value.replace(/\\/g, '/');
+const SECTIONS = [
+  {
+    file: "01_PROJECT_OVERVIEW.md",
+    title: "PROJECT OVERVIEW",
+    includes: [
+      "package.json",
+      "README.md",
+      "ai/WORKING_RULES.md"
+    ]
+  },
+  {
+    file: "02_BUILD_AND_TOOLING.md",
+    title: "BUILD AND TOOLING",
+    includes: [
+      ".github/",
+      "scripts/",
+      "vite.config",
+      "vite.config.js",
+      "vite.config.mjs",
+      "vite.config.ts"
+    ]
+  },
+  {
+    file: "03_ENTRY_AND_EXPORTS.md",
+    title: "ENTRY AND EXPORTS",
+    includes: [
+      "src/index",
+      "src/main",
+      "src/entry",
+      "src/export"
+    ]
+  },
+  {
+    file: "04_WALLET_CONNECTION.md",
+    title: "WALLET CONNECTION",
+    includes: [
+      "src/connect",
+      "src/connector",
+      "src/wallet",
+      "src/adapters",
+      "src/providers"
+    ]
+  },
+  {
+    file: "05_BLOCKCHAIN_AND_CONTRACTS.md",
+    title: "BLOCKCHAIN AND CONTRACTS",
+    includes: [
+      "src/blockchain",
+      "src/contracts",
+      "src/tron",
+      "src/web3",
+      "src/api"
+    ]
+  },
+  {
+    file: "06_WIDGETS_AND_COMPONENTS.md",
+    title: "WIDGETS AND COMPONENTS",
+    includes: [
+      "src/widgets",
+      "src/components",
+      "src/ui"
+    ]
+  },
+  {
+    file: "07_HOOKS_AND_STATE.md",
+    title: "HOOKS AND STATE",
+    includes: [
+      "src/hooks",
+      "src/store",
+      "src/state",
+      "src/context"
+    ]
+  },
+  {
+    file: "08_PAGES_AND_FLOWS.md",
+    title: "PAGES AND FLOWS",
+    includes: [
+      "src/pages",
+      "src/routes",
+      "src/flows"
+    ]
+  },
+  {
+    file: "09_SHARED_UTILS_AND_STYLES.md",
+    title: "SHARED UTILS AND STYLES",
+    includes: [
+      "src/utils",
+      "src/lib",
+      "src/helpers",
+      "src/styles",
+      "src/assets"
+    ]
+  }
+];
+
+function ensureDir(dirPath) {
+  fs.mkdirSync(dirPath, { recursive: true });
 }
 
-function toRelativePath(absolutePath) {
-  return toPosixPath(path.relative(root, absolutePath));
+function toPosix(value) {
+  return value.replace(/\\/g, "/");
 }
 
-function shouldIgnorePath(relativePath) {
-  return IGNORE_RELATIVE_PREFIXES.some((prefix) => relativePath.startsWith(prefix));
+function toRelative(absPath) {
+  return toPosix(path.relative(ROOT, absPath));
 }
 
-function ensureDirectory(directoryPath) {
-  fs.mkdirSync(directoryPath, { recursive: true });
+function shouldIgnore(relativePath) {
+  const rel = toPosix(relativePath);
+
+  if (IGNORE_EXACT.has(path.basename(rel))) return true;
+  if (IGNORE_PREFIXES.some((prefix) => rel.startsWith(prefix))) return true;
+
+  return false;
 }
 
-function walkDirectory(directoryPath) {
-  const results = [];
-  const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+function isAllowedFile(fileName) {
+  const ext = path.extname(fileName).toLowerCase();
+  return ALLOWED_EXTENSIONS.has(ext);
+}
+
+function walk(dirPath, results = []) {
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
   for (const entry of entries) {
-    if (entry.name.startsWith('.') && !['.github'].includes(entry.name)) {
-      continue;
-    }
+    const abs = path.join(dirPath, entry.name);
+    const rel = toRelative(abs);
 
-    const absolutePath = path.join(directoryPath, entry.name);
-    const relativePath = toRelativePath(absolutePath);
-
-    if (shouldIgnorePath(relativePath)) {
-      continue;
-    }
+    if (shouldIgnore(rel)) continue;
 
     if (entry.isDirectory()) {
-      if (IGNORE_DIRS.has(entry.name)) {
-        continue;
-      }
+      if (IGNORE_DIRS.has(rel) || IGNORE_DIRS.has(entry.name)) continue;
+      if (entry.name.startsWith(".") && entry.name !== ".github") continue;
 
-      results.push(...walkDirectory(absolutePath));
+      walk(abs, results);
       continue;
     }
 
-    const extension = path.extname(entry.name).toLowerCase();
-    if (!ALLOWED_EXTENSIONS.has(extension)) {
-      continue;
-    }
-
-    results.push(absolutePath);
+    if (!isAllowedFile(entry.name)) continue;
+    results.push(rel);
   }
 
   return results;
+}
+
+function readUtf8(relPath) {
+  try {
+    return fs.readFileSync(path.join(ROOT, relPath), "utf8");
+  } catch {
+    return "";
+  }
+}
+
+function getRepositoryInfo() {
+  const repository = process.env.GITHUB_REPOSITORY || `info14fourteen-creator/${REPO_NAME}`;
+  const branch = process.env.GITHUB_REF_NAME || "main";
+
+  return {
+    repository,
+    branch,
+    outputBaseUrl: `https://raw.githubusercontent.com/${repository}/${branch}/ai/latest/${REPO_NAME}`,
+    rulesUrl: `https://raw.githubusercontent.com/${repository}/${branch}/ai/WORKING_RULES.md`
+  };
+}
+
+function matchesInclude(relPath, includeRule) {
+  const rel = toPosix(relPath);
+  const rule = toPosix(includeRule);
+
+  if (rule.endsWith("/")) {
+    return rel.startsWith(rule);
+  }
+
+  return (
+    rel === rule ||
+    rel.startsWith(`${rule}/`) ||
+    rel.startsWith(`${rule}.`)
+  );
+}
+
+function groupFiles(files) {
+  const assigned = new Set();
+  const groups = [];
+
+  for (const section of SECTIONS) {
+    const sectionFiles = files.filter((file) =>
+      section.includes.some((rule) => matchesInclude(file, rule))
+    );
+
+    for (const file of sectionFiles) {
+      assigned.add(file);
+    }
+
+    groups.push({
+      file: section.file,
+      title: section.title,
+      files: Array.from(new Set(sectionFiles)).sort()
+    });
+  }
+
+  const unassigned = files.filter((file) => !assigned.has(file)).sort();
+
+  if (unassigned.length > 0) {
+    groups.push({
+      file: "10_REMAINING_FILES.md",
+      title: "REMAINING FILES",
+      files: unassigned
+    });
+  }
+
+  return groups;
 }
 
 function buildTree(files) {
   const rootNode = {};
 
   for (const file of files) {
-    const parts = toRelativePath(file).split('/');
-    let current = rootNode;
+    const parts = toPosix(file).split("/");
+    let node = rootNode;
 
-    for (let index = 0; index < parts.length; index += 1) {
-      const part = parts[index];
-      const isFile = index === parts.length - 1;
+    for (let i = 0; i < parts.length; i += 1) {
+      const part = parts[i];
+      const isLast = i === parts.length - 1;
 
-      if (!current[part]) {
-        current[part] = isFile ? null : {};
+      if (!node[part]) {
+        node[part] = isLast ? null : {};
       }
 
-      current = current[part];
+      node = node[part];
     }
   }
 
-  function renderNode(node, indent = '') {
-    const keys = Object.keys(node).sort((left, right) => {
-      const leftIsDir = node[left] !== null;
-      const rightIsDir = node[right] !== null;
+  function render(node, indent = "") {
+    const keys = Object.keys(node).sort((a, b) => {
+      const aDir = node[a] !== null;
+      const bDir = node[b] !== null;
 
-      if (leftIsDir !== rightIsDir) {
-        return leftIsDir ? -1 : 1;
-      }
-
-      return left.localeCompare(right);
+      if (aDir !== bDir) return aDir ? -1 : 1;
+      return a.localeCompare(b);
     });
 
-    let output = '';
+    let out = "";
 
     for (const key of keys) {
       if (node[key] === null) {
-        output += `${indent}${key}\n`;
+        out += `${indent}- ${key}\n`;
       } else {
-        output += `${indent}${key}/\n`;
-        output += renderNode(node[key], `${indent}  `);
+        out += `${indent}- ${key}/\n`;
+        out += render(node[key], `${indent}  `);
       }
     }
 
-    return output;
+    return out;
   }
 
-  return renderNode(rootNode);
+  return render(rootNode);
 }
 
-function readFileContent(filePath) {
-  return fs.readFileSync(filePath, 'utf8');
-}
+function detectLanguage(relPath) {
+  const ext = path.extname(relPath).toLowerCase();
 
-function getRepositoryInfo() {
-  const repository = process.env.GITHUB_REPOSITORY || 'REPO_OWNER/REPO_NAME';
-  const branch = process.env.GITHUB_REF_NAME || 'main';
-
-  return {
-    repository,
-    branch,
-    bundleUrl: `https://raw.githubusercontent.com/${repository}/${branch}/ai/latest/ai-project-bundle.txt`,
-    mapUrl: `https://raw.githubusercontent.com/${repository}/${branch}/ai/latest/ai-project-map.txt`,
-    rulesUrl: `https://raw.githubusercontent.com/${repository}/${branch}/ai/WORKING_RULES.md`
+  const map = {
+    ".js": "js",
+    ".mjs": "js",
+    ".cjs": "js",
+    ".ts": "ts",
+    ".tsx": "tsx",
+    ".jsx": "jsx",
+    ".json": "json",
+    ".css": "css",
+    ".html": "html",
+    ".md": "md",
+    ".svg": "svg",
+    ".yml": "yml",
+    ".yaml": "yaml",
+    ".txt": "text"
   };
+
+  return map[ext] || "text";
 }
 
-function buildProjectMap(files, repositoryInfo) {
-  let output = '';
+function buildMapFile(files, repoInfo, groups) {
+  const lines = [];
 
-  output += '===== AI PROJECT MAP =====\n';
-  output += `Generated: ${new Date().toISOString()}\n`;
-  output += `Repository: ${repositoryInfo.repository}\n`;
-  output += `Branch: ${repositoryInfo.branch}\n`;
-  output += `Total files: ${files.length}\n`;
-  output += '\n';
+  lines.push(`# AI MAP — ${REPO_NAME}`);
+  lines.push("");
+  lines.push(`- Generated: ${new Date().toISOString()}`);
+  lines.push(`- Repository: ${repoInfo.repository}`);
+  lines.push(`- Branch: ${repoInfo.branch}`);
+  lines.push(`- Total source files included: ${files.length}`);
+  lines.push(`- Output folder: ai/latest/${REPO_NAME}`);
+  lines.push(`- Zip archive: ai/latest/${REPO_NAME}.zip`);
+  lines.push("");
 
-  output += '===== LINKS =====\n';
-  output += `AI bundle: ${repositoryInfo.bundleUrl}\n`;
-  output += `AI map: ${repositoryInfo.mapUrl}\n`;
-  output += `Working rules: ${repositoryInfo.rulesUrl}\n`;
-  output += '\n';
+  lines.push("## Snapshot files");
+  lines.push("");
 
-  output += '===== PROJECT TREE =====\n';
-  output += buildTree(files);
-  output += '\n';
-
-  output += '===== FILE LIST =====\n';
-  for (const file of files) {
-    output += `${toRelativePath(file)}\n`;
+  for (const group of groups) {
+    lines.push(`- ${group.file} — ${group.title} (${group.files.length} files)`);
   }
 
-  output += '\n';
-  return output;
+  lines.push("");
+  lines.push("## Project tree");
+  lines.push("");
+  lines.push("```text");
+  lines.push(buildTree(files).trimEnd());
+  lines.push("```");
+  lines.push("");
+  lines.push("## Raw links");
+  lines.push("");
+  lines.push(`- Folder base: ${repoInfo.outputBaseUrl}`);
+  lines.push(`- Working rules: ${repoInfo.rulesUrl}`);
+  lines.push("");
+
+  return lines.join("\n");
 }
 
-function buildProjectBundle(files, repositoryInfo) {
-  let output = '';
+function buildSectionFile(sectionTitle, files, repoInfo) {
+  const lines = [];
 
-  output += '===== AI PROJECT SNAPSHOT =====\n';
-  output += `Generated: ${new Date().toISOString()}\n`;
-  output += `Repository: ${repositoryInfo.repository}\n`;
-  output += `Branch: ${repositoryInfo.branch}\n`;
-  output += `Total files: ${files.length}\n`;
-  output += '\n';
+  lines.push(`# REPOSITORY: ${REPO_NAME}`);
+  lines.push(`# SECTION: ${sectionTitle}`);
+  lines.push(`# GENERATED_AT: ${new Date().toISOString()}`);
+  lines.push("");
 
-  output += '===== LINKS =====\n';
-  output += `AI bundle: ${repositoryInfo.bundleUrl}\n`;
-  output += `AI map: ${repositoryInfo.mapUrl}\n`;
-  output += `Working rules: ${repositoryInfo.rulesUrl}\n`;
-  output += '\n';
+  lines.push("## INCLUDED FILES");
+  lines.push("");
+
+  for (const file of files) {
+    lines.push(`- ${file}`);
+  }
+
+  lines.push("");
+  lines.push(`## REPOSITORY LINK BASE`);
+  lines.push("");
+  lines.push(`- ${repoInfo.outputBaseUrl}`);
+  lines.push("");
+
+  for (const file of files) {
+    const content = readUtf8(file);
+    const lang = detectLanguage(file);
+
+    lines.push("---");
+    lines.push("");
+    lines.push(`## FILE: ${file}`);
+    lines.push("");
+    lines.push(`\`\`\`${lang}`);
+    lines.push(content.trimEnd());
+    lines.push("```");
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+function buildSnapshotInfo(files, groups, repoInfo) {
+  const lines = [];
+
+  lines.push(`# SNAPSHOT INFO — ${REPO_NAME}`);
+  lines.push("");
+  lines.push(`- Generated: ${new Date().toISOString()}`);
+  lines.push(`- Repository: ${repoInfo.repository}`);
+  lines.push(`- Branch: ${repoInfo.branch}`);
+  lines.push(`- Files captured: ${files.length}`);
+  lines.push(`- Snapshot documents: ${groups.length + 2}`);
+  lines.push(`- Zip archive: ai/latest/${REPO_NAME}.zip`);
+  lines.push("");
+
+  lines.push("## Notes");
+  lines.push("");
+  lines.push("- Every snapshot file contains real file contents.");
+  lines.push("- Files are grouped for easier AI reading.");
+  lines.push("- Repository name is embedded in every snapshot file.");
+  lines.push("- Working rules remain in ai/WORKING_RULES.md.");
+  lines.push("");
 
   if (fs.existsSync(RULES_FILE)) {
-    output += '===== WORKING RULES =====\n\n';
-    output += readFileContent(RULES_FILE).trim();
-    output += '\n\n';
+    lines.push("## WORKING RULES");
+    lines.push("");
+    lines.push(readUtf8("ai/WORKING_RULES.md").trim());
+    lines.push("");
   }
 
-  output += '===== PROJECT TREE =====\n';
-  output += buildTree(files);
-  output += '\n';
-
-  output += '===== FILE LIST =====\n';
-  for (const file of files) {
-    output += `${toRelativePath(file)}\n`;
-  }
-  output += '\n';
-
-  for (const file of files) {
-    const relativePath = toRelativePath(file);
-    const extension = path.extname(file).slice(1).toLowerCase() || 'text';
-    const content = readFileContent(file);
-
-    output += '================================================================\n';
-    output += `FILE: ${relativePath}\n`;
-    output += `TYPE: ${extension}\n`;
-    output += '================================================================\n\n';
-    output += content;
-    output += '\n\n';
-  }
-
-  return output;
+  return lines.join("\n");
 }
 
-function writeLinksFile(repositoryInfo) {
-  const content = [
-    'AI BUNDLE LINKS',
-    '',
-    `AI bundle: ${repositoryInfo.bundleUrl}`,
-    `AI map: ${repositoryInfo.mapUrl}`,
-    `Working rules: ${repositoryInfo.rulesUrl}`,
-    ''
-  ].join('\n');
-
-  fs.writeFileSync(LINKS_FILE, content, 'utf8');
-}
-
-function writeManifest(files, repositoryInfo) {
+function writeManifest(files, groups, repoInfo) {
   const manifest = {
     generatedAt: new Date().toISOString(),
-    repository: repositoryInfo.repository,
-    branch: repositoryInfo.branch,
+    repoName: REPO_NAME,
+    repository: repoInfo.repository,
+    branch: repoInfo.branch,
     totalFiles: files.length,
-    bundleUrl: repositoryInfo.bundleUrl,
-    mapUrl: repositoryInfo.mapUrl,
-    rulesUrl: repositoryInfo.rulesUrl,
-    files: files.map((file) => toRelativePath(file))
+    outputDir: `ai/latest/${REPO_NAME}`,
+    zipPath: `ai/latest/${REPO_NAME}.zip`,
+    groups: groups.map((group) => ({
+      file: group.file,
+      title: group.title,
+      totalFiles: group.files.length,
+      files: group.files
+    }))
   };
 
-  fs.writeFileSync(MANIFEST_FILE, JSON.stringify(manifest, null, 2), 'utf8');
+  fs.writeFileSync(
+    path.join(REPO_OUTPUT_DIR, "manifest.json"),
+    JSON.stringify(manifest, null, 2),
+    "utf8"
+  );
+}
+
+function writeLegacyPointers(repoInfo, groups) {
+  const mapPointer = [
+    `AI snapshot folder: ai/latest/${REPO_NAME}`,
+    `Zip archive: ai/latest/${REPO_NAME}.zip`,
+    `Repository: ${repoInfo.repository}`,
+    `Branch: ${repoInfo.branch}`,
+    "",
+    "Snapshot files:",
+    ...groups.map((group) => `- ${REPO_NAME}/${group.file}`)
+  ].join("\n");
+
+  fs.writeFileSync(path.join(LATEST_DIR, "ai-project-map.txt"), mapPointer, "utf8");
+
+  const bundlePointer = [
+    `Use folder snapshots instead of a single mega-bundle.`,
+    `Primary folder: ai/latest/${REPO_NAME}`,
+    `Zip archive: ai/latest/${REPO_NAME}.zip`,
+    "",
+    `Map file: ai/latest/${REPO_NAME}/00_AI_MAP.md`,
+    `Info file: ai/latest/${REPO_NAME}/99_SNAPSHOT_INFO.md`
+  ].join("\n");
+
+  fs.writeFileSync(path.join(LATEST_DIR, "ai-project-bundle.txt"), bundlePointer, "utf8");
+
+  const links = [
+    "AI SNAPSHOT LINKS",
+    "",
+    `Folder base: ${repoInfo.outputBaseUrl}`,
+    `Map: ${repoInfo.outputBaseUrl}/00_AI_MAP.md`,
+    `Info: ${repoInfo.outputBaseUrl}/99_SNAPSHOT_INFO.md`,
+    `Working rules: ${repoInfo.rulesUrl}`,
+    ""
+  ].join("\n");
+
+  fs.writeFileSync(path.join(REPO_OUTPUT_DIR, "links.txt"), links, "utf8");
+}
+
+function createZipArchive() {
+  const zipTarget = path.join(LATEST_DIR, `${REPO_NAME}.zip`);
+
+  if (fs.existsSync(zipTarget)) {
+    fs.rmSync(zipTarget, { force: true });
+  }
+
+  const result = spawnSync(
+    "zip",
+    ["-r", zipTarget, REPO_NAME],
+    {
+      cwd: LATEST_DIR,
+      stdio: "inherit"
+    }
+  );
+
+  if (result.status !== 0) {
+    console.warn(`zip command failed for ${REPO_NAME}. Snapshot folder was still created.`);
+  }
 }
 
 function main() {
-  ensureDirectory(OUTPUT_DIR);
+  ensureDir(REPO_OUTPUT_DIR);
 
-  const files = walkDirectory(root)
-    .filter((file) => !shouldIgnorePath(toRelativePath(file)))
-    .sort((left, right) => toRelativePath(left).localeCompare(toRelativePath(right)));
+  const allFiles = walk(ROOT)
+    .filter((file) => !shouldIgnore(file))
+    .sort((a, b) => a.localeCompare(b));
 
-  const repositoryInfo = getRepositoryInfo();
+  const repoInfo = getRepositoryInfo();
+  const groups = groupFiles(allFiles);
 
-  const mapOutput = buildProjectMap(files, repositoryInfo);
-  const bundleOutput = buildProjectBundle(files, repositoryInfo);
+  fs.writeFileSync(
+    path.join(REPO_OUTPUT_DIR, "00_AI_MAP.md"),
+    buildMapFile(allFiles, repoInfo, groups),
+    "utf8"
+  );
 
-  fs.writeFileSync(MAP_FILE, mapOutput, 'utf8');
-  fs.writeFileSync(BUNDLE_FILE, bundleOutput, 'utf8');
+  for (const group of groups) {
+    fs.writeFileSync(
+      path.join(REPO_OUTPUT_DIR, group.file),
+      buildSectionFile(group.title, group.files, repoInfo),
+      "utf8"
+    );
+  }
 
-  writeLinksFile(repositoryInfo);
-  writeManifest(files, repositoryInfo);
+  fs.writeFileSync(
+    path.join(REPO_OUTPUT_DIR, "99_SNAPSHOT_INFO.md"),
+    buildSnapshotInfo(allFiles, groups, repoInfo),
+    "utf8"
+  );
 
-  console.log(`AI map created: ${toRelativePath(MAP_FILE)}`);
-  console.log(`AI bundle created: ${toRelativePath(BUNDLE_FILE)}`);
-  console.log(`Links file created: ${toRelativePath(LINKS_FILE)}`);
-  console.log(`Manifest created: ${toRelativePath(MANIFEST_FILE)}`);
-  console.log(`AI bundle URL: ${repositoryInfo.bundleUrl}`);
+  writeManifest(allFiles, groups, repoInfo);
+  writeLegacyPointers(repoInfo, groups);
+  createZipArchive();
+
+  console.log(`Snapshot folder created: ai/latest/${REPO_NAME}/`);
+  console.log(`Zip archive created: ai/latest/${REPO_NAME}.zip`);
 }
 
 main();
