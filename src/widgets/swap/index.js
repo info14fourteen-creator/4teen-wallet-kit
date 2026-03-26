@@ -283,6 +283,7 @@ export function mountSwap(target, config = {}) {
                 class="fourteen-swap-info-toggle"
                 type="button"
                 aria-label="Swap info"
+                aria-expanded="false"
                 data-role="swap-info-toggle"
               >
                 i
@@ -388,6 +389,7 @@ export function mountSwap(target, config = {}) {
   const walletInfoEl = target.querySelector('[data-role="wallet-label"]');
   const infoToggleEl = target.querySelector('[data-role="swap-info-toggle"]');
   const popoverEl = target.querySelector('[data-role="swap-popover"]');
+  const connectSlotEl = target.querySelector('.fourteen-swap-connect-slot');
   const embeddedWalletButtonEl = target.querySelector('[data-role="embedded-wallet-button"]');
   const mobileConnectHintEl = target.querySelector('[data-role="mobile-connect-hint"]');
   const amountInputEl = target.querySelector('[data-role="amount-input"]');
@@ -420,16 +422,19 @@ export function mountSwap(target, config = {}) {
   }
 
   function closePopover() {
-    if (popoverEl) {
-      popoverEl.hidden = true;
-    }
+    if (!popoverEl || !infoToggleEl) return;
+    popoverEl.hidden = true;
+    infoToggleEl.setAttribute('aria-expanded', 'false');
   }
 
   function togglePopover(event) {
     event?.stopPropagation?.();
 
-    if (!popoverEl) return;
-    popoverEl.hidden = !popoverEl.hidden;
+    if (!popoverEl || !infoToggleEl) return;
+
+    const nextHidden = !popoverEl.hidden;
+    popoverEl.hidden = nextHidden;
+    infoToggleEl.setAttribute('aria-expanded', nextHidden ? 'false' : 'true');
   }
 
   function handleOutsideClick(event) {
@@ -475,11 +480,27 @@ export function mountSwap(target, config = {}) {
     const connected = isConnectedSafe(wallet);
     const mobile = isMobileViewport();
 
+    if (connectSlotEl) {
+      connectSlotEl.hidden = connected;
+    }
+
+    if (connected) {
+      unmountEmbeddedWalletButton();
+
+      if (mobileConnectHintEl) {
+        mobileConnectHintEl.hidden = true;
+      }
+
+      return;
+    }
+
     if (mobile) {
       unmountEmbeddedWalletButton();
+
       if (mobileConnectHintEl) {
-        mobileConnectHintEl.hidden = connected;
+        mobileConnectHintEl.hidden = false;
       }
+
       return;
     }
 
@@ -498,15 +519,18 @@ export function mountSwap(target, config = {}) {
           await wallet.connect(walletId);
           await wait(450);
           await refreshBalancesSafe();
+          handleWalletUpdate();
         }
       },
       onRefresh: async () => {
         await refreshBalancesSafe();
+        handleWalletUpdate();
       },
       onDisconnect: async () => {
         if (typeof wallet.disconnect === 'function') {
           await wallet.disconnect();
         }
+        handleWalletUpdate();
       }
     });
   }
@@ -870,6 +894,7 @@ export function mountSwap(target, config = {}) {
 
         await refreshBalancesSafe();
         resetSwapFormState();
+        handleWalletUpdate();
 
         return;
       }
