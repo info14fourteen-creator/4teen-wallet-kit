@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-26T07:52:57.259Z
+Generated: 2026-03-26T08:21:40.530Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -518,6 +518,7 @@ Branch: main
 ```js
 import './ambassadorCabinet.css';
 import { mountWalletButton } from '../../ui/walletButton.js';
+import { mountAmbassadorRegister } from '../ambassadorRegister/index.js';
 import {
   showSuccessNotice,
   showErrorNotice,
@@ -525,6 +526,7 @@ import {
 } from '../../ui/noticeCenter.js';
 
 const ACTIVE_INSTANCES = new WeakMap();
+
 const DEFAULT_CONTROLLER_CONTRACT = 'TF8yhohRfMxsdVRr7fFrYLh5fxK8sAFkeZ';
 
 const DEFAULT_CONFIG = {
@@ -534,12 +536,15 @@ const DEFAULT_CONFIG = {
   subtitle: 'Profile, stats, rewards and withdrawals in one place',
   mobileConnectHint: 'Tap connect below to continue.',
   refreshText: 'Refresh',
+  infoText: 'Info',
   withdrawText: 'Withdraw rewards',
   processingText: 'Processing...',
-  connectText: 'Connect Wallet',
   profileEndpoint: '/cabinet/profile',
   profileQueryParam: 'wallet',
-  referralBaseUrl: 'https://4teen.me/?ref='
+  referralBaseUrl: 'https://4teen.me/?ref=',
+  registerTitle: 'Not an ambassador yet',
+  registerText:
+    'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, complete registration below.'
 };
 
 function escapeHtml(value) {
@@ -714,6 +719,10 @@ function normalizeError(error) {
 
   if (text.includes('OUT_OF_ENERGY')) {
     return 'Transaction failed: OUT_OF_ENERGY.';
+  }
+
+  if (text.includes('429')) {
+    return 'Too many requests. Please wait a moment and try again.';
   }
 
   return text;
@@ -1035,10 +1044,6 @@ function buildReferralLink(config, profile, identity) {
 }
 
 function buildWithdrawButtonLabel(state) {
-  if (!state.isRegistered) {
-    return 'Ambassador profile required';
-  }
-
   if (state.isWithdrawing) {
     return 'Processing withdrawal...';
   }
@@ -1075,7 +1080,7 @@ function buildWithdrawHint(state) {
     return 'These rewards are already written on-chain and available now.';
   }
 
-  return 'No rewards available for withdrawal yet.';
+  return 'No rewards are currently available.';
 }
 
 function buildStatusCards(withdrawalQueue) {
@@ -1141,7 +1146,62 @@ function createStatusCard(label, trxValue, sunValue, count, modifier) {
   `;
 }
 
-function createMarkup(config, state, walletAddress) {
+function createInfoPanelMarkup(state) {
+  if (!state.isInfoOpen) {
+    return '';
+  }
+
+  return `
+    <div class="fourteen-ambassador-cabinet-info">
+      <div class="fourteen-ambassador-cabinet-info__title">How this cabinet works</div>
+      <div class="fourteen-ambassador-cabinet-info__content">
+        <p>Connect your wallet to access ambassador tools.</p>
+        <p>If this wallet is already registered as ambassador, your dashboard will load automatically.</p>
+        <p>If the wallet is not registered, you can complete ambassador registration directly inside this cabinet.</p>
+        <p>Rewards may appear in different states: available on-chain, pending backend sync, or requested for processing.</p>
+        <p>Withdrawal availability depends on the current reward state.</p>
+        <p>Your referral link can be used to attribute purchases to your ambassador profile.</p>
+      </div>
+    </div>
+  `;
+}
+
+function createConnectedWalletSummary(walletAddress) {
+  return `
+    <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
+      Connected wallet: ${escapeHtml(walletAddress)}
+    </div>
+  `;
+}
+
+function createConnectStateMarkup(config) {
+  return `
+    <div class="fourteen-ambassador-cabinet-empty">
+      <div class="fourteen-ambassador-cabinet-empty__title">Connect wallet to continue</div>
+      <div class="fourteen-ambassador-cabinet-empty__text">
+        Connect your wallet to access your ambassador cabinet, view rewards, check referral status and manage your account.
+      </div>
+    </div>
+  `;
+}
+
+function createRegistrationStateMarkup(config, walletAddress) {
+  return `
+    ${createConnectedWalletSummary(walletAddress)}
+    <div class="fourteen-ambassador-cabinet-empty">
+      <div class="fourteen-ambassador-cabinet-empty__title">${escapeHtml(config.registerTitle)}</div>
+      <div class="fourteen-ambassador-cabinet-empty__text">
+        ${escapeHtml(config.registerText)}
+      </div>
+    </div>
+    <div class="fourteen-ambassador-cabinet-section">
+      <div class="fourteen-ambassador-cabinet-section__title">Ambassador registration</div>
+      <div data-role="register-slot"></div>
+    </div>
+  `;
+}
+
+function createDashboardStateMarkup(config, state, walletAddress) {
   const dashboard = state.dashboard;
   const identity = dashboard?.identity ?? null;
   const stats = dashboard?.stats ?? null;
@@ -1161,12 +1221,236 @@ function createMarkup(config, state, walletAddress) {
   const withdrawButtonLabel = buildWithdrawButtonLabel(state);
   const withdrawHint = buildWithdrawHint(state);
 
-  const withdrawDisabled =
-    !state.isRegistered ||
-    state.isWithdrawing ||
-    state.hasProcessingWithdrawal ||
-    state.statusCards.hasRequestedForProcessing ||
-    (!state.statusCards.hasAvailableOnChain && !state.statusCards.hasPendingBackendSync);
+  return `
+    ${createConnectedWalletSummary(walletAddress)}
+
+    <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
+      ${escapeHtml(withdrawHint)}
+    </div>
+
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+      ${createStatusCard(
+        'Available on-chain',
+        sunToTrxString(state.statusCards.availableOnChainSun),
+        state.statusCards.availableOnChainSun,
+        state.statusCards.availableOnChainCount,
+        'green'
+      )}
+      ${createStatusCard(
+        'Pending backend sync',
+        sunToTrxString(state.statusCards.pendingBackendSyncSun),
+        state.statusCards.pendingBackendSyncSun,
+        state.statusCards.pendingBackendSyncCount,
+        'amber'
+      )}
+      ${createStatusCard(
+        'Requested for processing',
+        sunToTrxString(state.statusCards.requestedForProcessingSun),
+        state.statusCards.requestedForProcessingSun,
+        state.statusCards.requestedForProcessingCount,
+        'blue'
+      )}
+    </div>
+
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+      ${createValueCard(
+        'Wallet',
+        'Connected',
+        walletAddress || 'Connected wallet'
+      )}
+      ${createValueCard(
+        'Ambassador status',
+        identity?.active ? 'Active' : 'Inactive',
+        `Level: ${levelToLabel(identity?.effectiveLevel ?? 0)}`
+      )}
+      ${createValueCard(
+        'Reward percent',
+        `${identity?.rewardPercent ?? 0}%`,
+        `Effective level: ${levelToLabel(identity?.effectiveLevel ?? 0)}`
+      )}
+    </div>
+
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+      ${createValueCard('Total buyers', String(stats?.totalBuyers ?? 0))}
+      ${createValueCard(
+        'Tracked volume',
+        `${stats?.totalVolumeTrx ?? '0'} TRX`,
+        `${stats?.totalVolumeSun ?? '0'} SUN`
+      )}
+      ${createValueCard(
+        'Claimable rewards',
+        `${rewards?.availableTrx ?? '0'} TRX`,
+        `${rewards?.availableSun ?? '0'} SUN`
+      )}
+    </div>
+
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+      ${createValueCard(
+        'Lifetime rewards',
+        `${rewards?.lifetimeTrx ?? '0'} TRX`,
+        `${rewards?.lifetimeSun ?? '0'} SUN`
+      )}
+      ${createValueCard(
+        'Withdrawn rewards',
+        `${rewards?.withdrawnTrx ?? '0'} TRX`,
+        `${rewards?.withdrawnSun ?? '0'} SUN`
+      )}
+      ${createValueCard(
+        'Accrued total',
+        `${stats?.totalRewardsAccruedTrx ?? '0'} TRX`,
+        `${stats?.totalRewardsAccruedSun ?? '0'} SUN`
+      )}
+    </div>
+
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--four">
+      ${createValueCard(
+        'Current level',
+        levelToLabel(progress?.currentLevel ?? 0),
+        `Current buyers: ${progress?.buyersCount ?? 0}`
+      )}
+      ${createValueCard(
+        'Next threshold',
+        String(progress?.nextThreshold ?? 0),
+        'Buyers needed for next milestone'
+      )}
+      ${createValueCard(
+        'Remaining',
+        String(progress?.remainingToNextLevel ?? 0),
+        'Buyers left to next level'
+      )}
+      ${createValueCard('Created at', formatDate(identity?.createdAt ?? 0))}
+    </div>
+
+    <div class="fourteen-ambassador-cabinet-section">
+      <div class="fourteen-ambassador-cabinet-section__title">Referral</div>
+      <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
+        ${createValueCard(
+          'Slug',
+          profile?.slug || profile?.referralSlug || profile?.referral_slug || '—',
+          identity?.slugHash || 'No readable slug provided by backend yet'
+        )}
+        ${createValueCard(
+          'Referral link',
+          referralLink,
+          profile?.slug ? 'Public ambassador link' : 'Backend profile can enrich this value'
+        )}
+      </div>
+    </div>
+
+    <div class="fourteen-ambassador-cabinet-section">
+      <div class="fourteen-ambassador-cabinet-section__title">Actions</div>
+      <div class="fourteen-ambassador-cabinet-links">
+        <button
+          type="button"
+          class="fourteen-ambassador-cabinet-action"
+          data-role="withdraw-button"
+          ${
+            state.isWithdrawing ||
+            state.hasProcessingWithdrawal ||
+            state.statusCards.hasRequestedForProcessing ||
+            (!state.statusCards.hasAvailableOnChain && !state.statusCards.hasPendingBackendSync)
+              ? 'disabled aria-disabled="true"'
+              : ''
+          }
+        >
+          ${escapeHtml(withdrawButtonLabel)}
+        </button>
+      </div>
+    </div>
+
+    <div class="fourteen-ambassador-cabinet-section">
+      <div class="fourteen-ambassador-cabinet-section__title">On-chain profile</div>
+      <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
+        ${createValueCard('Slug hash', identity?.slugHash || '—')}
+        ${createValueCard('Meta hash', identity?.metaHash || '—')}
+        ${createValueCard(
+          'Registration mode',
+          identity?.selfRegistered
+            ? 'Self-registered'
+            : identity?.manualAssigned
+              ? 'Manually assigned'
+              : '—'
+        )}
+        ${createValueCard(
+          'Override',
+          identity?.overrideEnabled ? 'Enabled' : 'Disabled',
+          identity
+            ? `Current: ${levelToLabel(identity.currentLevel)} • Override: ${levelToLabel(
+                identity.overrideLevel
+              )}`
+            : ''
+        )}
+      </div>
+    </div>
+
+    <div class="fourteen-ambassador-cabinet-section">
+      <div class="fourteen-ambassador-cabinet-section__title">Links</div>
+      <div class="fourteen-ambassador-cabinet-links">
+        ${
+          walletExplorerUrl
+            ? `
+              <a
+                class="fourteen-ambassador-cabinet-link"
+                href="${escapeHtml(walletExplorerUrl)}"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Wallet on Tronscan
+              </a>
+            `
+            : ''
+        }
+
+        ${
+          withdrawExplorerUrl
+            ? `
+              <a
+                class="fourteen-ambassador-cabinet-link"
+                href="${escapeHtml(withdrawExplorerUrl)}"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Last withdrawal tx
+              </a>
+            `
+            : ''
+        }
+
+        ${
+          referralLink && referralLink !== '—'
+            ? `
+              <a
+                class="fourteen-ambassador-cabinet-link"
+                href="${escapeHtml(referralLink)}"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open referral link
+              </a>
+            `
+            : ''
+        }
+      </div>
+    </div>
+  `;
+}
+
+function createMarkup(config, state, walletAddress) {
+  let stateMarkup = '';
+
+  if (state.isLoading) {
+    stateMarkup = `
+      <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
+        Loading ambassador cabinet...
+      </div>
+    `;
+  } else if (!state.isConnected) {
+    stateMarkup = createConnectStateMarkup(config);
+  } else if (!state.isRegistered) {
+    stateMarkup = createRegistrationStateMarkup(config, walletAddress);
+  } else {
+    stateMarkup = createDashboardStateMarkup(config, state, walletAddress);
+  }
 
   return `
     <div class="fourteen-ambassador-cabinet-widget">
@@ -1187,22 +1471,23 @@ function createMarkup(config, state, walletAddress) {
             <button
               type="button"
               class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
+              data-role="info-button"
+            >
+              ${escapeHtml(config.infoText)}
+            </button>
+
+            <button
+              type="button"
+              class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
               data-role="refresh-button"
               ${state.isRefreshing || state.isWithdrawing ? 'disabled aria-disabled="true"' : ''}
             >
               ${state.isRefreshing ? 'Refreshing...' : escapeHtml(config.refreshText)}
             </button>
-
-            <button
-              type="button"
-              class="fourteen-ambassador-cabinet-action"
-              data-role="withdraw-button"
-              ${withdrawDisabled ? 'disabled aria-disabled="true"' : ''}
-            >
-              ${escapeHtml(withdrawButtonLabel)}
-            </button>
           </div>
         </div>
+
+        ${createInfoPanelMarkup(state)}
 
         <div class="fourteen-ambassador-cabinet-topbar">
           <div class="fourteen-ambassador-cabinet-wallet" data-role="wallet-label">
@@ -1218,26 +1503,6 @@ function createMarkup(config, state, walletAddress) {
         </div>
 
         ${
-          state.isLoading
-            ? `
-              <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
-                Loading ambassador dashboard...
-              </div>
-            `
-            : ''
-        }
-
-        ${
-          !state.isLoading
-            ? `
-              <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
-                ${escapeHtml(withdrawHint)}
-              </div>
-            `
-            : ''
-        }
-
-        ${
           state.error
             ? `
               <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--error">
@@ -1247,225 +1512,7 @@ function createMarkup(config, state, walletAddress) {
             : ''
         }
 
-        ${
-          !state.isLoading && !state.isConnected
-            ? `
-              <div class="fourteen-ambassador-cabinet-empty">
-                <div class="fourteen-ambassador-cabinet-empty__title">Connect wallet to continue</div>
-                <div class="fourteen-ambassador-cabinet-empty__text">
-                  This cabinet reads your ambassador data directly from the controller contract.
-                </div>
-              </div>
-            `
-            : ''
-        }
-
-        ${
-          !state.isLoading && state.isConnected && !state.isRegistered
-            ? `
-              <div class="fourteen-ambassador-cabinet-empty">
-                <div class="fourteen-ambassador-cabinet-empty__title">Ambassador profile not found</div>
-                <div class="fourteen-ambassador-cabinet-empty__text">
-                  This wallet is connected, but no ambassador profile is registered on-chain yet.
-                </div>
-              </div>
-            `
-            : ''
-        }
-
-        ${
-          !state.isLoading && state.isConnected && state.isRegistered
-            ? `
-              <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-                ${createStatusCard(
-                  'Available on-chain',
-                  sunToTrxString(state.statusCards.availableOnChainSun),
-                  state.statusCards.availableOnChainSun,
-                  state.statusCards.availableOnChainCount,
-                  'green'
-                )}
-                ${createStatusCard(
-                  'Pending backend sync',
-                  sunToTrxString(state.statusCards.pendingBackendSyncSun),
-                  state.statusCards.pendingBackendSyncSun,
-                  state.statusCards.pendingBackendSyncCount,
-                  'amber'
-                )}
-                ${createStatusCard(
-                  'Requested for processing',
-                  sunToTrxString(state.statusCards.requestedForProcessingSun),
-                  state.statusCards.requestedForProcessingSun,
-                  state.statusCards.requestedForProcessingCount,
-                  'blue'
-                )}
-              </div>
-
-              <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-                ${createValueCard(
-                  'Wallet',
-                  state.isConnected ? 'Connected' : 'Not connected',
-                  walletAddress || 'Connect TronLink to continue'
-                )}
-                ${createValueCard(
-                  'Ambassador status',
-                  state.isRegistered ? 'Registered' : 'Not registered',
-                  identity
-                    ? `${identity.active ? 'Active' : 'Inactive'} • ${levelToLabel(
-                        identity.effectiveLevel
-                      )}`
-                    : 'No ambassador profile found'
-                )}
-                ${createValueCard(
-                  'Reward percent',
-                  `${identity?.rewardPercent ?? 0}%`,
-                  `Effective level: ${levelToLabel(identity?.effectiveLevel ?? 0)}`
-                )}
-              </div>
-
-              <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-                ${createValueCard('Total buyers', String(stats?.totalBuyers ?? 0))}
-                ${createValueCard(
-                  'Tracked volume',
-                  `${stats?.totalVolumeTrx ?? '0'} TRX`,
-                  `${stats?.totalVolumeSun ?? '0'} SUN`
-                )}
-                ${createValueCard(
-                  'Claimable rewards',
-                  `${rewards?.availableTrx ?? '0'} TRX`,
-                  `${rewards?.availableSun ?? '0'} SUN`
-                )}
-              </div>
-
-              <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-                ${createValueCard(
-                  'Lifetime rewards',
-                  `${rewards?.lifetimeTrx ?? '0'} TRX`,
-                  `${rewards?.lifetimeSun ?? '0'} SUN`
-                )}
-                ${createValueCard(
-                  'Withdrawn rewards',
-                  `${rewards?.withdrawnTrx ?? '0'} TRX`,
-                  `${rewards?.withdrawnSun ?? '0'} SUN`
-                )}
-                ${createValueCard(
-                  'Accrued total',
-                  `${stats?.totalRewardsAccruedTrx ?? '0'} TRX`,
-                  `${stats?.totalRewardsAccruedSun ?? '0'} SUN`
-                )}
-              </div>
-
-              <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--four">
-                ${createValueCard(
-                  'Current level',
-                  levelToLabel(progress?.currentLevel ?? 0),
-                  `Current buyers: ${progress?.buyersCount ?? 0}`
-                )}
-                ${createValueCard(
-                  'Next threshold',
-                  String(progress?.nextThreshold ?? 0),
-                  'Buyers needed for next milestone'
-                )}
-                ${createValueCard(
-                  'Remaining',
-                  String(progress?.remainingToNextLevel ?? 0),
-                  'Buyers left to next level'
-                )}
-                ${createValueCard('Created at', formatDate(identity?.createdAt ?? 0))}
-              </div>
-
-              <div class="fourteen-ambassador-cabinet-section">
-                <div class="fourteen-ambassador-cabinet-section__title">Referral</div>
-                <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
-                  ${createValueCard(
-                    'Slug',
-                    profile?.slug || profile?.referralSlug || profile?.referral_slug || '—',
-                    identity?.slugHash || 'No readable slug provided by backend yet'
-                  )}
-                  ${createValueCard(
-                    'Referral link',
-                    referralLink,
-                    profile?.slug ? 'Public ambassador link' : 'Backend profile can enrich this value'
-                  )}
-                </div>
-              </div>
-
-              <div class="fourteen-ambassador-cabinet-section">
-                <div class="fourteen-ambassador-cabinet-section__title">On-chain profile</div>
-                <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
-                  ${createValueCard('Slug hash', identity?.slugHash || '—')}
-                  ${createValueCard('Meta hash', identity?.metaHash || '—')}
-                  ${createValueCard(
-                    'Registration mode',
-                    identity?.selfRegistered
-                      ? 'Self-registered'
-                      : identity?.manualAssigned
-                        ? 'Manually assigned'
-                        : '—'
-                  )}
-                  ${createValueCard(
-                    'Override',
-                    identity?.overrideEnabled ? 'Enabled' : 'Disabled',
-                    identity
-                      ? `Current: ${levelToLabel(identity.currentLevel)} • Override: ${levelToLabel(
-                          identity.overrideLevel
-                        )}`
-                      : ''
-                  )}
-                </div>
-              </div>
-
-              <div class="fourteen-ambassador-cabinet-section">
-                <div class="fourteen-ambassador-cabinet-section__title">Links</div>
-                <div class="fourteen-ambassador-cabinet-links">
-                  ${
-                    walletExplorerUrl
-                      ? `
-                        <a
-                          class="fourteen-ambassador-cabinet-link"
-                          href="${escapeHtml(walletExplorerUrl)}"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Wallet on Tronscan
-                        </a>
-                      `
-                      : ''
-                  }
-
-                  ${
-                    withdrawExplorerUrl
-                      ? `
-                        <a
-                          class="fourteen-ambassador-cabinet-link"
-                          href="${escapeHtml(withdrawExplorerUrl)}"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Last withdrawal tx
-                        </a>
-                      `
-                      : ''
-                  }
-
-                  ${
-                    referralLink && referralLink !== '—'
-                      ? `
-                        <a
-                          class="fourteen-ambassador-cabinet-link"
-                          href="${escapeHtml(referralLink)}"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Open referral link
-                        </a>
-                      `
-                      : ''
-                  }
-                </div>
-              </div>
-            `
-            : ''
-        }
+        ${stateMarkup}
       </div>
     </div>
   `;
@@ -1501,6 +1548,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
     isWithdrawing: false,
     isConnected: false,
     isRegistered: false,
+    isInfoOpen: false,
     hasProcessingWithdrawal: false,
     error: '',
     dashboard: null,
@@ -1522,7 +1570,11 @@ export function mountAmbassadorCabinet(target, config = {}) {
   let isDestroyed = false;
   let walletUnsubscribe = null;
   let embeddedWalletUnmount = null;
+  let registerWidgetInstance = null;
   let resizeListenerBound = false;
+  let refreshInFlight = null;
+  let lastLoadedWalletAddress = '';
+  let hasMountedRegisterState = false;
 
   const root = target;
 
@@ -1542,6 +1594,14 @@ export function mountAmbassadorCabinet(target, config = {}) {
     }
 
     walletLabelEl.textContent = `Wallet ${shortenAddress(address)}`;
+  }
+
+  function destroyRegisterWidget() {
+    try {
+      registerWidgetInstance?.destroy?.();
+    } catch (_) {}
+
+    registerWidgetInstance = null;
   }
 
   function unmountEmbeddedWalletButton() {
@@ -1597,92 +1657,120 @@ export function mountAmbassadorCabinet(target, config = {}) {
             await wallet.refreshBalances();
           }
 
-          await refresh('initial');
+          await refresh('initial', { force: true });
         }
       },
       onRefresh: async () => {
         if (typeof wallet.refreshBalances === 'function') {
           await wallet.refreshBalances();
         }
-        await refresh('refresh');
+        await refresh('refresh', { force: true });
       },
       onDisconnect: async () => {
         if (typeof wallet.disconnect === 'function') {
           await wallet.disconnect();
         }
-        await refresh('initial');
+        await refresh('initial', { force: true });
       }
     });
   }
 
-  async function refresh(mode = 'refresh') {
+  async function loadData(mode = 'refresh', options = {}) {
+    const initial = mode === 'initial';
+    const force = options.force === true;
+
+    const walletAddress = getWalletAddressSafe(wallet) || '';
+    const connected = isConnectedSafe(wallet) && !!walletAddress;
+
+    if (!connected) {
+      state.isConnected = false;
+      state.isRegistered = false;
+      state.dashboard = null;
+      state.profile = null;
+      state.hasProcessingWithdrawal = false;
+      state.statusCards = buildStatusCards(null);
+      state.isLoading = false;
+      state.isRefreshing = false;
+      state.error = '';
+      lastLoadedWalletAddress = '';
+      hasMountedRegisterState = false;
+      return;
+    }
+
+    if (!force && lastLoadedWalletAddress === walletAddress && state.dashboard && !initial) {
+      state.isConnected = true;
+      state.isLoading = false;
+      state.isRefreshing = false;
+      state.error = '';
+      return;
+    }
+
+    const [dashboard, profile] = await Promise.all([
+      readAmbassadorDashboard(wallet, resolvedConfig.controllerContractAddress),
+      fetchProfileMaybe(resolvedConfig, walletAddress)
+    ]);
+
+    state.dashboard = dashboard;
+    state.profile = profile;
+    state.statusCards = buildStatusCards(dashboard.withdrawalQueue);
+    state.hasProcessingWithdrawal = Boolean(dashboard.withdrawalQueue?.hasProcessingWithdrawal);
+    state.isConnected = true;
+    state.isRegistered = Boolean(dashboard.identity?.exists);
+    state.isLoading = false;
+    state.isRefreshing = false;
+    state.error = '';
+    lastLoadedWalletAddress = walletAddress;
+
+    if (state.isRegistered) {
+      hasMountedRegisterState = false;
+    }
+  }
+
+  async function refresh(mode = 'refresh', options = {}) {
     if (!isAlive()) {
       return;
+    }
+
+    if (refreshInFlight) {
+      return refreshInFlight;
     }
 
     const initial = mode === 'initial';
 
     if (initial) {
       state.isLoading = true;
-      state.error = '';
+      state.isRefreshing = false;
     } else {
       state.isRefreshing = true;
-      state.error = '';
     }
 
+    state.error = '';
     render();
 
-    try {
-      const walletAddress = getWalletAddressSafe(wallet);
-
-      if (!walletAddress || !isConnectedSafe(wallet)) {
-        state.isConnected = false;
-        state.isRegistered = false;
-        state.hasProcessingWithdrawal = false;
-        state.dashboard = null;
-        state.profile = null;
-        state.statusCards = buildStatusCards(null);
+    refreshInFlight = (async () => {
+      try {
+        await loadData(mode, options);
+      } catch (error) {
         state.isLoading = false;
         state.isRefreshing = false;
-        state.error = '';
+        state.error = normalizeError(error);
+
+        if (initial) {
+          state.isConnected = false;
+          state.isRegistered = false;
+          state.hasProcessingWithdrawal = false;
+          state.dashboard = null;
+          state.profile = null;
+          state.statusCards = buildStatusCards(null);
+          lastLoadedWalletAddress = '';
+        }
+      } finally {
+        refreshInFlight = null;
         render();
-        return;
       }
+    })();
 
-      const [dashboard, profile] = await Promise.all([
-        readAmbassadorDashboard(wallet, resolvedConfig.controllerContractAddress),
-        fetchProfileMaybe(resolvedConfig, walletAddress)
-      ]);
-
-      state.dashboard = dashboard;
-      state.profile = profile;
-      state.statusCards = buildStatusCards(dashboard.withdrawalQueue);
-      state.hasProcessingWithdrawal = Boolean(
-        dashboard.withdrawalQueue?.hasProcessingWithdrawal
-      );
-      state.isConnected = true;
-      state.isRegistered = Boolean(dashboard.identity?.exists);
-      state.isLoading = false;
-      state.isRefreshing = false;
-      state.error = '';
-
-      render();
-    } catch (error) {
-      state.isLoading = false;
-      state.isRefreshing = false;
-      state.error = normalizeError(error);
-
-      if (initial) {
-        state.isConnected = false;
-        state.isRegistered = false;
-        state.hasProcessingWithdrawal = false;
-        state.dashboard = null;
-        state.profile = null;
-        state.statusCards = buildStatusCards(null);
-      }
-
-      render();
-    }
+    return refreshInFlight;
   }
 
   async function handleWithdraw() {
@@ -1698,23 +1786,30 @@ export function mountAmbassadorCabinet(target, config = {}) {
       const result = await withdrawRewards(wallet, resolvedConfig.controllerContractAddress);
       state.lastWithdrawTxid = result.txid;
       showSuccessNotice('Withdrawal request submitted.', 8000);
-      await refresh('refresh');
+      await refresh('refresh', { force: true });
     } catch (error) {
       const message = normalizeError(error);
       state.error = message;
       showErrorNotice(message, 10000);
+      render();
     } finally {
       state.isWithdrawing = false;
       render();
     }
   }
 
+  function handleToggleInfo() {
+    state.isInfoOpen = !state.isInfoOpen;
+    render();
+  }
+
   function bindEvents() {
     const refreshButton = root.querySelector('[data-role="refresh-button"]');
     const withdrawButton = root.querySelector('[data-role="withdraw-button"]');
+    const infoButton = root.querySelector('[data-role="info-button"]');
 
     refreshButton?.addEventListener('click', () => {
-      refresh('refresh').catch((error) => {
+      refresh('refresh', { force: true }).catch((error) => {
         console.error('Ambassador cabinet refresh failed:', error);
       });
     });
@@ -1724,6 +1819,54 @@ export function mountAmbassadorCabinet(target, config = {}) {
         console.error('Ambassador cabinet withdraw failed:', error);
       });
     });
+
+    infoButton?.addEventListener('click', () => {
+      handleToggleInfo();
+    });
+  }
+
+  function mountRegisterWidgetIfNeeded() {
+    if (!state.isConnected || state.isRegistered || state.isLoading) {
+      destroyRegisterWidget();
+      return;
+    }
+
+    const slot = root.querySelector('[data-role="register-slot"]');
+
+    if (!slot) {
+      destroyRegisterWidget();
+      return;
+    }
+
+    if (registerWidgetInstance) {
+      return;
+    }
+
+    const registerOptions = {};
+
+    if (resolvedConfig.backendBaseUrl) {
+      registerOptions.backendBaseUrl = resolvedConfig.backendBaseUrl;
+    }
+
+    registerWidgetInstance = mountAmbassadorRegister(slot, registerOptions);
+    hasMountedRegisterState = true;
+
+    const tryRefreshAfterRegistration = async () => {
+      const connected = isConnectedSafe(wallet);
+      const walletAddress = getWalletAddressSafe(wallet);
+
+      if (!connected || !walletAddress) {
+        return;
+      }
+
+      try {
+        await refresh('refresh', { force: true });
+      } catch (_) {}
+    };
+
+    setTimeout(tryRefreshAfterRegistration, 3000);
+    setTimeout(tryRefreshAfterRegistration, 7000);
+    setTimeout(tryRefreshAfterRegistration, 12000);
   }
 
   function handleResize() {
@@ -1734,18 +1877,32 @@ export function mountAmbassadorCabinet(target, config = {}) {
 
   function render() {
     const walletAddress = getWalletAddressSafe(wallet) || '';
+    destroyRegisterWidget();
     unmountEmbeddedWalletButton();
     root.innerHTML = createMarkup(resolvedConfig, state, walletAddress);
     updateWalletLabel();
     syncEmbeddedWalletUi();
     bindEvents();
+    mountRegisterWidgetIfNeeded();
   }
 
   if (typeof wallet.subscribe === 'function') {
-    walletUnsubscribe = wallet.subscribe(() => {
-      refresh('refresh').catch((error) => {
-        console.error('Ambassador cabinet wallet refresh failed:', error);
-      });
+    walletUnsubscribe = wallet.subscribe(async () => {
+      const currentWallet = getWalletAddressSafe(wallet) || '';
+      const connected = isConnectedSafe(wallet);
+
+      if (!connected) {
+        await refresh('initial', { force: true }).catch((error) => {
+          console.error('Ambassador cabinet wallet refresh failed:', error);
+        });
+        return;
+      }
+
+      if (currentWallet !== lastLoadedWalletAddress) {
+        await refresh('refresh', { force: true }).catch((error) => {
+          console.error('Ambassador cabinet wallet refresh failed:', error);
+        });
+      }
     });
   }
 
@@ -1755,9 +1912,10 @@ export function mountAmbassadorCabinet(target, config = {}) {
   }
 
   const instance = {
-    refresh: () => refresh('refresh'),
+    refresh: () => refresh('refresh', { force: true }),
     destroy() {
       isDestroyed = true;
+      destroyRegisterWidget();
       unmountEmbeddedWalletButton();
 
       if (resizeListenerBound && typeof window !== 'undefined') {
@@ -1768,12 +1926,14 @@ export function mountAmbassadorCabinet(target, config = {}) {
       try {
         walletUnsubscribe?.();
       } catch (_) {}
+
+      ACTIVE_INSTANCES.delete(target);
     }
   };
 
   ACTIVE_INSTANCES.set(target, instance);
 
-  refresh('initial').catch((error) => {
+  refresh('initial', { force: true }).catch((error) => {
     console.error('Ambassador cabinet initial load failed:', error);
     state.isLoading = false;
     state.error = normalizeError(error);
