@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-26T07:05:02.999Z
+Generated: 2026-03-26T07:31:08.371Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -12,6 +12,8 @@ Branch: main
 
 ## Included files
 
+- 4teen-wallet-kit :: src/widgets/ambassadorCabinet/ambassadorCabinet.css
+- 4teen-wallet-kit :: src/widgets/ambassadorCabinet/index.js
 - 4teen-wallet-kit :: src/widgets/ambassadorRegister/ambassadorRegister.css
 - 4teen-wallet-kit :: src/widgets/ambassadorRegister/index.js
 - 4teen-wallet-kit :: src/widgets/directBuy/directBuy.css
@@ -21,6 +23,22 @@ Branch: main
 - 4teen-wallet-kit :: src/widgets/mobileShell/index.js
 - 4teen-wallet-kit :: src/widgets/unlockTimeline/index.js
 - 4teen-wallet-kit :: src/widgets/unlockTimeline/unlockTimeline.css
+
+---
+
+## FILE: 4teen-wallet-kit :: src/widgets/ambassadorCabinet/ambassadorCabinet.css
+
+```css
+
+```
+
+---
+
+## FILE: 4teen-wallet-kit :: src/widgets/ambassadorCabinet/index.js
+
+```js
+
+```
 
 ---
 

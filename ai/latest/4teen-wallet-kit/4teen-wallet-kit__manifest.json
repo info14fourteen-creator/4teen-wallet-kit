@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-26T07:05:03.006Z",
+  "generatedAt": "2026-03-26T07:31:08.377Z",
   "repository": "info14fourteen-creator/4teen-wallet-kit",
   "branch": "main",
   "repoName": "4teen-wallet-kit",
@@ -60,6 +60,8 @@
     "src/widgets/swap/services/quotes.js",
     "src/widgets/swap/services/swapExecution.js",
     "src/widgets/swap/swap.css",
+    "src/widgets/ambassadorCabinet/ambassadorCabinet.css",
+    "src/widgets/ambassadorCabinet/index.js",
     "src/widgets/ambassadorRegister/ambassadorRegister.css",
     "src/widgets/ambassadorRegister/index.js",
     "src/widgets/directBuy/directBuy.css",
@@ -218,6 +220,8 @@
       "name": "4teen-wallet-kit__07_WIDGETS_OTHER.md",
       "title": "WIDGETS OTHER",
       "files": [
+        "src/widgets/ambassadorCabinet/ambassadorCabinet.css",
+        "src/widgets/ambassadorCabinet/index.js",
         "src/widgets/ambassadorRegister/ambassadorRegister.css",
         "src/widgets/ambassadorRegister/index.js",
         "src/widgets/directBuy/directBuy.css",

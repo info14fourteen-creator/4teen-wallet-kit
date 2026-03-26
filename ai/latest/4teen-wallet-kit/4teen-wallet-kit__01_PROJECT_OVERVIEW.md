@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — PROJECT OVERVIEW
 
-Generated: 2026-03-26T07:05:02.993Z
+Generated: 2026-03-26T07:31:08.366Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -154,6 +154,9 @@ Branch: main
       - failWalletConnection.js
       - finalizeWalletConnection.js
   - widgets/
+    - ambassadorCabinet/
+      - ambassadorCabinet.css
+      - index.js
     - ambassadorRegister/
       - ambassadorRegister.css
       - index.js

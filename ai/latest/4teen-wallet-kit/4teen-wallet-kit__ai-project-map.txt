@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — AI PROJECT MAP
 
-Generated: 2026-03-26T07:05:03.005Z
+Generated: 2026-03-26T07:31:08.376Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -166,6 +166,9 @@ Branch: main
       - failWalletConnection.js
       - finalizeWalletConnection.js
   - widgets/
+    - ambassadorCabinet/
+      - ambassadorCabinet.css
+      - index.js
     - ambassadorRegister/
       - ambassadorRegister.css
       - index.js
