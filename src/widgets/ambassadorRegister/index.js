@@ -501,14 +501,29 @@ export function mountAmbassadorRegister(target, config = {}) {
   function syncEmbeddedWalletUi() {
     const connected = isConnectedSafe(wallet);
     const mobile = isMobileViewport();
+    const connectSlotEl = root.querySelector('.fourteen-ambassador-connect-slot');
     const embeddedWalletButtonEl = root.querySelector('[data-role="embedded-wallet-button"]');
     const mobileConnectHintEl = root.querySelector('[data-role="mobile-connect-hint"]');
+
+    if (connectSlotEl) {
+      connectSlotEl.hidden = connected;
+    }
+
+    if (connected) {
+      unmountEmbeddedWalletButton();
+
+      if (mobileConnectHintEl) {
+        mobileConnectHintEl.hidden = true;
+      }
+
+      return;
+    }
 
     if (mobile) {
       unmountEmbeddedWalletButton();
 
       if (mobileConnectHintEl) {
-        mobileConnectHintEl.hidden = connected;
+        mobileConnectHintEl.hidden = false;
       }
 
       return;
