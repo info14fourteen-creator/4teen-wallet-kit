@@ -61,6 +61,7 @@ import { mountLiquidityController } from './widgets/liquidityController/index.js
 import { mountSwap } from './widgets/swap/index.js';
 import { mountMobileShell } from './widgets/mobileShell/index.js';
 import { mountAmbassadorRegister } from './widgets/ambassadorRegister/index.js';
+import { mountAmbassadorCabinet } from './widgets/ambassadorCabinet/index.js';
 
 
 // ==========================
@@ -361,18 +362,46 @@ export {
   setWalletState,
   patchWalletState,
   resetWalletState,
-  subscribeWalletState
+  subscribeWalletState,
+  setWalletLifecycle,
+  setWalletIdentity,
+  setWalletAccount,
+  setWalletRuntime,
+  setWalletBalances,
+  setWalletUi,
+  setWalletError,
+  clearWalletError
+};
+
+// address utils
+export {
+  shortenAddress,
+  isHexWalletAddress,
+  isTronAddress,
+  isUsableWalletAddress,
+  normalizeWalletAddress,
+  extractWalletAddressFromPayload
 };
 
 // ui & widgets
 export {
+  openWalletPicker,
   mountWalletButton,
   mountDirectBuy,
   mountUnlockTimeline,
   mountLiquidityController,
   mountSwap,
   mountMobileShell,
-  mountAmbassadorRegister
+  mountAmbassadorRegister,
+  mountAmbassadorCabinet
+};
+
+// debug
+export {
+  initDebugOverlay,
+  debugOverlayLog,
+  showDebugOverlay,
+  hideDebugOverlay
 };
 
 // notices
@@ -385,7 +414,105 @@ export {
 };
 
 // adapters
-export { createWalletAdapters };
+export {
+  createWalletAdapters,
+  isOkxBrowser,
+  isBinanceBrowser,
+  isTronLinkBrowser,
+  isTrustBrowser,
+  isMetaMaskBrowser,
+  isTokenPocketBrowser,
+  isBitgetBrowser,
+  isImTokenBrowser,
+  isFoxWalletBrowser,
+  detectBrowserWalletName,
+  isWalletBrowser,
+  getBrowserDetectionSnapshot,
+  isUsableAddress,
+  isHexAddress,
+  normalizeAddress,
+  extractAddressFromPayload,
+  resolveAddress,
+  readAddressFromAdapter,
+  getProviderCandidates,
+  providerMatchesWallet,
+  pickBestProvider,
+  tryProviderRequest,
+  tryRequestAccounts,
+  forceBindTronWeb,
+  waitForAddress,
+  requestTronLinkAccounts,
+  createReadonlyTronWeb,
+  getDefaultReadonlyTronWeb,
+  readTrxBalance,
+  safeReadTrxBalance,
+  readTokenBalance,
+  readTokenBalanceViaTrigger,
+  safeReadTokenBalance,
+  getSigningReadiness,
+  assertSigningCapability,
+  getResolvedSigningProvider,
+  getResolvedSigningTronWeb,
+  getSigningCapabilities
+};
+
+// registry
+export {
+  pickWalletAdapter,
+  getWalletAdapterById,
+  listWalletAdapters,
+  getWalletRegistry,
+  WALLET_REGISTRY,
+  getAvailableDrivers,
+  listAvailableDriverIds,
+  getDriverMap,
+  getWalletById,
+  getDriverIdByWallet,
+  getDriverById
+};
+
+// drivers
+export {
+  createTronLinkDriver,
+  tronLinkDriver,
+  createOkxDriver,
+  okxDriver,
+  createBinanceDriver,
+  binanceDriver,
+  createTokenPocketDriver,
+  tokenPocketDriver,
+  createBitgetDriver,
+  bitgetDriver,
+  createTrustDriver,
+  trustDriver,
+  createMetaMaskDriver,
+  metaMaskDriver,
+  createImTokenDriver,
+  imTokenDriver,
+  createFoxWalletDriver,
+  foxWalletDriver,
+  createWalletConnectDriver,
+  walletConnectDriver
+};
+
+// runtime
+export {
+  bindAdapterEvents,
+  waitAdaptersReady,
+  refreshAvailableWallets,
+  buildWalletKitRuntime,
+  createWalletScheduler,
+  resolveAutoWallet,
+  shouldAutoConnectWallet,
+  getWalletEnvironmentSnapshot,
+  createWalletManager
+};
+
+// session
+export {
+  finalizeWalletConnection,
+  failWalletConnection
+};
 
 // balances
 export { refreshAllBalances };
