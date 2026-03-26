@@ -18,7 +18,6 @@ const DEFAULT_CONFIG = {
   subtitle: 'Profile, stats, rewards and withdrawals in one place',
   mobileConnectHint: 'Tap connect below to continue.',
   refreshText: 'Refresh',
-  infoText: 'Info',
   withdrawText: 'Withdraw rewards',
   processingText: 'Processing...',
   profileEndpoint: '/cabinet/profile',
@@ -26,7 +25,10 @@ const DEFAULT_CONFIG = {
   referralBaseUrl: 'https://4teen.me/?ref=',
   registerTitle: 'Not an ambassador yet',
   registerText:
-    'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, complete registration below.'
+    'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, complete registration below.',
+  infoTitle: 'How this cabinet works',
+  infoContent:
+    'This cabinet combines blockchain data and backend profile data in one place. It shows your ambassador profile, level, buyers, tracked volume, reward queues, on-chain availability and withdrawal processing status. Rewards can appear in three stages: available on-chain, pending backend sync, or already requested for processing. Your referral link stays tied to your ambassador profile, and if this wallet is not registered yet, you can complete ambassador registration directly inside the cabinet.'
 };
 
 function escapeHtml(value) {
@@ -628,26 +630,6 @@ function createStatusCard(label, trxValue, sunValue, count, modifier) {
   `;
 }
 
-function createInfoPanelMarkup(state) {
-  if (!state.isInfoOpen) {
-    return '';
-  }
-
-  return `
-    <div class="fourteen-ambassador-cabinet-info">
-      <div class="fourteen-ambassador-cabinet-info__title">How this cabinet works</div>
-      <div class="fourteen-ambassador-cabinet-info__content">
-        <p>Connect your wallet to access ambassador tools.</p>
-        <p>If this wallet is already registered as ambassador, your dashboard will load automatically.</p>
-        <p>If the wallet is not registered, you can complete ambassador registration directly inside this cabinet.</p>
-        <p>Rewards may appear in different states: available on-chain, pending backend sync, or requested for processing.</p>
-        <p>Withdrawal availability depends on the current reward state.</p>
-        <p>Your referral link can be used to attribute purchases to your ambassador profile.</p>
-      </div>
-    </div>
-  `;
-}
-
 function createConnectedWalletSummary(walletAddress) {
   return `
     <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
@@ -656,7 +638,7 @@ function createConnectedWalletSummary(walletAddress) {
   `;
 }
 
-function createConnectStateMarkup(config) {
+function createConnectStateMarkup() {
   return `
     <div class="fourteen-ambassador-cabinet-empty">
       <div class="fourteen-ambassador-cabinet-empty__title">Connect wallet to continue</div>
@@ -927,7 +909,7 @@ function createMarkup(config, state, walletAddress) {
       </div>
     `;
   } else if (!state.isConnected) {
-    stateMarkup = createConnectStateMarkup(config);
+    stateMarkup = createConnectStateMarkup();
   } else if (!state.isRegistered) {
     stateMarkup = createRegistrationStateMarkup(config, walletAddress);
   } else {
@@ -950,13 +932,22 @@ function createMarkup(config, state, walletAddress) {
           </div>
 
           <div class="fourteen-ambassador-cabinet-hero__actions">
-            <button
-              type="button"
-              class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
-              data-role="info-button"
-            >
-              ${escapeHtml(config.infoText)}
-            </button>
+            <div class="fourteen-ambassador-cabinet-info-toggle-wrap">
+              <button
+                type="button"
+                class="fourteen-ambassador-cabinet-info-toggle"
+                aria-label="Cabinet info"
+                aria-expanded="false"
+                data-role="info-toggle"
+              >
+                i
+              </button>
+
+              <div class="fourteen-ambassador-cabinet-popover" data-role="info-popover" hidden>
+                <div class="fourteen-ambassador-cabinet-popover__title">${escapeHtml(config.infoTitle)}</div>
+                <div class="fourteen-ambassador-cabinet-popover__text">${escapeHtml(config.infoContent).replaceAll('\n', '<br><br>')}</div>
+              </div>
+            </div>
 
             <button
               type="button"
@@ -968,8 +959,6 @@ function createMarkup(config, state, walletAddress) {
             </button>
           </div>
         </div>
-
-        ${createInfoPanelMarkup(state)}
 
         <div class="fourteen-ambassador-cabinet-topbar">
           <div class="fourteen-ambassador-cabinet-wallet" data-role="wallet-label">
@@ -1030,7 +1019,6 @@ export function mountAmbassadorCabinet(target, config = {}) {
     isWithdrawing: false,
     isConnected: false,
     isRegistered: false,
-    isInfoOpen: false,
     hasProcessingWithdrawal: false,
     error: '',
     dashboard: null,
@@ -1056,12 +1044,42 @@ export function mountAmbassadorCabinet(target, config = {}) {
   let resizeListenerBound = false;
   let refreshInFlight = null;
   let lastLoadedWalletAddress = '';
-  let hasMountedRegisterState = false;
 
   const root = target;
 
   function isAlive() {
     return !isDestroyed && document.body.contains(target);
+  }
+
+  function closePopover() {
+    const popoverEl = root.querySelector('[data-role="info-popover"]');
+    const infoToggleEl = root.querySelector('[data-role="info-toggle"]');
+
+    if (!popoverEl || !infoToggleEl) return;
+
+    popoverEl.hidden = true;
+    infoToggleEl.setAttribute('aria-expanded', 'false');
+  }
+
+  function togglePopover(event) {
+    event?.stopPropagation?.();
+
+    const popoverEl = root.querySelector('[data-role="info-popover"]');
+    const infoToggleEl = root.querySelector('[data-role="info-toggle"]');
+
+    if (!popoverEl || !infoToggleEl) return;
+
+    const nextHidden = !popoverEl.hidden;
+    popoverEl.hidden = nextHidden;
+    infoToggleEl.setAttribute('aria-expanded', nextHidden ? 'false' : 'true');
+  }
+
+  function handleOutsideClick(event) {
+    const widgetEl = root.querySelector('.fourteen-ambassador-cabinet-widget');
+
+    if (!widgetEl?.contains(event.target)) {
+      closePopover();
+    }
   }
 
   function updateWalletLabel() {
@@ -1103,14 +1121,29 @@ export function mountAmbassadorCabinet(target, config = {}) {
   function syncEmbeddedWalletUi() {
     const connected = isConnectedSafe(wallet);
     const mobile = isMobileViewport();
+    const connectSlotEl = root.querySelector('.fourteen-ambassador-cabinet-connect-slot');
     const embeddedWalletButtonEl = root.querySelector('[data-role="embedded-wallet-button"]');
     const mobileConnectHintEl = root.querySelector('[data-role="mobile-connect-hint"]');
+
+    if (connectSlotEl) {
+      connectSlotEl.hidden = connected;
+    }
+
+    if (connected) {
+      unmountEmbeddedWalletButton();
+
+      if (mobileConnectHintEl) {
+        mobileConnectHintEl.hidden = true;
+      }
+
+      return;
+    }
 
     if (mobile) {
       unmountEmbeddedWalletButton();
 
       if (mobileConnectHintEl) {
-        mobileConnectHintEl.hidden = connected;
+        mobileConnectHintEl.hidden = false;
       }
 
       return;
@@ -1175,7 +1208,6 @@ export function mountAmbassadorCabinet(target, config = {}) {
       state.isRefreshing = false;
       state.error = '';
       lastLoadedWalletAddress = '';
-      hasMountedRegisterState = false;
       return;
     }
 
@@ -1202,10 +1234,6 @@ export function mountAmbassadorCabinet(target, config = {}) {
     state.isRefreshing = false;
     state.error = '';
     lastLoadedWalletAddress = walletAddress;
-
-    if (state.isRegistered) {
-      hasMountedRegisterState = false;
-    }
   }
 
   async function refresh(mode = 'refresh', options = {}) {
@@ -1280,15 +1308,10 @@ export function mountAmbassadorCabinet(target, config = {}) {
     }
   }
 
-  function handleToggleInfo() {
-    state.isInfoOpen = !state.isInfoOpen;
-    render();
-  }
-
   function bindEvents() {
     const refreshButton = root.querySelector('[data-role="refresh-button"]');
     const withdrawButton = root.querySelector('[data-role="withdraw-button"]');
-    const infoButton = root.querySelector('[data-role="info-button"]');
+    const infoToggleEl = root.querySelector('[data-role="info-toggle"]');
 
     refreshButton?.addEventListener('click', () => {
       refresh('refresh', { force: true }).catch((error) => {
@@ -1302,9 +1325,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
       });
     });
 
-    infoButton?.addEventListener('click', () => {
-      handleToggleInfo();
-    });
+    infoToggleEl?.addEventListener('click', togglePopover);
   }
 
   function mountRegisterWidgetIfNeeded() {
@@ -1331,7 +1352,6 @@ export function mountAmbassadorCabinet(target, config = {}) {
     }
 
     registerWidgetInstance = mountAmbassadorRegister(slot, registerOptions);
-    hasMountedRegisterState = true;
 
     const tryRefreshAfterRegistration = async () => {
       const connected = isConnectedSafe(wallet);
@@ -1368,6 +1388,8 @@ export function mountAmbassadorCabinet(target, config = {}) {
     mountRegisterWidgetIfNeeded();
   }
 
+  document.addEventListener('click', handleOutsideClick);
+
   if (typeof wallet.subscribe === 'function') {
     walletUnsubscribe = wallet.subscribe(async () => {
       const currentWallet = getWalletAddressSafe(wallet) || '';
@@ -1399,6 +1421,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
       isDestroyed = true;
       destroyRegisterWidget();
       unmountEmbeddedWalletButton();
+      document.removeEventListener('click', handleOutsideClick);
 
       if (resizeListenerBound && typeof window !== 'undefined') {
         window.removeEventListener('resize', handleResize);
