@@ -223,6 +223,39 @@
   background: rgba(255, 48, 73, 0.08);
 }
 
+.fourteen-ambassador-cabinet-info {
+  margin-bottom: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 105, 0, 0.18);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 105, 0, 0.08) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+}
+
+.fourteen-ambassador-cabinet-info__title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 10px;
+}
+
+.fourteen-ambassador-cabinet-info__content {
+  color: var(--fourteen-cabinet-text-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.fourteen-ambassador-cabinet-info__content p {
+  margin: 0 0 8px 0;
+}
+
+.fourteen-ambassador-cabinet-info__content p:last-child {
+  margin-bottom: 0;
+}
+
 .fourteen-ambassador-cabinet-empty {
   margin-bottom: 18px;
   padding: 18px;
@@ -384,6 +417,19 @@
   outline-offset: 2px;
 }
 
+.fourteen-ambassador-cabinet-section [data-role="register-slot"] {
+  width: 100%;
+}
+
+.fourteen-ambassador-cabinet-section [data-role="register-slot"] > * {
+  width: 100%;
+}
+
+.fourteen-ambassador-cabinet-section .fourteen-ambassador-cabinet-action {
+  width: auto;
+  max-width: 100%;
+}
+
 @media (max-width: 1100px) {
   .fourteen-ambassador-cabinet-grid--four {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -465,7 +511,8 @@
   }
 
   .fourteen-ambassador-cabinet-banner,
-  .fourteen-ambassador-cabinet-empty {
+  .fourteen-ambassador-cabinet-empty,
+  .fourteen-ambassador-cabinet-info {
     margin-bottom: 12px;
   }
 
@@ -473,7 +520,8 @@
     flex-direction: column;
   }
 
-  .fourteen-ambassador-cabinet-link {
+  .fourteen-ambassador-cabinet-link,
+  .fourteen-ambassador-cabinet-section .fourteen-ambassador-cabinet-action {
     width: 100%;
     justify-content: center;
   }
