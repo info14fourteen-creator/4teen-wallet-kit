@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-26T07:45:13.169Z
+Generated: 2026-03-26T07:48:42.864Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -29,7 +29,486 @@ Branch: main
 ## FILE: 4teen-wallet-kit :: src/widgets/ambassadorCabinet/ambassadorCabinet.css
 
 ```css
+:root {
+  --fourteen-cabinet-bg: rgba(17, 17, 17, 0.92);
+  --fourteen-cabinet-bg-soft: rgba(255, 255, 255, 0.03);
+  --fourteen-cabinet-bg-softer: rgba(255, 255, 255, 0.02);
+  --fourteen-cabinet-border: rgba(255, 255, 255, 0.08);
+  --fourteen-cabinet-border-strong: rgba(255, 255, 255, 0.12);
+  --fourteen-cabinet-text: rgba(255, 255, 255, 0.94);
+  --fourteen-cabinet-text-soft: rgba(255, 255, 255, 0.64);
+  --fourteen-cabinet-text-faint: rgba(255, 255, 255, 0.46);
+  --fourteen-cabinet-accent: rgb(255, 105, 0);
+  --fourteen-cabinet-accent-soft: rgba(255, 105, 0, 0.14);
+  --fourteen-cabinet-accent-strong: rgba(255, 105, 0, 0.2);
+  --fourteen-cabinet-green: rgb(26, 224, 58);
+  --fourteen-cabinet-green-soft: rgba(26, 224, 58, 0.12);
+  --fourteen-cabinet-amber: rgb(255, 184, 0);
+  --fourteen-cabinet-amber-soft: rgba(255, 184, 0, 0.12);
+  --fourteen-cabinet-blue: rgb(84, 170, 255);
+  --fourteen-cabinet-blue-soft: rgba(84, 170, 255, 0.12);
+  --fourteen-cabinet-red: rgb(255, 48, 73);
+  --fourteen-cabinet-red-soft: rgba(255, 48, 73, 0.12);
+  --fourteen-cabinet-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  --fourteen-cabinet-radius: 16px;
+  --fourteen-cabinet-radius-sm: 12px;
+}
 
+.fourteen-ambassador-cabinet-widget {
+  position: relative;
+  width: 100%;
+  font-family: TTNorm, Inter, Arial, Helvetica, sans-serif;
+  color: var(--fourteen-cabinet-text);
+}
+
+.fourteen-ambassador-cabinet-shell {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.fourteen-ambassador-cabinet-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 14px 0 12px 0;
+  overflow: visible;
+}
+
+.fourteen-ambassador-cabinet-hero__bg {
+  position: absolute;
+  left: -14px;
+  top: -18px;
+  width: 60px;
+  height: 60px;
+  background-image: url('../../assets/text_bg.svg');
+  background-position: left top;
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 1;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.fourteen-ambassador-cabinet-hero__text {
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fourteen-ambassador-cabinet-hero__title {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  line-height: 0.95;
+  color: #ffffff;
+}
+
+.fourteen-ambassador-cabinet-hero__title span {
+  color: #ff6900;
+  text-shadow: 0 0 14px rgba(255, 105, 0, 0.28);
+}
+
+.fourteen-ambassador-cabinet-hero__subtitle {
+  position: relative;
+  z-index: 1;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  max-width: 860px;
+  line-height: 1.45;
+}
+
+.fourteen-ambassador-cabinet-hero__actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 3;
+}
+
+.fourteen-ambassador-cabinet-action {
+  appearance: none;
+  border: 0;
+  outline: 0;
+  border-radius: 999px;
+  min-height: 42px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 145, 52, 1) 0%,
+    rgba(255, 105, 0, 0.96) 100%
+  );
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(255, 105, 0, 0.22);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.fourteen-ambassador-cabinet-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(255, 105, 0, 0.28);
+  filter: brightness(1.03);
+}
+
+.fourteen-ambassador-cabinet-action:disabled,
+.fourteen-ambassador-cabinet-action[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.52;
+  transform: none;
+  filter: none;
+  box-shadow: none;
+}
+
+.fourteen-ambassador-cabinet-action--secondary {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fourteen-cabinet-text);
+  border: 1px solid var(--fourteen-cabinet-border);
+  box-shadow: none;
+}
+
+.fourteen-ambassador-cabinet-action--secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.fourteen-ambassador-cabinet-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.fourteen-ambassador-cabinet-wallet {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  word-break: break-word;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(170, 255, 189, 0.94);
+}
+
+.fourteen-ambassador-cabinet-connect-slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.fourteen-ambassador-cabinet-connect-slot__desktop {
+  min-height: 44px;
+}
+
+.fourteen-ambassador-cabinet-connect-slot__mobile {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--fourteen-cabinet-text-soft);
+}
+
+.fourteen-ambassador-cabinet-banner {
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--fourteen-cabinet-border);
+  background: var(--fourteen-cabinet-bg-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.fourteen-ambassador-cabinet-banner--neutral {
+  color: var(--fourteen-cabinet-text-soft);
+}
+
+.fourteen-ambassador-cabinet-banner--error {
+  color: #ffd4db;
+  border-color: rgba(255, 48, 73, 0.24);
+  background: rgba(255, 48, 73, 0.08);
+}
+
+.fourteen-ambassador-cabinet-empty {
+  margin-bottom: 18px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid var(--fourteen-cabinet-border);
+  background: linear-gradient(
+    180deg,
+    rgba(24, 24, 24, 0.94) 0%,
+    rgba(15, 15, 15, 0.98) 100%
+  );
+}
+
+.fourteen-ambassador-cabinet-empty__title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--fourteen-cabinet-text);
+}
+
+.fourteen-ambassador-cabinet-empty__text {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--fourteen-cabinet-text-soft);
+}
+
+.fourteen-ambassador-cabinet-grid {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.fourteen-ambassador-cabinet-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fourteen-ambassador-cabinet-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fourteen-ambassador-cabinet-grid--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.fourteen-ambassador-cabinet-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--fourteen-cabinet-border);
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 20, 20, 0.98) 0%,
+    rgba(15, 15, 15, 0.98) 100%
+  );
+  padding: 15px 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.fourteen-ambassador-cabinet-card--green {
+  border-color: rgba(26, 224, 58, 0.22);
+  background:
+    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
+    var(--fourteen-cabinet-green-soft);
+}
+
+.fourteen-ambassador-cabinet-card--amber {
+  border-color: rgba(255, 184, 0, 0.22);
+  background:
+    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
+    var(--fourteen-cabinet-amber-soft);
+}
+
+.fourteen-ambassador-cabinet-card--blue {
+  border-color: rgba(84, 170, 255, 0.22);
+  background:
+    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
+    var(--fourteen-cabinet-blue-soft);
+}
+
+.fourteen-ambassador-cabinet-card__label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fourteen-cabinet-text-faint);
+}
+
+.fourteen-ambassador-cabinet-card__value {
+  margin-top: 8px;
+  font-size: 22px;
+  line-height: 1.18;
+  font-weight: 800;
+  color: var(--fourteen-cabinet-text);
+  word-break: break-word;
+}
+
+.fourteen-ambassador-cabinet-card__hint {
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fourteen-cabinet-text-soft);
+  word-break: break-word;
+}
+
+.fourteen-ambassador-cabinet-section {
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid var(--fourteen-cabinet-border);
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 20, 20, 0.98) 0%,
+    rgba(15, 15, 15, 0.98) 100%
+  );
+}
+
+.fourteen-ambassador-cabinet-section__title {
+  margin-bottom: 14px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--fourteen-cabinet-text);
+}
+
+.fourteen-ambassador-cabinet-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.fourteen-ambassador-cabinet-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--fourteen-cabinet-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--fourteen-cabinet-text);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.fourteen-ambassador-cabinet-link:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 105, 0, 0.28);
+  background: rgba(255, 105, 0, 0.08);
+  color: #ffffff;
+}
+
+.fourteen-ambassador-cabinet-link:focus-visible,
+.fourteen-ambassador-cabinet-action:focus-visible {
+  outline: 2px solid rgba(255, 105, 0, 0.5);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1100px) {
+  .fourteen-ambassador-cabinet-grid--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fourteen-ambassador-cabinet-grid--three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .fourteen-ambassador-cabinet-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fourteen-ambassador-cabinet-hero__actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .fourteen-ambassador-cabinet-action {
+    flex: 1 1 220px;
+  }
+
+  .fourteen-ambassador-cabinet-grid--two,
+  .fourteen-ambassador-cabinet-grid--three,
+  .fourteen-ambassador-cabinet-grid--four {
+    grid-template-columns: 1fr;
+  }
+
+  .fourteen-ambassador-cabinet-section {
+    padding: 14px;
+  }
+
+  .fourteen-ambassador-cabinet-card {
+    padding: 14px;
+  }
+
+  .fourteen-ambassador-cabinet-card__value {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .fourteen-ambassador-cabinet-hero {
+    padding-top: 10px;
+  }
+
+  .fourteen-ambassador-cabinet-hero__bg {
+    left: -10px;
+    top: -12px;
+    width: 46px;
+    height: 46px;
+    opacity: 0.9;
+  }
+
+  .fourteen-ambassador-cabinet-hero__title {
+    font-size: 30px;
+    line-height: 0.98;
+  }
+
+  .fourteen-ambassador-cabinet-hero__subtitle {
+    margin-top: 6px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+  }
+
+  .fourteen-ambassador-cabinet-topbar {
+    margin-bottom: 12px;
+  }
+
+  .fourteen-ambassador-cabinet-wallet {
+    font-size: 12px;
+  }
+
+  .fourteen-ambassador-cabinet-connect-slot {
+    margin-bottom: 14px;
+  }
+
+  .fourteen-ambassador-cabinet-banner,
+  .fourteen-ambassador-cabinet-empty {
+    margin-bottom: 12px;
+  }
+
+  .fourteen-ambassador-cabinet-links {
+    flex-direction: column;
+  }
+
+  .fourteen-ambassador-cabinet-link {
+    width: 100%;
+    justify-content: center;
+  }
+}
 ```
 
 ---
