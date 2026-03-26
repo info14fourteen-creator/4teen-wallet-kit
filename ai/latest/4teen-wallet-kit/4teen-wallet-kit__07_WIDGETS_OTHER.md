@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-26T09:51:47.101Z
+Generated: 2026-03-26T10:25:56.232Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -592,9 +592,9 @@ const DEFAULT_CONFIG = {
   registerTitle: 'Not an ambassador yet',
   registerText:
     'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, complete registration below.',
-  infoTitle: 'How this cabinet works',
+  infoTitle: 'What you can do inside this cabinet',
   infoContent:
-    'This cabinet combines blockchain data and backend profile data in one place. It shows your ambassador profile, level, buyers, tracked volume, reward queues, on-chain availability and withdrawal processing status. Rewards can appear in three stages: available on-chain, pending backend sync, or already requested for processing. Your referral link stays tied to your ambassador profile, and if this wallet is not registered yet, you can complete ambassador registration directly inside the cabinet.'
+    'This cabinet is your ambassador control panel. After connecting your wallet, it shows whether this wallet is already registered as an ambassador, your current level, reward percentage, total buyers, tracked volume, referral link and reward status.\n\nIf rewards are already available on-chain, you can withdraw them here. If they are still pending backend sync or already requested for processing, the cabinet will show that state clearly.\n\nIf this wallet is not registered yet, you can complete ambassador registration directly inside this cabinet.\n\nUse this page to check your referral activity, understand your reward status and manage your ambassador account in one place.'
 };
 
 function escapeHtml(value) {
@@ -1500,8 +1500,8 @@ function createMarkup(config, state, walletAddress) {
           <div class="fourteen-ambassador-cabinet-hero__actions">
             <div class="fourteen-ambassador-cabinet-info-toggle-wrap">
               <button
-                type="button"
                 class="fourteen-ambassador-cabinet-info-toggle"
+                type="button"
                 aria-label="Cabinet info"
                 aria-expanded="false"
                 data-role="info-toggle"
