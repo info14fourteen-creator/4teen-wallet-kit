@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-26T08:37:00.845Z
+Generated: 2026-03-26T08:53:38.854Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -4147,6 +4147,7 @@ export function mountDirectBuy(target, config = {}) {
   const infoToggleEl = target.querySelector('.fourteen-buy-info-toggle');
   const popoverEl = target.querySelector('.fourteen-buy-popover');
   const walletLabelEl = target.querySelector('[data-role="wallet-label"]');
+  const connectSlotEl = target.querySelector('.fourteen-buy-connect-slot');
   const embeddedWalletButtonEl = target.querySelector('[data-role="embedded-wallet-button"]');
   const mobileConnectHintEl = target.querySelector('[data-role="mobile-connect-hint"]');
 
@@ -4278,11 +4279,25 @@ export function mountDirectBuy(target, config = {}) {
     const connected = isConnectedSafe(wallet);
     const mobile = isMobileViewport();
 
+    if (connectSlotEl) {
+      connectSlotEl.hidden = connected;
+    }
+
+    if (connected) {
+      unmountEmbeddedWalletButton();
+
+      if (mobileConnectHintEl) {
+        mobileConnectHintEl.hidden = true;
+      }
+
+      return;
+    }
+
     if (mobile) {
       unmountEmbeddedWalletButton();
 
       if (mobileConnectHintEl) {
-        mobileConnectHintEl.hidden = connected;
+        mobileConnectHintEl.hidden = false;
       }
 
       return;
@@ -4436,6 +4451,7 @@ export function mountDirectBuy(target, config = {}) {
 
       await buy();
       updateWalletLabel();
+      await refreshUI();
     } catch (error) {
       console.error('Direct buy flow failed:', error);
     }
