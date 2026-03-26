@@ -17,17 +17,17 @@ import unlockMenu from '../assets/menu/unlock_menu.svg';
 import liquidityMenu from '../assets/menu/liquidity_menu.svg';
 
 export const MOBILE_MENU_LINKS = [
-  { id: 'home', label: 'home', href: 'https://4teen.me' },
-  { id: 'whitepaper', label: 'whitepaper', href: 'https://4teen.me/wp' },
-  { id: 'tokenomics', label: 'tokenomics', href: 'https://4teen.me/tc' },
-  { id: 'airdrop', label: 'airdrop', href: 'https://4teen.me/ad' },
-  { id: 'blog', label: 'blog', href: 'https://4teen.me/bg' },
-  { id: 'buy', label: 'buy', href: 'https://4teen.me/bt' },
-  { id: 'swap', label: 'swap', href: 'https://4teen.me/sw' },
-  { id: 'unlock-timeline', label: 'unlock timeline', href: 'https://4teen.me/ult' },
-  { id: 'liquidity-controller', label: 'liquidity controller', href: 'https://4teen.me/lc' },
-  { id: 'phone', label: 'tel: +1 646-217-8070', href: 'tel:+1%20646-217-8070' },
-  { id: 'email', label: 'email: info@4teen.me', href: 'mailto:info@4teen.me' }
+  { id: 'home', label: 'Home', href: 'https://4teen.me' },
+  { id: 'whitepaper', label: 'Whitepaper', href: 'https://4teen.me/wp' },
+  { id: 'ambassador-program', label: 'Ambassador Program', href: 'https://4teen.me/a' },
+  { id: 'airdrop', label: 'Airdrop', href: 'https://4teen.me/ad' },
+  { id: 'blog', label: 'Blog', href: 'https://4teen.me/bg' },
+  { id: 'buy', label: 'Buy', href: 'https://4teen.me/bt' },
+  { id: 'swap', label: 'Swap', href: 'https://4teen.me/sw' },
+  { id: 'unlock-timeline', label: 'Unlock Timeline', href: 'https://4teen.me/ult' },
+  { id: 'liquidity-controller', label: 'Liquidity Controller', href: 'https://4teen.me/lc' },
+  { id: 'phone', label: 'Tel: +1 646-217-8070', href: 'tel:+1%20646-217-8070' },
+  { id: 'email', label: 'Email: info@4teen.me', href: 'mailto:info@4teen.me' }
 ];
 
 export const MOBILE_SOCIALS = [
