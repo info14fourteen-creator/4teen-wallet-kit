@@ -1,0 +1,17 @@
+4teen-wallet-kit AI LINKS
+
+Snapshot dir: https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit/
+Zip archive: https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit.zip
+Working rules: https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/WORKING_RULES.md
+
+Files:
+
+- https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit/4teen-wallet-kit__01_PROJECT_OVERVIEW.md
+- https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit/4teen-wallet-kit__02_BUILD_AND_RELEASE.md
+- https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit/4teen-wallet-kit__03_ENTRYPOINTS_AND_EXPORTS.md
+- https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit/4teen-wallet-kit__04_WALLET_CONNECTION.md
+- https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit/4teen-wallet-kit__05_SHARED_UTILS_AND_CONFIG.md
+- https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit/4teen-wallet-kit__06_WIDGETS_SWAP.md
+- https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit/4teen-wallet-kit__07_WIDGETS_OTHER.md
+- https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit/4teen-wallet-kit__08_COMPONENTS_AND_UI.md
+- https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit/4teen-wallet-kit__09_REMAINING_CRITICAL_FILES.md

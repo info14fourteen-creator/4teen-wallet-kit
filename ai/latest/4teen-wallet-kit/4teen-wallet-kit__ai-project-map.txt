@@ -1,0 +1,197 @@
+# 4teen-wallet-kit — AI PROJECT MAP
+
+Generated: 2026-03-26T07:02:12.942Z
+Repository: info14fourteen-creator/4teen-wallet-kit
+Branch: main
+
+## Links
+
+- Repo snapshot dir: https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit/
+- Zip archive: https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/latest/4teen-wallet-kit.zip
+- Working rules: https://raw.githubusercontent.com/info14fourteen-creator/4teen-wallet-kit/main/ai/WORKING_RULES.md
+
+## Snapshot files
+
+- 4teen-wallet-kit__01_PROJECT_OVERVIEW.md
+- 4teen-wallet-kit__02_BUILD_AND_RELEASE.md
+- 4teen-wallet-kit__03_ENTRYPOINTS_AND_EXPORTS.md
+- 4teen-wallet-kit__04_WALLET_CONNECTION.md
+- 4teen-wallet-kit__05_SHARED_UTILS_AND_CONFIG.md
+- 4teen-wallet-kit__06_WIDGETS_SWAP.md
+- 4teen-wallet-kit__07_WIDGETS_OTHER.md
+- 4teen-wallet-kit__08_COMPONENTS_AND_UI.md
+- 4teen-wallet-kit__09_REMAINING_CRITICAL_FILES.md
+
+## Curated project tree
+
+```txt
+- .github/
+  - workflows/
+    - build-and-publish-ai-bundle.yml
+    - build-and-publish.yml
+- ai/
+  - WORKING_RULES.md
+- examples/
+  - vanilla/
+    - index.html
+    - main.js
+- scripts/
+  - build-ai-bundle.js
+- src/
+  - adapters/
+    - drivers/
+      - binance/
+        - index.js
+      - bitget/
+        - index.js
+      - foxwallet/
+        - index.js
+      - imtoken/
+        - index.js
+      - metamask/
+        - index.js
+      - okx/
+        - index.js
+      - tokenpocket/
+        - index.js
+      - tronlink/
+        - index.js
+      - trust/
+        - index.js
+      - walletconnect/
+        - index.js
+    - registry/
+      - getAvailableDrivers.js
+      - getDriverById.js
+      - getDriverMap.js
+      - pickWalletAdapter.js
+      - walletRegistry.js
+    - shared/
+      - accountRequests.js
+      - addressResolver.js
+      - browserDetection.js
+      - createReadonlyTronWeb.js
+      - providerResolver.js
+      - signingReadiness.js
+      - tokenBalanceReader.js
+      - trxBalanceReader.js
+    - createAdapters.js
+    - priority.js
+  - assets/
+    - menu/
+      - buy_menu.svg
+      - liquidity_menu.svg
+      - swap_menu.svg
+      - unlock_menu.svg
+    - 4teen_swap.svg
+    - 4teen.svg
+    - justmoney_swap.svg
+    - sunio_swap.svg
+    - swap_arrows.svg
+    - text_bg.svg
+    - trx_swap.svg
+    - trx.svg
+    - usdt_swap.svg
+    - wallet.svg
+  - core/
+    - config/
+      - appkit.js
+      - constants.js
+      - token.js
+      - wallets.js
+    - store/
+      - walletStore.js
+    - utils/
+      - address.js
+      - format.js
+      - tron.js
+  - debug/
+    - debugOverlay.js
+  - diagnostics/
+    - assertWalletSigning.js
+    - walletDiagnostics.js
+  - polyfills/
+    - node.js
+  - services/
+    - balances/
+      - getFourteenBalance.js
+      - getTokenBalance.js
+      - getTrxBalance.js
+      - refreshAllBalances.js
+    - contracts/
+      - trc20.js
+    - readonly/
+      - getTokenContractData.js
+      - getTokenDecimals.js
+      - getTokenSymbol.js
+      - getTokenTotalSupply.js
+    - wallet/
+      - connectWallet.js
+      - disconnectWallet.js
+      - initWalletKit.js
+      - restoreSession.js
+  - ui/
+    - wallet/
+      - openWalletPicker.js
+    - icons.js
+    - mobileShell.config.js
+    - mobileShell.css
+    - mobileShell.js
+    - noticeCenter.css
+    - noticeCenter.js
+    - walletButton.css
+    - walletButton.js
+    - walletDropdown.js
+    - walletPicker.css
+    - walletPicker.js
+  - wallet/
+    - actions/
+      - connectWallet.js
+      - disconnectWallet.js
+      - refreshWalletBalances.js
+      - restoreWalletSession.js
+    - core/
+      - walletManager.js
+    - runtime/
+      - bindAdapterEvents.js
+      - buildWalletKitRuntime.js
+      - refreshAvailableWallets.js
+      - resolveAutoWallet.js
+      - waitAdaptersReady.js
+      - walletScheduler.js
+    - services/
+      - initWalletKit.js
+      - restoreSession.js
+    - session/
+      - failWalletConnection.js
+      - finalizeWalletConnection.js
+  - widgets/
+    - ambassadorRegister/
+      - ambassadorRegister.css
+      - index.js
+    - directBuy/
+      - directBuy.css
+      - index.js
+    - liquidityController/
+      - index.js
+      - liquidityController.css
+    - mobileShell/
+      - index.js
+    - swap/
+      - providers/
+        - justmoney.js
+        - sunio.js
+      - services/
+        - quotes.js
+        - swapExecution.js
+      - constants.js
+      - index.js
+      - swap.css
+    - unlockTimeline/
+      - index.js
+      - unlockTimeline.css
+  - index.js
+- package.json
+- README.md
+- vite.config.js
+```
