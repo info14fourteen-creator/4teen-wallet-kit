@@ -251,7 +251,6 @@ export function mountUnlockTimeline(target, config = {}) {
     connectText,
     mobileConnectHint,
     swapUrl,
-    title,
     subtitle,
     infoTitle,
     infoText
@@ -289,8 +288,8 @@ export function mountUnlockTimeline(target, config = {}) {
 
           <div class="fourteen-timeline-hero__text">
             <div class="fourteen-timeline-hero__title">
-  Token <span>Unlock</span> Timeline
-</div>
+              Token <span>Unlock</span> Timeline
+            </div>
             <div class="fourteen-timeline-hero__subtitle">${escapeHtml(subtitle)}</div>
           </div>
 
@@ -302,6 +301,7 @@ export function mountUnlockTimeline(target, config = {}) {
                 class="fourteen-timeline-info-toggle"
                 type="button"
                 aria-label="Timeline info"
+                aria-expanded="false"
                 data-role="timeline-info-toggle"
               >
                 i
@@ -393,6 +393,7 @@ export function mountUnlockTimeline(target, config = {}) {
   const mobileListEl = target.querySelector('[data-role="mobile-list"]');
   const infoToggleEl = target.querySelector('[data-role="timeline-info-toggle"]');
   const popoverEl = target.querySelector('[data-role="timeline-popover"]');
+  const connectSlotEl = target.querySelector('.fourteen-timeline-connect-slot');
   const embeddedWalletButtonEl = target.querySelector('[data-role="embedded-wallet-button"]');
   const mobileConnectHintEl = target.querySelector('[data-role="mobile-connect-hint"]');
 
@@ -441,17 +442,19 @@ export function mountUnlockTimeline(target, config = {}) {
   }
 
   function closePopover() {
-    if (popoverEl) {
-      popoverEl.hidden = true;
-    }
+    if (!popoverEl || !infoToggleEl) return;
+    popoverEl.hidden = true;
+    infoToggleEl.setAttribute('aria-expanded', 'false');
   }
 
   function togglePopover(event) {
     event?.stopPropagation?.();
 
-    if (!popoverEl) return;
+    if (!popoverEl || !infoToggleEl) return;
 
-    popoverEl.hidden = !popoverEl.hidden;
+    const nextHidden = !popoverEl.hidden;
+    popoverEl.hidden = nextHidden;
+    infoToggleEl.setAttribute('aria-expanded', nextHidden ? 'false' : 'true');
   }
 
   function handleOutsideClick(event) {
@@ -673,11 +676,27 @@ export function mountUnlockTimeline(target, config = {}) {
     const connected = isConnectedSafe(wallet);
     const mobile = isMobileViewport();
 
+    if (connectSlotEl) {
+      connectSlotEl.hidden = connected;
+    }
+
+    if (connected) {
+      unmountEmbeddedWalletButton();
+
+      if (mobileConnectHintEl) {
+        mobileConnectHintEl.hidden = true;
+      }
+
+      return;
+    }
+
     if (mobile) {
       unmountEmbeddedWalletButton();
+
       if (mobileConnectHintEl) {
-        mobileConnectHintEl.hidden = connected;
+        mobileConnectHintEl.hidden = false;
       }
+
       return;
     }
 
@@ -697,15 +716,18 @@ export function mountUnlockTimeline(target, config = {}) {
           await wallet.connect(walletId);
           await wait(450);
           await refreshBalancesSafe();
+          handleWalletUpdate();
         }
       },
       onRefresh: async () => {
         await refreshBalancesSafe();
+        handleWalletUpdate();
       },
       onDisconnect: async () => {
         if (typeof wallet.disconnect === 'function') {
           await wallet.disconnect();
         }
+        handleWalletUpdate();
       }
     });
   }
