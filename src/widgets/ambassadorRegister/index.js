@@ -21,7 +21,16 @@ const DEFAULT_CONFIG = {
   description: 'Reserve your referral slug and create your ambassador link.',
   connectText: 'Connect Wallet',
   mobileConnectHint: 'Tap connect below to continue.',
-  defaultSlug: ''
+  defaultSlug: '',
+  infoTitle: 'What this registration does',
+  infoText:
+    'Your slug becomes your public ambassador handle and can be changed later. Registration itself is executed as a real blockchain action.\n\n' +
+    'If your wallet does not have enough free bandwidth and energy, a small amount of TRX may be used to complete the transaction.\n\n' +
+    'Slug availability is checked before registration.\n' +
+    'Registration is confirmed on-chain.\n' +
+    'Service mapping is stored in a protected backend layer.\n' +
+    'Your referral link is generated after successful registration.\n\n' +
+    'Telegram linking and additional profile actions will be handled later through the ambassador cabinet layer.'
 };
 
 function wait(ms) {
@@ -273,6 +282,22 @@ function buildContractAbi() {
   ];
 }
 
+function buildPopoverTextHtml(value) {
+  const text = String(value || '').trim();
+
+  if (!text) {
+    return '';
+  }
+
+  return text
+    .split(/\n{2,}/)
+    .map((paragraph) => {
+      const html = escapeHtml(paragraph).replace(/\n/g, '<br>');
+      return `<p>${html}</p>`;
+    })
+    .join('');
+}
+
 function createMarkup(config, state, isConnected) {
   const statusState = state.error
     ? 'error'
@@ -309,9 +334,9 @@ function createMarkup(config, state, isConnected) {
               </button>
 
               <div class="fourteen-ambassador-popover" hidden>
-                <div class="fourteen-ambassador-popover__title">Registration Info</div>
+                <div class="fourteen-ambassador-popover__title">${escapeHtml(config.infoTitle)}</div>
                 <div class="fourteen-ambassador-popover__text">
-                  Choose your public ambassador slug - this will be your referral handle and it can be changed later. Registration is a real blockchain action, so your wallet may spend a small amount of TRX on bandwidth and energy if free resources are not available. Core registration data is written on-chain, while the service layer is stored separately in a protected two-layer database system for secure verification, matching, and recovery. This is a live registration step, not a demo.
+                  ${buildPopoverTextHtml(config.infoText)}
                 </div>
               </div>
             </div>
