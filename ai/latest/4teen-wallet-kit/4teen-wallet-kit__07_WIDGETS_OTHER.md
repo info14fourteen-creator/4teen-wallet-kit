@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-27T10:54:19.658Z
+Generated: 2026-03-27T12:07:49.351Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -1775,14 +1775,8 @@ function createMarkup(config, state, walletAddress) {
               ${escapeHtml(config.subtitle)}
             </div>
           </div>
-        </div>
 
-        <div class="fourteen-ambassador-cabinet-topbar">
-          <div class="fourteen-ambassador-cabinet-wallet" data-role="wallet-label">
-            Wallet not connected
-          </div>
-
-          <div class="fourteen-ambassador-cabinet-topbar__actions">
+          <div class="fourteen-ambassador-cabinet-hero__actions">
             <div class="fourteen-ambassador-cabinet-info-toggle-wrap">
               <button
                 class="fourteen-ambassador-cabinet-info-toggle"
@@ -1808,6 +1802,12 @@ function createMarkup(config, state, walletAddress) {
             >
               ${state.isRefreshing ? 'Refreshing...' : escapeHtml(config.refreshText)}
             </button>
+          </div>
+        </div>
+
+        <div class="fourteen-ambassador-cabinet-topbar">
+          <div class="fourteen-ambassador-cabinet-wallet" data-role="wallet-label">
+            Wallet not connected
           </div>
         </div>
 
