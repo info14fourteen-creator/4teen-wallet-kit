@@ -30,7 +30,14 @@ const DEFAULT_CONFIG = {
     'Registration is confirmed on-chain.\n' +
     'Service mapping is stored in a protected backend layer.\n' +
     'Your referral link is generated after successful registration.\n\n' +
-    'Telegram linking and additional profile actions will be handled later through the ambassador cabinet layer.'
+    'Telegram linking and additional profile actions will be handled later through the ambassador cabinet layer.',
+  walletLookupEndpoint: '/ambassador/by-wallet',
+  cabinetUrl: 'https://4teen.me/a/cab',
+  redirectIfRegistered: false,
+  registeredTitle: 'Already registered',
+  registeredText: 'This wallet is already registered as ambassador.',
+  registeredButtonText: 'Already Registered',
+  cabinetButtonText: 'Open Ambassador Cabinet'
 };
 
 function wait(ms) {
@@ -209,6 +216,107 @@ async function completeRegistration(backendBaseUrl, payload) {
   return result.result;
 }
 
+function buildWalletLookupUrl(backendBaseUrl, endpoint, walletAddress) {
+  const baseUrl = normalizeBaseUrl(backendBaseUrl);
+  const normalizedEndpoint = String(endpoint || '/ambassador/by-wallet').trim() || '/ambassador/by-wallet';
+  const path = normalizedEndpoint.startsWith('/') ? normalizedEndpoint : `/${normalizedEndpoint}`;
+
+  return `${baseUrl}${path}?wallet=${encodeURIComponent(walletAddress)}`;
+}
+
+function normalizeRegisteredProfile(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const result = payload.result && typeof payload.result === 'object' ? payload.result : payload;
+  const slug = normalizeSlug(result.slug || result.referralSlug || result.handle || '');
+  const wallet = String(result.wallet || result.ambassadorWallet || '').trim();
+  const status = String(result.status || '').trim().toLowerCase();
+  const referralLinkRaw = String(result.referralLink || result.link || '').trim();
+
+  if (!slug && !wallet && !status) {
+    return null;
+  }
+
+  return {
+    slug,
+    wallet,
+    status,
+    referralLink: referralLinkRaw ? buildReferralLink(referralLinkRaw) : ''
+  };
+}
+
+function isRegisteredProfilePayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+
+  if (payload.registered === true) {
+    return true;
+  }
+
+  if (payload.exists === true) {
+    return true;
+  }
+
+  if (payload.isRegistered === true) {
+    return true;
+  }
+
+  const result = payload.result && typeof payload.result === 'object' ? payload.result : null;
+
+  if (result?.registered === true || result?.exists === true || result?.isRegistered === true) {
+    return true;
+  }
+
+  const profile = normalizeRegisteredProfile(payload);
+
+  if (!profile) {
+    return false;
+  }
+
+  return Boolean(profile.slug || profile.wallet || profile.status);
+}
+
+async function lookupAmbassadorByWallet(backendBaseUrl, endpoint, walletAddress) {
+  const response = await fetch(buildWalletLookupUrl(backendBaseUrl, endpoint, walletAddress), {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+
+  const payload = await readJson(response);
+
+  if (response.status === 404) {
+    return {
+      found: false,
+      profile: null
+    };
+  }
+
+  if (!response.ok) {
+    throw new Error((payload && payload.error) || 'Failed to check ambassador profile');
+  }
+
+  if (!payload || payload.ok === false) {
+    throw new Error((payload && payload.error) || 'Failed to check ambassador profile');
+  }
+
+  if (!isRegisteredProfilePayload(payload)) {
+    return {
+      found: false,
+      profile: null
+    };
+  }
+
+  return {
+    found: true,
+    profile: normalizeRegisteredProfile(payload)
+  };
+}
+
 function buildReferralLink(value) {
   const normalized = assertNonEmpty(value, 'referralLink');
 
@@ -303,7 +411,34 @@ function createMarkup(config, state, isConnected) {
     ? 'error'
     : state.success
       ? 'success'
-      : 'default';
+      : state.registeredProfile
+        ? 'success'
+        : 'default';
+
+  const isRegistered = Boolean(state.registeredProfile);
+  const isBusy = state.loading || state.registrationCheckLoading;
+  const submitDisabled = state.loading || state.registrationCheckLoading || !isConnected || isRegistered;
+  const submitLabel = state.loading
+    ? 'Registering...'
+    : state.registrationCheckLoading
+      ? 'Checking wallet...'
+      : isRegistered
+        ? config.registeredButtonText
+        : 'Register Ambassador';
+
+  const statusText = state.error
+    ? state.error
+    : state.success
+      ? 'Registration completed successfully.'
+      : state.registrationCheckLoading
+        ? 'Checking ambassador profile for this wallet...'
+        : !isConnected
+          ? 'Connect your wallet to activate registration.'
+          : isRegistered
+            ? config.registeredText
+            : '';
+
+  const registeredProfile = state.registeredProfile;
 
   return `
     <div class="fourteen-ambassador-widget">
@@ -368,6 +503,8 @@ function createMarkup(config, state, isConnected) {
                 maxlength="${SLUG_MAX_LENGTH}"
                 placeholder="amb-abc123"
                 value="${escapeHtml(state.slug)}"
+                ${isRegistered ? 'readonly aria-readonly="true"' : ''}
+                ${isBusy ? 'disabled aria-disabled="true"' : ''}
               />
             </span>
           </label>
@@ -376,23 +513,71 @@ function createMarkup(config, state, isConnected) {
             type="button"
             class="fourteen-ambassador-button"
             id="fourteen-ambassador-submit"
-            ${state.loading || !isConnected ? 'disabled aria-disabled="true"' : ''}
+            ${submitDisabled ? 'disabled aria-disabled="true"' : ''}
           >
-            ${state.loading ? 'Registering...' : 'Register Ambassador'}
+            ${escapeHtml(submitLabel)}
           </button>
         </div>
 
         <div class="fourteen-ambassador-status" data-state="${statusState}" role="status" aria-live="polite">
-          ${
-            state.error
-              ? escapeHtml(state.error)
-              : state.success
-                ? 'Registration completed successfully.'
-                : !isConnected
-                  ? 'Connect your wallet to activate registration.'
-                  : ''
-          }
+          ${escapeHtml(statusText)}
         </div>
+
+        ${
+          isRegistered
+            ? `
+              <div class="fourteen-ambassador-summary">
+                <div class="fourteen-ambassador-summary-card">
+                  <div class="fourteen-ambassador-summary-label">${escapeHtml(config.registeredTitle)}</div>
+                  <div class="fourteen-ambassador-summary-value">${escapeHtml(registeredProfile.slug || '—')}</div>
+                </div>
+
+                ${
+                  registeredProfile.status
+                    ? `
+                      <div class="fourteen-ambassador-summary-card">
+                        <div class="fourteen-ambassador-summary-label">Status</div>
+                        <div class="fourteen-ambassador-summary-value">${escapeHtml(registeredProfile.status)}</div>
+                      </div>
+                    `
+                    : ''
+                }
+
+                <div class="fourteen-ambassador-summary-card" style="grid-column: 1 / -1;">
+                  <div class="fourteen-ambassador-summary-label">Cabinet</div>
+                  <div class="fourteen-ambassador-summary-value">
+                    <a
+                      class="fourteen-ambassador-link"
+                      href="${escapeHtml(config.cabinetUrl)}"
+                    >
+                      ${escapeHtml(config.cabinetButtonText)}
+                    </a>
+                  </div>
+                </div>
+
+                ${
+                  registeredProfile.referralLink
+                    ? `
+                      <div class="fourteen-ambassador-summary-card" style="grid-column: 1 / -1;">
+                        <div class="fourteen-ambassador-summary-label">Referral link</div>
+                        <div class="fourteen-ambassador-summary-value">
+                          <a
+                            class="fourteen-ambassador-link"
+                            href="${escapeHtml(registeredProfile.referralLink)}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            ${escapeHtml(registeredProfile.referralLink)}
+                          </a>
+                        </div>
+                      </div>
+                    `
+                    : ''
+                }
+              </div>
+            `
+            : ''
+        }
 
         ${
           state.success
@@ -418,6 +603,18 @@ function createMarkup(config, state, isConnected) {
                       rel="noopener noreferrer"
                     >
                       ${escapeHtml(state.success.referralLink)}
+                    </a>
+                  </div>
+                </div>
+
+                <div class="fourteen-ambassador-summary-card" style="grid-column: 1 / -1;">
+                  <div class="fourteen-ambassador-summary-label">Cabinet</div>
+                  <div class="fourteen-ambassador-summary-value">
+                    <a
+                      class="fourteen-ambassador-link"
+                      href="${escapeHtml(config.cabinetUrl)}"
+                    >
+                      ${escapeHtml(config.cabinetButtonText)}
                     </a>
                   </div>
                 </div>
@@ -457,14 +654,20 @@ export function mountAmbassadorRegister(target, config = {}) {
   const state = {
     slug: resolveInitialSlug(resolvedConfig),
     loading: false,
+    registrationCheckLoading: false,
     error: '',
-    success: null
+    success: null,
+    registeredProfile: null
   };
 
   let isDestroyed = false;
   let walletUnsubscribe = null;
   let embeddedWalletUnmount = null;
   let resizeListenerBound = false;
+  let lastCheckedWallet = '';
+  let activeRegistrationCheckId = 0;
+  let notifiedRegisteredWallet = '';
+  let redirectScheduledForWallet = '';
 
   const root = target;
 
@@ -595,12 +798,130 @@ export function mountAmbassadorRegister(target, config = {}) {
     });
   }
 
+  function applyRegisteredProfile(profile) {
+    state.registeredProfile = profile || null;
+    state.success = null;
+    state.error = '';
+
+    if (profile?.slug) {
+      state.slug = profile.slug;
+    }
+  }
+
+  function clearRegisteredProfile() {
+    state.registeredProfile = null;
+  }
+
+  async function maybeRedirectRegistered(walletAddress) {
+    if (!resolvedConfig.redirectIfRegistered) {
+      return;
+    }
+
+    if (!walletAddress || redirectScheduledForWallet === walletAddress) {
+      return;
+    }
+
+    redirectScheduledForWallet = walletAddress;
+    showNeutralNotice('Wallet is already registered. Opening ambassador cabinet...', 4000);
+    await wait(600);
+
+    if (typeof window !== 'undefined') {
+      window.location.href = resolvedConfig.cabinetUrl;
+    }
+  }
+
+  async function syncRegisteredStateFromWallet(options = {}) {
+    const { force = false, silent = false } = options;
+    const connected = isConnectedSafe(wallet);
+    const walletAddress = getWalletAddressSafe(wallet);
+
+    if (!connected || !walletAddress) {
+      lastCheckedWallet = '';
+      activeRegistrationCheckId += 1;
+      state.registrationCheckLoading = false;
+      clearRegisteredProfile();
+
+      if (!state.success) {
+        state.error = '';
+      }
+
+      render();
+      return;
+    }
+
+    if (!force && lastCheckedWallet === walletAddress) {
+      return;
+    }
+
+    lastCheckedWallet = walletAddress;
+    const checkId = ++activeRegistrationCheckId;
+
+    state.registrationCheckLoading = true;
+
+    if (!silent) {
+      state.error = '';
+    }
+
+    render();
+
+    try {
+      const lookup = await lookupAmbassadorByWallet(
+        resolvedConfig.backendBaseUrl,
+        resolvedConfig.walletLookupEndpoint,
+        walletAddress
+      );
+
+      if (!isAlive() || checkId !== activeRegistrationCheckId) {
+        return;
+      }
+
+      if (lookup.found && lookup.profile) {
+        applyRegisteredProfile(lookup.profile);
+        state.registrationCheckLoading = false;
+        render();
+
+        if (notifiedRegisteredWallet !== walletAddress) {
+          notifiedRegisteredWallet = walletAddress;
+          showNeutralNotice('This wallet is already registered as ambassador.', 7000);
+        }
+
+        await maybeRedirectRegistered(walletAddress);
+        return;
+      }
+
+      clearRegisteredProfile();
+      state.registrationCheckLoading = false;
+      state.error = '';
+      render();
+    } catch (error) {
+      if (!isAlive() || checkId !== activeRegistrationCheckId) {
+        return;
+      }
+
+      state.registrationCheckLoading = false;
+      clearRegisteredProfile();
+      render();
+
+      const message = normalizeError(error);
+      console.error('Ambassador profile lookup failed:', error);
+
+      if (!silent) {
+        showErrorNotice(message, 8000);
+      }
+    }
+  }
+
   async function runRegistration() {
     const tronWeb = getActiveTronWeb(wallet);
     const walletAddress = getWalletAddressSafe(wallet);
 
     if (!tronWeb || !walletAddress) {
       throw new Error('Wallet is not connected');
+    }
+
+    if (state.registeredProfile) {
+      showNeutralNotice('This wallet is already registered as ambassador.', 7000);
+      return;
     }
 
     const slug = normalizeSlug(state.slug);
@@ -639,6 +960,15 @@ export function mountAmbassadorRegister(target, config = {}) {
         referralLink: buildReferralLink(completed.referralLink)
       };
 
+      state.registeredProfile = {
+        slug,
+        wallet: walletAddress,
+        status: 'active',
+        referralLink: state.success.referralLink
+      };
+
+      lastCheckedWallet = walletAddress;
+
       showSuccessNotice('Ambassador registration completed.', 10000);
       await sleep(250);
     } catch (error) {
@@ -655,6 +985,17 @@ export function mountAmbassadorRegister(target, config = {}) {
   async function handleSubmit() {
     try {
       if (!isConnectedSafe(wallet)) {
+        showNeutralNotice('Connect your wallet first.', 5000);
+        return;
+      }
+
+      if (state.registrationCheckLoading) {
+        showNeutralNotice('Checking ambassador profile for this wallet...', 5000);
+        return;
+      }
+
+      if (state.registeredProfile) {
+        showNeutralNotice('This wallet is already registered as ambassador.', 7000);
         return;
       }
 
@@ -684,6 +1025,11 @@ export function mountAmbassadorRegister(target, config = {}) {
     const infoToggleEl = root.querySelector('.fourteen-ambassador-info-toggle');
 
     slugInput?.addEventListener('input', () => {
+      if (state.registeredProfile || state.loading || state.registrationCheckLoading) {
+        slugInput.value = state.slug;
+        return;
+      }
+
       const normalized = normalizeSlug(slugInput.value);
       state.slug = normalized;
       slugInput.value = normalized;
@@ -693,12 +1039,13 @@ export function mountAmbassadorRegister(target, config = {}) {
     infoToggleEl?.addEventListener('click', togglePopover);
   }
 
-  async function refreshUi() {
+  async function refreshUi(options = {}) {
     if (!isAlive()) {
       return;
     }
 
     render();
+    await syncRegisteredStateFromWallet(options);
   }
 
   function render() {
@@ -713,7 +1060,7 @@ export function mountAmbassadorRegister(target, config = {}) {
 
   if (typeof wallet.subscribe === 'function') {
     walletUnsubscribe = wallet.subscribe(() => {
-      refreshUi().catch((error) => {
+      refreshUi({ force: true, silent: true }).catch((error) => {
         console.error('Ambassador widget wallet refresh failed:', error);
       });
     });
@@ -743,7 +1090,10 @@ export function mountAmbassadorRegister(target, config = {}) {
 
   ACTIVE_INSTANCES.set(target, instance);
 
-  render();
+  refreshUi({ force: true, silent: true }).catch((error) => {
+    console.error('Failed to initialize ambassador register widget:', error);
+    render();
+  });
 
   return instance;
 }
