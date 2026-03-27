@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — PROJECT OVERVIEW
 
-Generated: 2026-03-27T20:32:52.321Z
+Generated: 2026-03-27T20:36:20.725Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -73,6 +73,9 @@ Branch: main
       - unlock_menu.svg
     - 4teen_swap.svg
     - 4teen.svg
+    - binance.svg
+    - bitget.svg
+    - foxwallet.svg
     - imtoken.svg
     - justmoney_swap.svg
     - metamask.svg
@@ -80,6 +83,8 @@ Branch: main
     - sunio_swap.svg
     - swap_arrows.svg
     - text_bg.svg
+    - tokenpocket.svg
+    - tronlink.svg
     - trust.svg
     - trx_swap.svg
     - trx.svg
@@ -124,16 +129,10 @@ Branch: main
       - initWalletKit.js
       - restoreSession.js
   - ui/
-    - wallet/
-      - openWalletPicker.js
     - icons.js
     - mobileShell.config.js
     - mobileShell.css
     - mobileShell.js
-    - noticeCenter.css
-    - noticeCenter.js
-    - walletButton.css
-    - walletButton.js
   - wallet/
     - actions/
       - connectWallet.js

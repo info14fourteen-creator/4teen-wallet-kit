@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-27T20:32:52.332Z",
+  "generatedAt": "2026-03-27T20:36:20.735Z",
   "repository": "info14fourteen-creator/4teen-wallet-kit",
   "branch": "main",
   "repoName": "4teen-wallet-kit",
@@ -75,6 +75,9 @@
     "examples/vanilla/main.js",
     "src/assets/4teen_swap.svg",
     "src/assets/4teen.svg",
+    "src/assets/binance.svg",
+    "src/assets/bitget.svg",
+    "src/assets/foxwallet.svg",
     "src/assets/imtoken.svg",
     "src/assets/justmoney_swap.svg",
     "src/assets/menu/buy_menu.svg",
@@ -86,6 +89,8 @@
     "src/assets/sunio_swap.svg",
     "src/assets/swap_arrows.svg",
     "src/assets/text_bg.svg",
+    "src/assets/tokenpocket.svg",
+    "src/assets/tronlink.svg",
     "src/assets/trust.svg",
     "src/assets/trx_swap.svg",
     "src/assets/trx.svg",
@@ -120,12 +125,7 @@
     "src/ui/icons.js",
     "src/ui/mobileShell.config.js",
     "src/ui/mobileShell.css",
-    "src/ui/mobileShell.js",
-    "src/ui/noticeCenter.css",
-    "src/ui/noticeCenter.js",
-    "src/ui/wallet/openWalletPicker.js",
-    "src/ui/walletButton.css",
-    "src/ui/walletButton.js"
+    "src/ui/mobileShell.js"
   ],
   "snapshotFiles": [
     {
@@ -247,6 +247,9 @@
         "examples/vanilla/main.js",
         "src/assets/4teen_swap.svg",
         "src/assets/4teen.svg",
+        "src/assets/binance.svg",
+        "src/assets/bitget.svg",
+        "src/assets/foxwallet.svg",
         "src/assets/imtoken.svg",
         "src/assets/justmoney_swap.svg",
         "src/assets/menu/buy_menu.svg",
@@ -258,6 +261,8 @@
         "src/assets/sunio_swap.svg",
         "src/assets/swap_arrows.svg",
         "src/assets/text_bg.svg",
+        "src/assets/tokenpocket.svg",
+        "src/assets/tronlink.svg",
         "src/assets/trust.svg",
         "src/assets/trx_swap.svg",
         "src/assets/trx.svg",
@@ -292,12 +297,7 @@
         "src/ui/icons.js",
         "src/ui/mobileShell.config.js",
         "src/ui/mobileShell.css",
-        "src/ui/mobileShell.js",
-        "src/ui/noticeCenter.css",
-        "src/ui/noticeCenter.js",
-        "src/ui/wallet/openWalletPicker.js",
-        "src/ui/walletButton.css",
-        "src/ui/walletButton.js"
+        "src/ui/mobileShell.js"
       ]
     }
   ]
