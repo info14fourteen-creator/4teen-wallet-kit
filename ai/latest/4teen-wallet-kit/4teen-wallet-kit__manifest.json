@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-27T20:36:20.735Z",
+  "generatedAt": "2026-03-27T20:56:15.828Z",
   "repository": "info14fourteen-creator/4teen-wallet-kit",
   "branch": "main",
   "repoName": "4teen-wallet-kit",
@@ -86,6 +86,16 @@
     "src/assets/menu/unlock_menu.svg",
     "src/assets/metamask.svg",
     "src/assets/okx.svg",
+    "src/assets/socials/discord_social.svg",
+    "src/assets/socials/facebook_social.svg",
+    "src/assets/socials/github_social.svg",
+    "src/assets/socials/instagram_social.svg",
+    "src/assets/socials/telegram_social.svg",
+    "src/assets/socials/threads_social.svg",
+    "src/assets/socials/tiktok_social.svg",
+    "src/assets/socials/whatsapp_social.svg",
+    "src/assets/socials/x_social.svg",
+    "src/assets/socials/youtube_social.svg",
     "src/assets/sunio_swap.svg",
     "src/assets/swap_arrows.svg",
     "src/assets/text_bg.svg",
@@ -115,17 +125,7 @@
     "src/services/balances/refreshAllBalances.js",
     "src/services/contracts/trc20.js",
     "src/services/readonly/getTokenContractData.js",
-    "src/services/readonly/getTokenDecimals.js",
-    "src/services/readonly/getTokenSymbol.js",
-    "src/services/readonly/getTokenTotalSupply.js",
-    "src/services/wallet/connectWallet.js",
-    "src/services/wallet/disconnectWallet.js",
-    "src/services/wallet/initWalletKit.js",
-    "src/services/wallet/restoreSession.js",
-    "src/ui/icons.js",
-    "src/ui/mobileShell.config.js",
-    "src/ui/mobileShell.css",
-    "src/ui/mobileShell.js"
+    "src/services/readonly/getTokenDecimals.js"
   ],
   "snapshotFiles": [
     {
@@ -258,6 +258,16 @@
         "src/assets/menu/unlock_menu.svg",
         "src/assets/metamask.svg",
         "src/assets/okx.svg",
+        "src/assets/socials/discord_social.svg",
+        "src/assets/socials/facebook_social.svg",
+        "src/assets/socials/github_social.svg",
+        "src/assets/socials/instagram_social.svg",
+        "src/assets/socials/telegram_social.svg",
+        "src/assets/socials/threads_social.svg",
+        "src/assets/socials/tiktok_social.svg",
+        "src/assets/socials/whatsapp_social.svg",
+        "src/assets/socials/x_social.svg",
+        "src/assets/socials/youtube_social.svg",
         "src/assets/sunio_swap.svg",
         "src/assets/swap_arrows.svg",
         "src/assets/text_bg.svg",
@@ -287,17 +297,7 @@
         "src/services/balances/refreshAllBalances.js",
         "src/services/contracts/trc20.js",
         "src/services/readonly/getTokenContractData.js",
-        "src/services/readonly/getTokenDecimals.js",
-        "src/services/readonly/getTokenSymbol.js",
-        "src/services/readonly/getTokenTotalSupply.js",
-        "src/services/wallet/connectWallet.js",
-        "src/services/wallet/disconnectWallet.js",
-        "src/services/wallet/initWalletKit.js",
-        "src/services/wallet/restoreSession.js",
-        "src/ui/icons.js",
-        "src/ui/mobileShell.config.js",
-        "src/ui/mobileShell.css",
-        "src/ui/mobileShell.js"
+        "src/services/readonly/getTokenDecimals.js"
       ]
     }
   ]

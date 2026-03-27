@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — PROJECT OVERVIEW
 
-Generated: 2026-03-27T20:36:20.725Z
+Generated: 2026-03-27T20:56:15.819Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -71,6 +71,17 @@ Branch: main
       - liquidity_menu.svg
       - swap_menu.svg
       - unlock_menu.svg
+    - socials/
+      - discord_social.svg
+      - facebook_social.svg
+      - github_social.svg
+      - instagram_social.svg
+      - telegram_social.svg
+      - threads_social.svg
+      - tiktok_social.svg
+      - whatsapp_social.svg
+      - x_social.svg
+      - youtube_social.svg
     - 4teen_swap.svg
     - 4teen.svg
     - binance.svg
@@ -121,18 +132,6 @@ Branch: main
     - readonly/
       - getTokenContractData.js
       - getTokenDecimals.js
-      - getTokenSymbol.js
-      - getTokenTotalSupply.js
-    - wallet/
-      - connectWallet.js
-      - disconnectWallet.js
-      - initWalletKit.js
-      - restoreSession.js
-  - ui/
-    - icons.js
-    - mobileShell.config.js
-    - mobileShell.css
-    - mobileShell.js
   - wallet/
     - actions/
       - connectWallet.js
