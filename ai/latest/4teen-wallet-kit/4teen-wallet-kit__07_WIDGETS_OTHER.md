@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-27T17:23:48.833Z
+Generated: 2026-03-27T18:40:15.444Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -697,12 +697,14 @@ const DEFAULT_CONFIG = {
   walletLookupEndpoint: '/ambassador/by-wallet',
   profileQueryParam: 'wallet',
   referralBaseUrl: 'https://4teen.me/?r=',
+  registrationPageUrl: 'https://4teen.me/a/reg',
+  registrationMode: 'redirect',
   registerTitle: 'Not an ambassador yet',
   registerText:
-    'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, complete registration below.',
+    'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, continue to registration.',
   infoTitle: 'What you can do inside this cabinet',
   infoContent:
-    'This cabinet is your ambassador control panel. After connecting your wallet, it shows whether this wallet is already registered as an ambassador, your profile, tracked referral stats, reward state and withdrawal availability.\n\nIf rewards are already available, you can request withdrawal here. If part of rewards is still pending processing, the cabinet will show that state separately.\n\nIf this wallet is not registered yet, you can complete ambassador registration directly inside this cabinet.'
+    'This cabinet is your ambassador control panel. After connecting your wallet, it shows whether this wallet is already registered as an ambassador, your profile, tracked referral stats, reward state and withdrawal availability.\n\nIf rewards are already available, you can request withdrawal here. If part of rewards is still pending processing, the cabinet will show that state separately.\n\nIf this wallet is not registered yet, you can continue to the ambassador registration page.'
 };
 
 function escapeHtml(value) {
@@ -845,7 +847,6 @@ function normalizeError(error) {
     'Unknown error';
 
   const text = String(raw || '').trim();
-
   const lower = text.toLowerCase();
 
   if (
@@ -1390,6 +1391,11 @@ function createConnectStateMarkup() {
 }
 
 function createRegistrationStateMarkup(config, walletAddress) {
+  const registrationUrl = String(
+    config.registrationPageUrl || 'https://4teen.me/a/reg'
+  ).trim();
+  const useRedirect = String(config.registrationMode || 'redirect') === 'redirect';
+
   return `
     ${createConnectedWalletSummary(walletAddress)}
     <div class="fourteen-ambassador-cabinet-empty">
@@ -1397,8 +1403,22 @@ function createRegistrationStateMarkup(config, walletAddress) {
       <div class="fourteen-ambassador-cabinet-empty__text">
         ${escapeHtml(config.registerText)}
       </div>
+
+      ${
+        useRedirect
+          ? `
+            <div class="fourteen-ambassador-cabinet-links" style="margin-top:16px;">
+              <a
+                class="fourteen-ambassador-cabinet-action"
+                href="${escapeHtml(registrationUrl)}"
+              >
+                Go to Ambassador Registration
+              </a>
+            </div>
+          `
+          : createSection('Ambassador registration', '<div data-role="register-slot"></div>')
+      }
     </div>
-    ${createSection('Ambassador registration', '<div data-role="register-slot"></div>')}
   `;
 }
 
@@ -2143,6 +2163,13 @@ export function mountAmbassadorCabinet(target, config = {}) {
 
   function mountRegisterWidgetIfNeeded() {
     if (!state.isConnected || !state.registrationKnown || state.isRegistered || state.isLoading) {
+      destroyRegisterWidget();
+      return;
+    }
+
+    const useRedirect = String(resolvedConfig.registrationMode || 'redirect') === 'redirect';
+
+    if (useRedirect) {
       destroyRegisterWidget();
       return;
     }
