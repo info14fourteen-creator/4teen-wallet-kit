@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-27T10:44:41.165Z
+Generated: 2026-03-27T10:54:19.658Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -137,18 +137,15 @@ Branch: main
   line-height: 1.45;
 }
 
-.fourteen-ambassador-cabinet-hero__actions {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  flex: 0 0 auto;
-  position: relative;
-  z-index: 3;
-}
+/* -------------------------------------------------------
+   ACTIONS / INFO
+------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-info-toggle-wrap {
   position: relative;
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
 }
 
 .fourteen-ambassador-cabinet-info-toggle {
@@ -179,7 +176,8 @@ Branch: main
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  width: min(420px, 92vw);
+  width: min(360px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
   padding: 14px;
   border-radius: 14px;
   background: rgba(15, 15, 15, 0.98);
@@ -248,10 +246,14 @@ Branch: main
 }
 
 .fourteen-ambassador-cabinet-action--secondary {
+  min-height: 36px;
+  padding: 0 14px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--fourteen-cabinet-text);
   border: 1px solid var(--fourteen-cabinet-border);
   box-shadow: none;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .fourteen-ambassador-cabinet-action--secondary:hover {
@@ -276,6 +278,14 @@ Branch: main
   font-size: 12px;
   font-weight: 700;
   color: var(--fourteen-cabinet-text-soft);
+}
+
+.fourteen-ambassador-cabinet-topbar__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 0 0 auto;
 }
 
 .fourteen-ambassador-cabinet-connect-slot {
@@ -332,6 +342,12 @@ Branch: main
   background: rgba(255, 48, 73, 0.08);
 }
 
+.fourteen-ambassador-cabinet-banner--amber {
+  color: #ffe0a8;
+  border-color: rgba(255, 184, 0, 0.22);
+  background: rgba(255, 184, 0, 0.08);
+}
+
 .fourteen-ambassador-cabinet-empty {
   margin-bottom: 18px;
   padding: 18px;
@@ -365,6 +381,10 @@ Branch: main
   display: grid;
   gap: 14px;
   margin-bottom: 14px;
+}
+
+.fourteen-ambassador-cabinet-grid:last-child {
+  margin-bottom: 0;
 }
 
 .fourteen-ambassador-cabinet-grid--two {
@@ -542,15 +562,6 @@ Branch: main
     align-items: stretch;
   }
 
-  .fourteen-ambassador-cabinet-hero__actions {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .fourteen-ambassador-cabinet-action {
-    flex: 1 1 220px;
-  }
-
   .fourteen-ambassador-cabinet-grid--two,
   .fourteen-ambassador-cabinet-grid--three,
   .fourteen-ambassador-cabinet-grid--four {
@@ -574,6 +585,15 @@ Branch: main
   .fourteen-ambassador-cabinet-topbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .fourteen-ambassador-cabinet-topbar__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .fourteen-ambassador-cabinet-action--secondary {
+    flex: 1 1 auto;
   }
 
   .fourteen-ambassador-cabinet-connect-slot__desktop {
@@ -610,10 +630,6 @@ Branch: main
     font-size: 11px;
   }
 
-  .fourteen-ambassador-cabinet-hero__actions {
-    gap: 8px;
-  }
-
   .fourteen-ambassador-cabinet-hero__bg {
     left: -10px;
     top: -14px;
@@ -622,7 +638,16 @@ Branch: main
   }
 
   .fourteen-ambassador-cabinet-popover {
-    width: min(320px, 94vw);
+    right: auto;
+    left: 0;
+    width: min(300px, calc(100vw - 28px));
+    max-width: calc(100vw - 28px);
+  }
+
+  .fourteen-ambassador-cabinet-info-toggle {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
   }
 
   .fourteen-ambassador-cabinet-connect-slot {
