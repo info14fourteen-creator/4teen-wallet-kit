@@ -23,7 +23,7 @@ const DEFAULT_CONFIG = {
   profileEndpoint: '/cabinet/profile',
   walletLookupEndpoint: '/ambassador/by-wallet',
   profileQueryParam: 'wallet',
-  referralBaseUrl: 'https://4teen.me/?ref=',
+  referralBaseUrl: 'https://4teen.me/?r=',
   registerTitle: 'Not an ambassador yet',
   registerText:
     'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, complete registration below.',
@@ -103,6 +103,10 @@ function safeBoolean(value) {
   return Boolean(value);
 }
 
+function safeObject(value, fallback = null) {
+  return value && typeof value === 'object' ? value : fallback;
+}
+
 function sunToTrxString(value) {
   const raw = safeString(value, '0');
 
@@ -164,40 +168,49 @@ function normalizeError(error) {
     error?.error ||
     error?.data?.message ||
     error?.response?.data?.message ||
+    error?.response?.message ||
     'Unknown error';
 
-  const text = String(raw);
+  const text = String(raw || '').trim();
+
+  const lower = text.toLowerCase();
 
   if (
-    text.includes('User rejected') ||
-    text.includes('rejected') ||
-    text.includes('denied') ||
-    text.includes('Confirmation declined')
+    lower.includes('user rejected') ||
+    lower.includes('rejected by user') ||
+    lower.includes('rejected') ||
+    lower.includes('denied') ||
+    lower.includes('confirmation declined') ||
+    lower.includes('cancelled') ||
+    lower.includes('canceled') ||
+    lower.includes('declined by user') ||
+    lower.includes('signature declined') ||
+    lower.includes('signature rejected')
   ) {
     return 'Transaction was rejected in wallet.';
   }
 
-  if (text.includes('wallet is not connected') || text.includes('Wallet is not connected')) {
+  if (lower.includes('wallet is not connected')) {
     return 'Wallet is not connected.';
   }
 
-  if (text.includes('Tron wallet is not connected')) {
+  if (lower.includes('tron wallet is not connected')) {
     return 'Wallet is not connected.';
   }
 
-  if (text.includes('OUT_OF_ENERGY')) {
+  if (lower.includes('out_of_energy')) {
     return 'Transaction failed: OUT_OF_ENERGY.';
   }
 
-  if (text.includes('429')) {
+  if (lower.includes('429')) {
     return 'Too many requests. Please wait a moment and try again.';
   }
 
-  if (text.includes("owner_address isn't set") || text.includes('owner_address is not set')) {
+  if (lower.includes("owner_address isn't set") || lower.includes('owner_address is not set')) {
     return 'Wallet session is connected, but contract reads are not ready in this browser wallet yet.';
   }
 
-  return text;
+  return text || 'Unknown error';
 }
 
 function getWalletSafe() {
@@ -268,7 +281,12 @@ async function getControllerContractInstance(wallet, controllerContractAddress) 
 
 async function withdrawRewards(wallet, controllerContractAddress) {
   const contract = await getControllerContractInstance(wallet, controllerContractAddress);
-  const txid = await contract.withdrawRewards().send();
+  const result = await contract.withdrawRewards().send();
+
+  const txid =
+    typeof result === 'string'
+      ? result
+      : result?.txid || result?.transaction?.txID || result?.txID || '';
 
   return {
     txid: assertNonEmpty(txid, 'txid')
@@ -367,9 +385,10 @@ function normalizeRegisteredProfile(payload) {
     wallet,
     status,
     referralLink,
-    identity: result.identity || null,
-    stats: result.stats || null,
-    withdrawalQueue: result.withdrawalQueue || null
+    identity: safeObject(result.identity),
+    stats: safeObject(result.stats),
+    withdrawalQueue: safeObject(result.withdrawalQueue),
+    progress: safeObject(result.progress)
   };
 }
 
@@ -435,9 +454,10 @@ async function fetchProfileMaybe(config, walletAddress) {
 function buildDashboardFromBackendProfile(profile, walletAddress) {
   const empty = createEmptyDashboard(walletAddress);
 
-  const identity = profile?.identity || {};
-  const stats = profile?.stats || {};
-  const withdrawalQueue = profile?.withdrawalQueue || {};
+  const identity = safeObject(profile?.identity, {});
+  const stats = safeObject(profile?.stats, {});
+  const withdrawalQueue = safeObject(profile?.withdrawalQueue, {});
+  const progress = safeObject(profile?.progress, {});
 
   return {
     identity: {
@@ -447,11 +467,14 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
       active: profile?.status ? profile.status === 'active' : safeBoolean(identity.active),
       effectiveLevel: safeNumber(identity.level, 0),
       currentLevel: safeNumber(identity.level, 0),
-      overrideLevel: 0,
+      overrideLevel: safeNumber(identity.overrideLevel, 0),
       rewardPercent: safeNumber(identity.rewardPercent, 0),
       createdAt: safeNumber(identity.createdAt, 0),
       slugHash: safeString(identity.slugHash, '—'),
-      metaHash: safeString(identity.metaHash, '—')
+      metaHash: safeString(identity.metaHash, '—'),
+      selfRegistered: safeBoolean(identity.selfRegistered),
+      manualAssigned: safeBoolean(identity.manualAssigned),
+      overrideEnabled: safeBoolean(identity.overrideEnabled)
     },
     stats: {
       ...empty.stats,
@@ -476,16 +499,28 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
     },
     progress: {
       ...empty.progress,
-      currentLevel: safeNumber(identity.level, 0)
+      currentLevel: safeNumber(progress.currentLevel, safeNumber(identity.level, 0)),
+      buyersCount: safeNumber(progress.buyersCount, safeNumber(stats.totalBuyers, 0)),
+      nextThreshold: safeNumber(progress.nextThreshold, 0),
+      remainingToNextLevel: safeNumber(progress.remainingToNextLevel, 0)
     },
     withdrawalQueue: {
       ...empty.withdrawalQueue,
       availableOnChainSun: safeString(withdrawalQueue.availableOnChainSun, '0'),
-      availableOnChainTrx: safeString(withdrawalQueue.availableOnChainTrx, '0'),
+      availableOnChainTrx: safeString(
+        withdrawalQueue.availableOnChainTrx,
+        sunToTrxString(withdrawalQueue.availableOnChainSun)
+      ),
       pendingBackendSyncSun: safeString(withdrawalQueue.pendingBackendSyncSun, '0'),
-      pendingBackendSyncTrx: safeString(withdrawalQueue.pendingBackendSyncTrx, '0'),
+      pendingBackendSyncTrx: safeString(
+        withdrawalQueue.pendingBackendSyncTrx,
+        sunToTrxString(withdrawalQueue.pendingBackendSyncSun)
+      ),
       requestedForProcessingSun: safeString(withdrawalQueue.requestedForProcessingSun, '0'),
-      requestedForProcessingTrx: safeString(withdrawalQueue.requestedForProcessingTrx, '0'),
+      requestedForProcessingTrx: safeString(
+        withdrawalQueue.requestedForProcessingTrx,
+        sunToTrxString(withdrawalQueue.requestedForProcessingSun)
+      ),
       availableOnChainCount: safeNumber(withdrawalQueue.availableOnChainCount, 0),
       pendingBackendSyncCount: safeNumber(withdrawalQueue.pendingBackendSyncCount, 0),
       requestedForProcessingCount: safeNumber(withdrawalQueue.requestedForProcessingCount, 0),
@@ -507,11 +542,11 @@ function buildReferralLink(config, profile, identity) {
       return direct;
     }
 
-    if (direct.startsWith('?')) {
+    if (typeof window !== 'undefined' && direct.startsWith('?')) {
       return `${window.location.origin}/${direct}`;
     }
 
-    if (direct.startsWith('/')) {
+    if (typeof window !== 'undefined' && direct.startsWith('/')) {
       return `${window.location.origin}${direct}`;
     }
 
@@ -769,6 +804,7 @@ function createPerformanceSection(state, walletAddress) {
   const stats = dashboard.stats ?? {};
   const rewards = dashboard.rewards ?? {};
   const identity = dashboard.identity ?? {};
+  const progress = dashboard.progress ?? {};
 
   return createSection(
     'Performance',
@@ -794,8 +830,8 @@ function createPerformanceSection(state, walletAddress) {
         )}
         ${createValueCard(
           'Current level',
-          levelToLabel(dashboard?.progress?.currentLevel ?? identity?.effectiveLevel ?? 0),
-          `Current buyers: ${dashboard?.progress?.buyersCount ?? 0}`
+          levelToLabel(progress?.currentLevel ?? identity?.effectiveLevel ?? 0),
+          `Current buyers: ${progress?.buyersCount ?? stats?.totalBuyers ?? 0}`
         )}
         ${createValueCard('Created at', formatDate(identity?.createdAt ?? 0))}
       </div>
@@ -1286,9 +1322,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
     state.profile = backendProfile;
     state.registrationKnown = backendProfile !== null;
     state.isRegistered = Boolean(
-      backendProfile?.registered ||
-        backendProfile?.slug ||
-        backendProfile?.wallet
+      backendProfile?.registered || backendProfile?.slug || backendProfile?.wallet
     );
 
     if (state.registrationKnown && !state.isRegistered) {
@@ -1314,9 +1348,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
     }
 
     const backendHasCabinetData = Boolean(
-      backendProfile?.identity ||
-        backendProfile?.stats ||
-        backendProfile?.withdrawalQueue
+      backendProfile?.identity || backendProfile?.stats || backendProfile?.withdrawalQueue
     );
 
     if (state.registrationKnown && state.isRegistered && backendHasCabinetData) {
@@ -1336,11 +1368,11 @@ export function mountAmbassadorCabinet(target, config = {}) {
     state.dashboard.identity.exists = state.isRegistered;
     state.dashboard.identity.active =
       backendProfile?.status ? backendProfile.status === 'active' : false;
-    state.statusCards = buildStatusCards(null);
-    state.hasProcessingWithdrawal = false;
     state.isLoading = false;
     state.isRefreshing = false;
     state.error = '';
+    state.statusCards = buildStatusCards(state.dashboard.withdrawalQueue);
+    state.hasProcessingWithdrawal = Boolean(state.dashboard.withdrawalQueue?.hasProcessingWithdrawal);
     lastLoadedWalletAddress = walletAddress;
   }
 
