@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-27T20:29:13.565Z",
+  "generatedAt": "2026-03-27T20:32:52.332Z",
   "repository": "info14fourteen-creator/4teen-wallet-kit",
   "branch": "main",
   "repoName": "4teen-wallet-kit",
@@ -81,10 +81,12 @@
     "src/assets/menu/liquidity_menu.svg",
     "src/assets/menu/swap_menu.svg",
     "src/assets/menu/unlock_menu.svg",
+    "src/assets/metamask.svg",
     "src/assets/okx.svg",
     "src/assets/sunio_swap.svg",
     "src/assets/swap_arrows.svg",
     "src/assets/text_bg.svg",
+    "src/assets/trust.svg",
     "src/assets/trx_swap.svg",
     "src/assets/trx.svg",
     "src/assets/usdt_swap.svg",
@@ -123,9 +125,7 @@
     "src/ui/noticeCenter.js",
     "src/ui/wallet/openWalletPicker.js",
     "src/ui/walletButton.css",
-    "src/ui/walletButton.js",
-    "src/ui/walletDropdown.js",
-    "src/ui/walletPicker.css"
+    "src/ui/walletButton.js"
   ],
   "snapshotFiles": [
     {
@@ -253,10 +253,12 @@
         "src/assets/menu/liquidity_menu.svg",
         "src/assets/menu/swap_menu.svg",
         "src/assets/menu/unlock_menu.svg",
+        "src/assets/metamask.svg",
         "src/assets/okx.svg",
         "src/assets/sunio_swap.svg",
         "src/assets/swap_arrows.svg",
         "src/assets/text_bg.svg",
+        "src/assets/trust.svg",
         "src/assets/trx_swap.svg",
         "src/assets/trx.svg",
         "src/assets/usdt_swap.svg",
@@ -295,9 +297,7 @@
         "src/ui/noticeCenter.js",
         "src/ui/wallet/openWalletPicker.js",
         "src/ui/walletButton.css",
-        "src/ui/walletButton.js",
-        "src/ui/walletDropdown.js",
-        "src/ui/walletPicker.css"
+        "src/ui/walletButton.js"
       ]
     }
   ]
