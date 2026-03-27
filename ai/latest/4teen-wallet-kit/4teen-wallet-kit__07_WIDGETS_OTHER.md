@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-27T08:39:25.951Z
+Generated: 2026-03-27T10:09:45.852Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -669,6 +669,7 @@ const DEFAULT_CONFIG = {
   withdrawText: 'Withdraw rewards',
   processingText: 'Processing...',
   profileEndpoint: '/cabinet/profile',
+  walletLookupEndpoint: '/ambassador/by-wallet',
   profileQueryParam: 'wallet',
   referralBaseUrl: 'https://4teen.me/?ref=',
   registerTitle: 'Not an ambassador yet',
@@ -855,6 +856,10 @@ function normalizeError(error) {
 
   if (text.includes('429')) {
     return 'Too many requests. Please wait a moment and try again.';
+  }
+
+  if (text.includes("owner_address isn't set") || text.includes('owner_address is not set')) {
+    return 'Wallet session is connected, but contract reads are not ready in this browser wallet yet.';
   }
 
   return text;
@@ -1054,6 +1059,63 @@ function mapWithdrawalQueue(raw, rewards) {
   };
 }
 
+function createEmptyDashboard(walletAddress = '') {
+  return {
+    identity: {
+      wallet: walletAddress,
+      exists: false,
+      active: false,
+      selfRegistered: false,
+      manualAssigned: false,
+      overrideEnabled: false,
+      effectiveLevel: 0,
+      currentLevel: 0,
+      overrideLevel: 0,
+      rewardPercent: 0,
+      createdAt: 0,
+      slugHash: '—',
+      metaHash: '—'
+    },
+    stats: {
+      totalBuyers: 0,
+      totalVolumeSun: '0',
+      totalVolumeTrx: '0',
+      totalRewardsAccruedSun: '0',
+      totalRewardsAccruedTrx: '0',
+      totalRewardsClaimedSun: '0',
+      totalRewardsClaimedTrx: '0',
+      claimableRewardsSun: '0',
+      claimableRewardsTrx: '0'
+    },
+    rewards: {
+      availableSun: '0',
+      availableTrx: '0',
+      withdrawnSun: '0',
+      withdrawnTrx: '0',
+      lifetimeSun: '0',
+      lifetimeTrx: '0'
+    },
+    progress: {
+      currentLevel: 0,
+      buyersCount: 0,
+      nextThreshold: 0,
+      remainingToNextLevel: 0
+    },
+    withdrawalQueue: {
+      availableOnChainSun: '0',
+      availableOnChainTrx: '0',
+      pendingBackendSyncSun: '0',
+      pendingBackendSyncTrx: '0',
+      requestedForProcessingSun: '0',
+      requestedForProcessingTrx: '0',
+      availableOnChainCount: 0,
+      pendingBackendSyncCount: 0,
+      requestedForProcessingCount: 0,
+      hasProcessingWithdrawal: false
+    }
+  };
+}
+
 async function readAmbassadorDashboard(wallet, controllerContractAddress) {
   const resolvedWallet = await getConnectedWalletAddress(wallet);
   const contract = await getControllerContractInstance(wallet, controllerContractAddress);
@@ -1098,6 +1160,44 @@ async function withdrawRewards(wallet, controllerContractAddress) {
   };
 }
 
+function normalizeRegisteredProfile(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const result = payload.result && typeof payload.result === 'object' ? payload.result : payload;
+  const slug = String(
+    result.slug ||
+      result.referralSlug ||
+      result.referral_slug ||
+      result.publicSlug ||
+      ''
+  ).trim();
+  const wallet = String(result.wallet || result.ambassadorWallet || '').trim();
+  const status = String(result.status || '').trim().toLowerCase();
+  const referralLink = String(
+    result.referralLink || result.referral_url || result.referralUrl || result.link || ''
+  ).trim();
+
+  const registered =
+    result.registered === true ||
+    result.exists === true ||
+    result.isRegistered === true ||
+    Boolean(slug || wallet || status);
+
+  if (!registered) {
+    return null;
+  }
+
+  return {
+    registered: true,
+    slug,
+    wallet,
+    status,
+    referralLink
+  };
+}
+
 async function fetchProfileMaybe(config, walletAddress) {
   const baseUrl = normalizeBaseUrl(config.backendBaseUrl);
 
@@ -1106,29 +1206,55 @@ async function fetchProfileMaybe(config, walletAddress) {
   }
 
   const queryParam = config.profileQueryParam || 'wallet';
-  const endpoint = config.profileEndpoint || '/cabinet/profile';
-  const url = `${baseUrl}${endpoint}?${encodeURIComponent(queryParam)}=${encodeURIComponent(
-    walletAddress
-  )}`;
+  const profileEndpoint = config.profileEndpoint || '/cabinet/profile';
+  const walletLookupEndpoint = config.walletLookupEndpoint || '/ambassador/by-wallet';
 
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
+  const urls = [
+    `${baseUrl}${profileEndpoint}?${encodeURIComponent(queryParam)}=${encodeURIComponent(
+      walletAddress
+    )}`,
+    `${baseUrl}${walletLookupEndpoint}?wallet=${encodeURIComponent(walletAddress)}`
+  ];
+
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const payload = await readJson(response);
+
+      if (response.status === 404) {
+        if (url.includes(walletLookupEndpoint)) {
+          return {
+            registered: false
+          };
+        }
+        continue;
       }
-    });
 
-    const payload = await readJson(response);
+      if (!response.ok || !payload) {
+        continue;
+      }
 
-    if (!response.ok || !payload) {
-      return null;
-    }
+      const normalized = normalizeRegisteredProfile(payload);
 
-    return payload.result || payload.profile || payload.data || payload;
-  } catch (_) {
-    return null;
+      if (normalized) {
+        return normalized;
+      }
+
+      if (payload.ok === true && (payload.registered === false || payload.result == null)) {
+        return {
+          registered: false
+        };
+      }
+    } catch (_) {}
   }
+
+  return null;
 }
 
 function buildReferralLink(config, profile, identity) {
@@ -1180,6 +1306,10 @@ function buildWithdrawButtonLabel(state) {
     return 'Processing withdrawal...';
   }
 
+  if (!state.dashboardAvailable) {
+    return 'Dashboard read unavailable';
+  }
+
   if (state.hasProcessingWithdrawal || state.statusCards.hasRequestedForProcessing) {
     return 'Requested for processing';
   }
@@ -1196,6 +1326,10 @@ function buildWithdrawButtonLabel(state) {
 }
 
 function buildWithdrawHint(state) {
+  if (!state.dashboardAvailable) {
+    return 'Basic ambassador profile is loaded. Full on-chain dashboard data is temporarily unavailable in this wallet session.';
+  }
+
   if (state.statusCards.hasRequestedForProcessing) {
     return 'Your withdrawal request was created and is waiting for backend processing.';
   }
@@ -1314,11 +1448,11 @@ function createRegistrationStateMarkup(config, walletAddress) {
 }
 
 function createDashboardStateMarkup(config, state, walletAddress) {
-  const dashboard = state.dashboard;
-  const identity = dashboard?.identity ?? null;
-  const stats = dashboard?.stats ?? null;
-  const rewards = dashboard?.rewards ?? null;
-  const progress = dashboard?.progress ?? null;
+  const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
+  const identity = dashboard.identity ?? null;
+  const stats = dashboard.stats ?? null;
+  const rewards = dashboard.rewards ?? null;
+  const progress = dashboard.progress ?? null;
   const profile = state.profile ?? null;
   const referralLink = buildReferralLink(config, profile, identity);
 
@@ -1333,12 +1467,36 @@ function createDashboardStateMarkup(config, state, walletAddress) {
   const withdrawButtonLabel = buildWithdrawButtonLabel(state);
   const withdrawHint = buildWithdrawHint(state);
 
+  const slugValue =
+    profile?.slug ||
+    profile?.referralSlug ||
+    profile?.referral_slug ||
+    profile?.publicSlug ||
+    '—';
+
+  const statusLabel =
+    profile?.status
+      ? profile.status.charAt(0).toUpperCase() + profile.status.slice(1)
+      : identity?.active
+        ? 'Active'
+        : 'Inactive';
+
   return `
     ${createConnectedWalletSummary(walletAddress)}
 
     <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
       ${escapeHtml(withdrawHint)}
     </div>
+
+    ${
+      state.dashboardWarning
+        ? `
+          <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--amber">
+            ${escapeHtml(state.dashboardWarning)}
+          </div>
+        `
+        : ''
+    }
 
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
       ${createStatusCard(
@@ -1372,13 +1530,15 @@ function createDashboardStateMarkup(config, state, walletAddress) {
       )}
       ${createValueCard(
         'Ambassador status',
-        identity?.active ? 'Active' : 'Inactive',
-        `Level: ${levelToLabel(identity?.effectiveLevel ?? 0)}`
+        statusLabel,
+        `Level: ${levelToLabel(identity?.effectiveLevel ?? progress?.currentLevel ?? 0)}`
       )}
       ${createValueCard(
         'Reward percent',
         `${identity?.rewardPercent ?? 0}%`,
-        `Effective level: ${levelToLabel(identity?.effectiveLevel ?? 0)}`
+        state.dashboardAvailable
+          ? `Effective level: ${levelToLabel(identity?.effectiveLevel ?? 0)}`
+          : 'Visible again after full dashboard read succeeds'
       )}
     </div>
 
@@ -1417,7 +1577,7 @@ function createDashboardStateMarkup(config, state, walletAddress) {
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--four">
       ${createValueCard(
         'Current level',
-        levelToLabel(progress?.currentLevel ?? 0),
+        levelToLabel(progress?.currentLevel ?? identity?.effectiveLevel ?? 0),
         `Current buyers: ${progress?.buyersCount ?? 0}`
       )}
       ${createValueCard(
@@ -1438,13 +1598,13 @@ function createDashboardStateMarkup(config, state, walletAddress) {
       <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
         ${createValueCard(
           'Slug',
-          profile?.slug || profile?.referralSlug || profile?.referral_slug || '—',
+          slugValue,
           identity?.slugHash || 'No readable slug provided by backend yet'
         )}
         ${createValueCard(
           'Referral link',
           referralLink,
-          profile?.slug ? 'Public ambassador link' : 'Backend profile can enrich this value'
+          slugValue !== '—' ? 'Public ambassador link' : 'Backend profile can enrich this value'
         )}
       </div>
     </div>
@@ -1458,6 +1618,7 @@ function createDashboardStateMarkup(config, state, walletAddress) {
           data-role="withdraw-button"
           ${
             state.isWithdrawing ||
+            !state.dashboardAvailable ||
             state.hasProcessingWithdrawal ||
             state.statusCards.hasRequestedForProcessing ||
             (!state.statusCards.hasAvailableOnChain && !state.statusCards.hasPendingBackendSync)
@@ -1481,16 +1642,16 @@ function createDashboardStateMarkup(config, state, walletAddress) {
             ? 'Self-registered'
             : identity?.manualAssigned
               ? 'Manually assigned'
-              : '—'
+              : profile?.registered
+                ? 'Registered'
+                : '—'
         )}
         ${createValueCard(
           'Override',
           identity?.overrideEnabled ? 'Enabled' : 'Disabled',
-          identity
-            ? `Current: ${levelToLabel(identity.currentLevel)} • Override: ${levelToLabel(
-                identity.overrideLevel
-              )}`
-            : ''
+          `Current: ${levelToLabel(identity?.currentLevel ?? 0)} • Override: ${levelToLabel(
+            identity?.overrideLevel ?? 0
+          )}`
         )}
       </div>
     </div>
@@ -1558,8 +1719,15 @@ function createMarkup(config, state, walletAddress) {
     `;
   } else if (!state.isConnected) {
     stateMarkup = createConnectStateMarkup();
-  } else if (!state.isRegistered) {
+  } else if (state.registrationKnown && !state.isRegistered) {
     stateMarkup = createRegistrationStateMarkup(config, walletAddress);
+  } else if (!state.registrationKnown) {
+    stateMarkup = `
+      ${createConnectedWalletSummary(walletAddress)}
+      <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
+        Checking ambassador profile...
+      </div>
+    `;
   } else {
     stateMarkup = createDashboardStateMarkup(config, state, walletAddress);
   }
@@ -1666,22 +1834,15 @@ export function mountAmbassadorCabinet(target, config = {}) {
     isRefreshing: false,
     isWithdrawing: false,
     isConnected: false,
+    registrationKnown: false,
     isRegistered: false,
+    dashboardAvailable: false,
     hasProcessingWithdrawal: false,
     error: '',
-    dashboard: null,
+    dashboardWarning: '',
+    dashboard: createEmptyDashboard(''),
     profile: null,
-    statusCards: {
-      availableOnChainSun: '0',
-      pendingBackendSyncSun: '0',
-      requestedForProcessingSun: '0',
-      availableOnChainCount: 0,
-      pendingBackendSyncCount: 0,
-      requestedForProcessingCount: 0,
-      hasAvailableOnChain: false,
-      hasPendingBackendSync: false,
-      hasRequestedForProcessing: false
-    },
+    statusCards: buildStatusCards(null),
     lastWithdrawTxid: null
   };
 
@@ -1847,8 +2008,11 @@ export function mountAmbassadorCabinet(target, config = {}) {
 
     if (!connected) {
       state.isConnected = false;
+      state.registrationKnown = false;
       state.isRegistered = false;
-      state.dashboard = null;
+      state.dashboardAvailable = false;
+      state.dashboardWarning = '';
+      state.dashboard = createEmptyDashboard('');
       state.profile = null;
       state.hasProcessingWithdrawal = false;
       state.statusCards = buildStatusCards(null);
@@ -1859,25 +2023,76 @@ export function mountAmbassadorCabinet(target, config = {}) {
       return;
     }
 
-    if (!force && lastLoadedWalletAddress === walletAddress && state.dashboard && !initial) {
-      state.isConnected = true;
+    state.isConnected = true;
+
+    if (!force && lastLoadedWalletAddress === walletAddress && state.registrationKnown && !initial) {
       state.isLoading = false;
       state.isRefreshing = false;
-      state.error = '';
       return;
     }
 
-    const [dashboard, profile] = await Promise.all([
-      readAmbassadorDashboard(wallet, resolvedConfig.controllerContractAddress),
-      fetchProfileMaybe(resolvedConfig, walletAddress)
-    ]);
+    const backendProfile = await fetchProfileMaybe(resolvedConfig, walletAddress);
 
-    state.dashboard = dashboard;
-    state.profile = profile;
-    state.statusCards = buildStatusCards(dashboard.withdrawalQueue);
-    state.hasProcessingWithdrawal = Boolean(dashboard.withdrawalQueue?.hasProcessingWithdrawal);
-    state.isConnected = true;
-    state.isRegistered = Boolean(dashboard.identity?.exists);
+    state.profile = backendProfile;
+    state.registrationKnown = backendProfile !== null;
+    state.isRegistered = Boolean(
+      backendProfile?.registered ||
+        backendProfile?.slug ||
+        backendProfile?.wallet
+    );
+
+    if (state.registrationKnown && !state.isRegistered) {
+      state.dashboardAvailable = false;
+      state.dashboardWarning = '';
+      state.dashboard = createEmptyDashboard(walletAddress);
+      state.statusCards = buildStatusCards(null);
+      state.hasProcessingWithdrawal = false;
+      state.isLoading = false;
+      state.isRefreshing = false;
+      state.error = '';
+      lastLoadedWalletAddress = walletAddress;
+      return;
+    }
+
+    if (!state.registrationKnown) {
+      state.dashboardAvailable = false;
+      state.dashboardWarning = '';
+      state.dashboard = createEmptyDashboard(walletAddress);
+      state.statusCards = buildStatusCards(null);
+      state.hasProcessingWithdrawal = false;
+      state.isLoading = false;
+      state.isRefreshing = false;
+      state.error = '';
+      lastLoadedWalletAddress = walletAddress;
+      return;
+    }
+
+    try {
+      const dashboard = await readAmbassadorDashboard(
+        wallet,
+        resolvedConfig.controllerContractAddress
+      );
+
+      state.dashboard = dashboard;
+      state.dashboardAvailable = true;
+      state.dashboardWarning = '';
+      state.statusCards = buildStatusCards(dashboard.withdrawalQueue);
+      state.hasProcessingWithdrawal = Boolean(dashboard.withdrawalQueue?.hasProcessingWithdrawal);
+      state.isRegistered =
+        Boolean(dashboard.identity?.exists) || state.isRegistered;
+    } catch (error) {
+      const message = normalizeError(error);
+
+      state.dashboardAvailable = false;
+      state.dashboardWarning = message;
+      state.dashboard = createEmptyDashboard(walletAddress);
+      state.dashboard.identity.exists = state.isRegistered;
+      state.dashboard.identity.active =
+        backendProfile?.status ? backendProfile.status === 'active' : false;
+      state.statusCards = buildStatusCards(null);
+      state.hasProcessingWithdrawal = false;
+    }
+
     state.isLoading = false;
     state.isRefreshing = false;
     state.error = '';
@@ -1913,11 +2128,13 @@ export function mountAmbassadorCabinet(target, config = {}) {
         state.isRefreshing = false;
         state.error = normalizeError(error);
 
-        if (initial) {
-          state.isConnected = false;
+        if (!state.isConnected) {
+          state.registrationKnown = false;
           state.isRegistered = false;
+          state.dashboardAvailable = false;
+          state.dashboardWarning = '';
           state.hasProcessingWithdrawal = false;
-          state.dashboard = null;
+          state.dashboard = createEmptyDashboard('');
           state.profile = null;
           state.statusCards = buildStatusCards(null);
           lastLoadedWalletAddress = '';
@@ -1932,7 +2149,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
   }
 
   async function handleWithdraw() {
-    if (!state.isRegistered) {
+    if (!state.isRegistered || !state.dashboardAvailable) {
       return;
     }
 
@@ -1977,7 +2194,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
   }
 
   function mountRegisterWidgetIfNeeded() {
-    if (!state.isConnected || state.isRegistered || state.isLoading) {
+    if (!state.isConnected || !state.registrationKnown || state.isRegistered || state.isLoading) {
       destroyRegisterWidget();
       return;
     }
