@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-27T19:31:14.855Z",
+  "generatedAt": "2026-03-27T20:29:13.565Z",
   "repository": "info14fourteen-creator/4teen-wallet-kit",
   "branch": "main",
   "repoName": "4teen-wallet-kit",
@@ -75,11 +75,13 @@
     "examples/vanilla/main.js",
     "src/assets/4teen_swap.svg",
     "src/assets/4teen.svg",
+    "src/assets/imtoken.svg",
     "src/assets/justmoney_swap.svg",
     "src/assets/menu/buy_menu.svg",
     "src/assets/menu/liquidity_menu.svg",
     "src/assets/menu/swap_menu.svg",
     "src/assets/menu/unlock_menu.svg",
+    "src/assets/okx.svg",
     "src/assets/sunio_swap.svg",
     "src/assets/swap_arrows.svg",
     "src/assets/text_bg.svg",
@@ -87,6 +89,7 @@
     "src/assets/trx.svg",
     "src/assets/usdt_swap.svg",
     "src/assets/wallet.svg",
+    "src/assets/walletconnect.svg",
     "src/core/config/appkit.js",
     "src/core/config/constants.js",
     "src/core/config/token.js",
@@ -122,9 +125,7 @@
     "src/ui/walletButton.css",
     "src/ui/walletButton.js",
     "src/ui/walletDropdown.js",
-    "src/ui/walletPicker.css",
-    "src/ui/walletPicker.js",
-    "vite.config.js"
+    "src/ui/walletPicker.css"
   ],
   "snapshotFiles": [
     {
@@ -246,11 +247,13 @@
         "examples/vanilla/main.js",
         "src/assets/4teen_swap.svg",
         "src/assets/4teen.svg",
+        "src/assets/imtoken.svg",
         "src/assets/justmoney_swap.svg",
         "src/assets/menu/buy_menu.svg",
         "src/assets/menu/liquidity_menu.svg",
         "src/assets/menu/swap_menu.svg",
         "src/assets/menu/unlock_menu.svg",
+        "src/assets/okx.svg",
         "src/assets/sunio_swap.svg",
         "src/assets/swap_arrows.svg",
         "src/assets/text_bg.svg",
@@ -258,6 +261,7 @@
         "src/assets/trx.svg",
         "src/assets/usdt_swap.svg",
         "src/assets/wallet.svg",
+        "src/assets/walletconnect.svg",
         "src/core/config/appkit.js",
         "src/core/config/constants.js",
         "src/core/config/token.js",
@@ -293,9 +297,7 @@
         "src/ui/walletButton.css",
         "src/ui/walletButton.js",
         "src/ui/walletDropdown.js",
-        "src/ui/walletPicker.css",
-        "src/ui/walletPicker.js",
-        "vite.config.js"
+        "src/ui/walletPicker.css"
       ]
     }
   ]
