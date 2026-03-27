@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-27T23:33:56.752Z
+Generated: 2026-03-27T23:36:27.348Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -70,16 +70,24 @@ Branch: main
 }
 
 /* -------------------------------------------------------
-   HERO / HEADER
+   HEADER / HERO
 ------------------------------------------------------- */
 
-.fourteen-ambassador-cabinet-hero {
-  position: relative;
+.fourteen-ambassador-cabinet-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: 16px;
   margin-bottom: 12px;
+}
+
+.fourteen-ambassador-cabinet-heading__text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.fourteen-ambassador-cabinet-hero {
+  position: relative;
   padding: 14px 0 12px 0;
   overflow: visible;
 }
@@ -97,15 +105,6 @@ Branch: main
   opacity: 1;
   pointer-events: none;
   z-index: 0;
-}
-
-.fourteen-ambassador-cabinet-hero__text {
-  min-width: 0;
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .fourteen-ambassador-cabinet-hero__title {
@@ -228,6 +227,7 @@ Branch: main
     box-shadow 0.18s ease,
     filter 0.18s ease,
     opacity 0.18s ease;
+  text-decoration: none;
 }
 
 .fourteen-ambassador-cabinet-action:hover {
@@ -557,9 +557,13 @@ Branch: main
 }
 
 @media (max-width: 720px) {
-  .fourteen-ambassador-cabinet-hero {
+  .fourteen-ambassador-cabinet-heading {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .fourteen-ambassador-cabinet-topbar__actions {
+    justify-content: flex-start;
   }
 
   .fourteen-ambassador-cabinet-grid--two,
