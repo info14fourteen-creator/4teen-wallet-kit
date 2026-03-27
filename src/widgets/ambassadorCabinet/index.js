@@ -20,8 +20,11 @@ const DEFAULT_CONFIG = {
   refreshText: 'Refresh',
   withdrawText: 'Withdraw rewards',
   processingText: 'Processing...',
+  replayText: 'Process pending rewards',
+  replayProcessingText: 'Processing pending rewards...',
   profileEndpoint: '/cabinet/profile',
   walletLookupEndpoint: '/ambassador/by-wallet',
+  replayPendingEndpoint: '/cabinet/replay-pending',
   profileQueryParam: 'wallet',
   referralBaseUrl: 'https://4teen.me/?r=',
   registrationPageUrl: 'https://4teen.me/a/reg',
@@ -171,6 +174,8 @@ function normalizeError(error) {
     error?.data?.message ||
     error?.response?.data?.message ||
     error?.response?.message ||
+    error?.responseJSON?.message ||
+    error?.reason ||
     'Unknown error';
 
   const text = String(raw || '').trim();
@@ -186,7 +191,10 @@ function normalizeError(error) {
     lower.includes('canceled') ||
     lower.includes('declined by user') ||
     lower.includes('signature declined') ||
-    lower.includes('signature rejected')
+    lower.includes('signature rejected') ||
+    lower.includes('contract validate error : user') ||
+    lower.includes('the user canceled') ||
+    lower.includes('cancel by user')
   ) {
     return 'Transaction was rejected in wallet.';
   }
@@ -292,6 +300,33 @@ async function withdrawRewards(wallet, controllerContractAddress) {
   return {
     txid: assertNonEmpty(txid, 'txid')
   };
+}
+
+async function replayPendingRewards(config, walletAddress) {
+  const baseUrl = normalizeBaseUrl(config.backendBaseUrl);
+
+  if (!baseUrl) {
+    throw new Error('Backend base URL is not configured');
+  }
+
+  const endpoint = String(config.replayPendingEndpoint || '/cabinet/replay-pending').trim();
+  const response = await fetch(`${baseUrl}${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      wallet: walletAddress
+    })
+  });
+
+  const payload = await readJson(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || payload?.message || 'Failed to process pending rewards');
+  }
+
+  return payload?.result || payload || {};
 }
 
 function createEmptyDashboard(walletAddress = '') {
@@ -606,6 +641,14 @@ function buildWithdrawButtonLabel(state) {
   return 'No rewards available';
 }
 
+function buildReplayButtonLabel(config, state) {
+  if (state.isReplayingPending) {
+    return config.replayProcessingText || 'Processing pending rewards...';
+  }
+
+  return config.replayText || 'Process pending rewards';
+}
+
 function buildWithdrawHint(state) {
   if (state.statusCards.hasRequestedForProcessing) {
     return 'Your withdrawal request was created and is waiting for backend processing.';
@@ -871,6 +914,11 @@ function createActionsSection(state, walletAddress, config) {
     ? `https://tronscan.org/#/transaction/${state.lastWithdrawTxid}`
     : '';
   const withdrawButtonLabel = buildWithdrawButtonLabel(state);
+  const replayButtonLabel = buildReplayButtonLabel(config, state);
+  const canReplayPending =
+    state.statusCards.hasPendingBackendSync &&
+    !state.isReplayingPending &&
+    !state.isWithdrawing;
 
   return createSection(
     'Actions',
@@ -890,6 +938,15 @@ function createActionsSection(state, walletAddress, config) {
           }
         >
           ${escapeHtml(withdrawButtonLabel)}
+        </button>
+
+        <button
+          type="button"
+          class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
+          data-role="replay-button"
+          ${canReplayPending ? '' : 'disabled aria-disabled="true"'}
+        >
+          ${escapeHtml(replayButtonLabel)}
         </button>
 
         ${
@@ -1085,7 +1142,7 @@ function createMarkup(config, state, walletAddress) {
               type="button"
               class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
               data-role="refresh-button"
-              ${state.isRefreshing || state.isWithdrawing ? 'disabled aria-disabled="true"' : ''}
+              ${state.isRefreshing || state.isWithdrawing || state.isReplayingPending ? 'disabled aria-disabled="true"' : ''}
             >
               ${state.isRefreshing ? 'Refreshing...' : escapeHtml(config.refreshText)}
             </button>
@@ -1143,6 +1200,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
     isLoading: true,
     isRefreshing: false,
     isWithdrawing: false,
+    isReplayingPending: false,
     isConnected: false,
     registrationKnown: false,
     isRegistered: false,
@@ -1468,9 +1526,62 @@ export function mountAmbassadorCabinet(target, config = {}) {
     }
   }
 
+  async function handleReplayPending() {
+    if (!state.isRegistered) {
+      return;
+    }
+
+    const walletAddress = getWalletAddressSafe(wallet);
+
+    if (!walletAddress) {
+      state.error = 'Wallet is not connected.';
+      render();
+      return;
+    }
+
+    if (!state.statusCards.hasPendingBackendSync) {
+      return;
+    }
+
+    state.isReplayingPending = true;
+    state.error = '';
+    render();
+
+    try {
+      const result = await replayPendingRewards(resolvedConfig, walletAddress);
+      const processedCount = safeNumber(result.processedCount, 0);
+      const replayedCount = safeNumber(result.replayedCount, processedCount);
+      const failedCount = safeNumber(result.failedCount, 0);
+
+      if (replayedCount > 0 && failedCount === 0) {
+        showSuccessNotice(`Processed ${replayedCount} pending reward item(s).`, 8000);
+      } else if (replayedCount > 0 && failedCount > 0) {
+        showNeutralNotice(
+          `Processed ${replayedCount} pending item(s), but ${failedCount} still failed.`,
+          10000
+        );
+      } else if (failedCount > 0) {
+        showErrorNotice(`No pending items were processed. Failed: ${failedCount}.`, 10000);
+      } else {
+        showNeutralNotice('No pending rewards were found for processing.', 7000);
+      }
+
+      await refresh('refresh', { force: true });
+    } catch (error) {
+      const message = normalizeError(error);
+      state.error = message;
+      showErrorNotice(message, 10000);
+      render();
+    } finally {
+      state.isReplayingPending = false;
+      render();
+    }
+  }
+
   function bindEvents() {
     const refreshButton = root.querySelector('[data-role="refresh-button"]');
     const withdrawButton = root.querySelector('[data-role="withdraw-button"]');
+    const replayButton = root.querySelector('[data-role="replay-button"]');
     const infoToggleEl = root.querySelector('[data-role="info-toggle"]');
 
     refreshButton?.addEventListener('click', () => {
@@ -1482,6 +1593,12 @@ export function mountAmbassadorCabinet(target, config = {}) {
     withdrawButton?.addEventListener('click', () => {
       handleWithdraw().catch((error) => {
         console.error('Ambassador cabinet withdraw failed:', error);
+      });
+    });
+
+    replayButton?.addEventListener('click', () => {
+      handleReplayPending().catch((error) => {
+        console.error('Ambassador cabinet replay pending failed:', error);
       });
     });
 
