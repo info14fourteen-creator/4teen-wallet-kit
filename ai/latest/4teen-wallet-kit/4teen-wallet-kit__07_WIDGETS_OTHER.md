@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-27T22:09:43.632Z
+Generated: 2026-03-27T23:33:56.752Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -1399,7 +1399,7 @@ function createStatusCard(label, trxValue, sunValue, count, modifier) {
       <div class="fourteen-ambassador-cabinet-card__value">${escapeHtml(trxValue)} TRX</div>
       <div class="fourteen-ambassador-cabinet-card__hint">${escapeHtml(sunValue)} SUN</div>
       <div class="fourteen-ambassador-cabinet-card__hint">
-        ${escapeHtml(String(count))} ${count === 1 ? 'purchase' : 'purchases'}
+        ${escapeHtml(String(count))} ${count === 1 ? 'reward entry' : 'reward entries'}
       </div>
     </div>
   `;
@@ -1775,22 +1775,19 @@ function createMarkup(config, state, walletAddress) {
   return `
     <div class="fourteen-ambassador-cabinet-widget">
       <div class="fourteen-ambassador-cabinet-shell">
-        <div class="fourteen-ambassador-cabinet-hero">
-          <div class="fourteen-ambassador-cabinet-hero__bg"></div>
+        <div class="fourteen-ambassador-cabinet-heading">
+          <div class="fourteen-ambassador-cabinet-heading__text">
+            <div class="fourteen-ambassador-cabinet-hero">
+              <div class="fourteen-ambassador-cabinet-hero__bg"></div>
 
-          <div class="fourteen-ambassador-cabinet-hero__text">
-            <div class="fourteen-ambassador-cabinet-hero__title">
-              4TEEN <span>Ambassador Cabinet</span>
-            </div>
-            <div class="fourteen-ambassador-cabinet-hero__subtitle">
-              ${escapeHtml(config.subtitle)}
-            </div>
-          </div>
-        </div>
+              <h2 class="fourteen-ambassador-cabinet-hero__title">
+                4TEEN <span>Ambassador Cabinet</span>
+              </h2>
 
-        <div class="fourteen-ambassador-cabinet-topbar">
-          <div class="fourteen-ambassador-cabinet-wallet" data-role="wallet-label">
-            Wallet not connected
+              <div class="fourteen-ambassador-cabinet-hero__subtitle">
+                ${escapeHtml(config.subtitle)}
+              </div>
+            </div>
           </div>
 
           <div class="fourteen-ambassador-cabinet-topbar__actions">
@@ -1819,6 +1816,12 @@ function createMarkup(config, state, walletAddress) {
             >
               ${state.isRefreshing ? 'Refreshing...' : escapeHtml(config.refreshText)}
             </button>
+          </div>
+        </div>
+
+        <div class="fourteen-ambassador-cabinet-topbar">
+          <div class="fourteen-ambassador-cabinet-wallet" data-role="wallet-label">
+            Wallet not connected
           </div>
         </div>
 
@@ -2010,7 +2013,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
     }
 
     embeddedWalletUnmount = mountWalletButton(embeddedWalletButtonEl, {
-      variant: 'compact',
+      variant: 'hero',
       onConnectClick: async (walletId) => {
         if (typeof wallet.connect === 'function') {
           await wallet.connect(walletId);
@@ -2222,21 +2225,24 @@ export function mountAmbassadorCabinet(target, config = {}) {
 
     try {
       const result = await replayPendingRewards(resolvedConfig, walletAddress);
-      const processedCount = safeNumber(result.processedCount, 0);
-      const replayedCount = safeNumber(result.replayedCount, processedCount);
-      const failedCount = safeNumber(result.failedCount, 0);
+      const totalFound = safeNumber(result.totalFound, 0);
+      const attempted = safeNumber(result.attempted, totalFound);
+      const succeeded = safeNumber(result.succeeded, 0);
+      const failed = safeNumber(result.failed, 0);
 
-      if (replayedCount > 0 && failedCount === 0) {
-        showSuccessNotice(`Processed ${replayedCount} pending reward item(s).`, 8000);
-      } else if (replayedCount > 0 && failedCount > 0) {
+      if (succeeded > 0 && failed === 0) {
+        showSuccessNotice(`Processed ${succeeded} pending reward item(s).`, 8000);
+      } else if (succeeded > 0 && failed > 0) {
         showNeutralNotice(
-          `Processed ${replayedCount} pending item(s), but ${failedCount} still failed.`,
+          `Processed ${succeeded} pending item(s), but ${failed} still failed.`,
           10000
         );
-      } else if (failedCount > 0) {
-        showErrorNotice(`No pending items were processed. Failed: ${failedCount}.`, 10000);
-      } else {
+      } else if (attempted > 0 && failed > 0) {
+        showErrorNotice(`No pending items were processed. Failed: ${failed}.`, 10000);
+      } else if (totalFound === 0) {
         showNeutralNotice('No pending rewards were found for processing.', 7000);
+      } else {
+        showNeutralNotice('Pending rewards check completed.', 7000);
       }
 
       await refresh('refresh', { force: true });
