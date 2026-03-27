@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-27T10:09:45.852Z
+Generated: 2026-03-27T10:44:41.165Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -1327,7 +1327,7 @@ function buildWithdrawButtonLabel(state) {
 
 function buildWithdrawHint(state) {
   if (!state.dashboardAvailable) {
-    return 'Basic ambassador profile is loaded. Full on-chain dashboard data is temporarily unavailable in this wallet session.';
+    return 'Basic profile loaded. Full on-chain dashboard data is temporarily unavailable in this wallet session.';
   }
 
   if (state.statusCards.hasRequestedForProcessing) {
@@ -1412,6 +1412,15 @@ function createStatusCard(label, trxValue, sunValue, count, modifier) {
   `;
 }
 
+function createSection(title, content) {
+  return `
+    <div class="fourteen-ambassador-cabinet-section">
+      <div class="fourteen-ambassador-cabinet-section__title">${escapeHtml(title)}</div>
+      ${content}
+    </div>
+  `;
+}
+
 function createConnectedWalletSummary(walletAddress) {
   return `
     <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
@@ -1440,40 +1449,21 @@ function createRegistrationStateMarkup(config, walletAddress) {
         ${escapeHtml(config.registerText)}
       </div>
     </div>
-    <div class="fourteen-ambassador-cabinet-section">
-      <div class="fourteen-ambassador-cabinet-section__title">Ambassador registration</div>
-      <div data-role="register-slot"></div>
-    </div>
+    ${createSection('Ambassador registration', '<div data-role="register-slot"></div>')}
   `;
 }
 
-function createDashboardStateMarkup(config, state, walletAddress) {
+function createIdentitySection(config, state, walletAddress) {
   const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
-  const identity = dashboard.identity ?? null;
-  const stats = dashboard.stats ?? null;
-  const rewards = dashboard.rewards ?? null;
-  const progress = dashboard.progress ?? null;
+  const identity = dashboard.identity ?? {};
   const profile = state.profile ?? null;
-  const referralLink = buildReferralLink(config, profile, identity);
-
-  const walletExplorerUrl = walletAddress
-    ? `https://tronscan.org/#/address/${walletAddress}`
-    : '';
-
-  const withdrawExplorerUrl = state.lastWithdrawTxid
-    ? `https://tronscan.org/#/transaction/${state.lastWithdrawTxid}`
-    : '';
-
-  const withdrawButtonLabel = buildWithdrawButtonLabel(state);
-  const withdrawHint = buildWithdrawHint(state);
-
   const slugValue =
     profile?.slug ||
     profile?.referralSlug ||
     profile?.referral_slug ||
     profile?.publicSlug ||
     '—';
-
+  const referralLink = buildReferralLink(config, profile, identity);
   const statusLabel =
     profile?.status
       ? profile.status.charAt(0).toUpperCase() + profile.status.slice(1)
@@ -1481,136 +1471,97 @@ function createDashboardStateMarkup(config, state, walletAddress) {
         ? 'Active'
         : 'Inactive';
 
-  return `
-    ${createConnectedWalletSummary(walletAddress)}
-
-    <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
-      ${escapeHtml(withdrawHint)}
-    </div>
-
-    ${
-      state.dashboardWarning
-        ? `
-          <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--amber">
-            ${escapeHtml(state.dashboardWarning)}
-          </div>
-        `
-        : ''
-    }
-
-    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-      ${createStatusCard(
-        'Available on-chain',
-        sunToTrxString(state.statusCards.availableOnChainSun),
-        state.statusCards.availableOnChainSun,
-        state.statusCards.availableOnChainCount,
-        'green'
-      )}
-      ${createStatusCard(
-        'Pending backend sync',
-        sunToTrxString(state.statusCards.pendingBackendSyncSun),
-        state.statusCards.pendingBackendSyncSun,
-        state.statusCards.pendingBackendSyncCount,
-        'amber'
-      )}
-      ${createStatusCard(
-        'Requested for processing',
-        sunToTrxString(state.statusCards.requestedForProcessingSun),
-        state.statusCards.requestedForProcessingSun,
-        state.statusCards.requestedForProcessingCount,
-        'blue'
-      )}
-    </div>
-
-    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-      ${createValueCard(
-        'Wallet',
-        'Connected',
-        walletAddress || 'Connected wallet'
-      )}
-      ${createValueCard(
-        'Ambassador status',
-        statusLabel,
-        `Level: ${levelToLabel(identity?.effectiveLevel ?? progress?.currentLevel ?? 0)}`
-      )}
-      ${createValueCard(
-        'Reward percent',
-        `${identity?.rewardPercent ?? 0}%`,
-        state.dashboardAvailable
-          ? `Effective level: ${levelToLabel(identity?.effectiveLevel ?? 0)}`
-          : 'Visible again after full dashboard read succeeds'
-      )}
-    </div>
-
-    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-      ${createValueCard('Total buyers', String(stats?.totalBuyers ?? 0))}
-      ${createValueCard(
-        'Tracked volume',
-        `${stats?.totalVolumeTrx ?? '0'} TRX`,
-        `${stats?.totalVolumeSun ?? '0'} SUN`
-      )}
-      ${createValueCard(
-        'Claimable rewards',
-        `${rewards?.availableTrx ?? '0'} TRX`,
-        `${rewards?.availableSun ?? '0'} SUN`
-      )}
-    </div>
-
-    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-      ${createValueCard(
-        'Lifetime rewards',
-        `${rewards?.lifetimeTrx ?? '0'} TRX`,
-        `${rewards?.lifetimeSun ?? '0'} SUN`
-      )}
-      ${createValueCard(
-        'Withdrawn rewards',
-        `${rewards?.withdrawnTrx ?? '0'} TRX`,
-        `${rewards?.withdrawnSun ?? '0'} SUN`
-      )}
-      ${createValueCard(
-        'Accrued total',
-        `${stats?.totalRewardsAccruedTrx ?? '0'} TRX`,
-        `${stats?.totalRewardsAccruedSun ?? '0'} SUN`
-      )}
-    </div>
-
-    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--four">
-      ${createValueCard(
-        'Current level',
-        levelToLabel(progress?.currentLevel ?? identity?.effectiveLevel ?? 0),
-        `Current buyers: ${progress?.buyersCount ?? 0}`
-      )}
-      ${createValueCard(
-        'Next threshold',
-        String(progress?.nextThreshold ?? 0),
-        'Buyers needed for next milestone'
-      )}
-      ${createValueCard(
-        'Remaining',
-        String(progress?.remainingToNextLevel ?? 0),
-        'Buyers left to next level'
-      )}
-      ${createValueCard('Created at', formatDate(identity?.createdAt ?? 0))}
-    </div>
-
-    <div class="fourteen-ambassador-cabinet-section">
-      <div class="fourteen-ambassador-cabinet-section__title">Referral</div>
+  return createSection(
+    'Identity',
+    `
       <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
-        ${createValueCard(
-          'Slug',
-          slugValue,
-          identity?.slugHash || 'No readable slug provided by backend yet'
+        ${createValueCard('Wallet', shortenAddress(walletAddress || '—'), walletAddress || '—')}
+        ${createValueCard('Ambassador status', statusLabel, `Level: ${levelToLabel(identity?.effectiveLevel ?? identity?.currentLevel ?? 0)}`)}
+        ${createValueCard('Slug', slugValue, 'Public ambassador handle')}
+        ${createValueCard('Referral link', referralLink, slugValue !== '—' ? 'Public ambassador link' : 'Unavailable yet')}
+      </div>
+    `
+  );
+}
+
+function createRewardStatusSection(state) {
+  return createSection(
+    'Reward status',
+    `
+      <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+        ${createStatusCard(
+          'Available on-chain',
+          sunToTrxString(state.statusCards.availableOnChainSun),
+          state.statusCards.availableOnChainSun,
+          state.statusCards.availableOnChainCount,
+          'green'
         )}
-        ${createValueCard(
-          'Referral link',
-          referralLink,
-          slugValue !== '—' ? 'Public ambassador link' : 'Backend profile can enrich this value'
+        ${createStatusCard(
+          'Pending backend sync',
+          sunToTrxString(state.statusCards.pendingBackendSyncSun),
+          state.statusCards.pendingBackendSyncSun,
+          state.statusCards.pendingBackendSyncCount,
+          'amber'
+        )}
+        ${createStatusCard(
+          'Requested for processing',
+          sunToTrxString(state.statusCards.requestedForProcessingSun),
+          state.statusCards.requestedForProcessingSun,
+          state.statusCards.requestedForProcessingCount,
+          'blue'
         )}
       </div>
-    </div>
+    `
+  );
+}
 
-    <div class="fourteen-ambassador-cabinet-section">
-      <div class="fourteen-ambassador-cabinet-section__title">Actions</div>
+function createPerformanceSection(state, walletAddress) {
+  const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
+  const stats = dashboard.stats ?? {};
+  const rewards = dashboard.rewards ?? {};
+  const identity = dashboard.identity ?? {};
+
+  return createSection(
+    'Performance',
+    `
+      <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+        ${createValueCard('Total buyers', String(stats?.totalBuyers ?? 0))}
+        ${createValueCard(
+          'Tracked volume',
+          `${stats?.totalVolumeTrx ?? '0'} TRX`,
+          `${stats?.totalVolumeSun ?? '0'} SUN`
+        )}
+        ${createValueCard(
+          'Claimable rewards',
+          `${rewards?.availableTrx ?? '0'} TRX`,
+          `${rewards?.availableSun ?? '0'} SUN`
+        )}
+      </div>
+      <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+        ${createValueCard('Reward percent', `${identity?.rewardPercent ?? 0}%`, state.dashboardAvailable ? `Effective level: ${levelToLabel(identity?.effectiveLevel ?? 0)}` : 'Visible again after full dashboard read succeeds')}
+        ${createValueCard('Current level', levelToLabel(dashboard?.progress?.currentLevel ?? identity?.effectiveLevel ?? 0), `Current buyers: ${dashboard?.progress?.buyersCount ?? 0}`)}
+        ${createValueCard('Created at', formatDate(identity?.createdAt ?? 0))}
+      </div>
+    `
+  );
+}
+
+function createActionsSection(state, walletAddress, config) {
+  const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
+  const profile = state.profile ?? null;
+  const identity = dashboard.identity ?? {};
+  const referralLink = buildReferralLink(config, profile, identity);
+  const walletExplorerUrl = walletAddress
+    ? `https://tronscan.org/#/address/${walletAddress}`
+    : '';
+  const withdrawExplorerUrl = state.lastWithdrawTxid
+    ? `https://tronscan.org/#/transaction/${state.lastWithdrawTxid}`
+    : '';
+  const withdrawButtonLabel = buildWithdrawButtonLabel(state);
+
+  return createSection(
+    'Actions',
+    `
       <div class="fourteen-ambassador-cabinet-links">
         <button
           type="button"
@@ -1628,37 +1579,7 @@ function createDashboardStateMarkup(config, state, walletAddress) {
         >
           ${escapeHtml(withdrawButtonLabel)}
         </button>
-      </div>
-    </div>
 
-    <div class="fourteen-ambassador-cabinet-section">
-      <div class="fourteen-ambassador-cabinet-section__title">On-chain profile</div>
-      <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
-        ${createValueCard('Slug hash', identity?.slugHash || '—')}
-        ${createValueCard('Meta hash', identity?.metaHash || '—')}
-        ${createValueCard(
-          'Registration mode',
-          identity?.selfRegistered
-            ? 'Self-registered'
-            : identity?.manualAssigned
-              ? 'Manually assigned'
-              : profile?.registered
-                ? 'Registered'
-                : '—'
-        )}
-        ${createValueCard(
-          'Override',
-          identity?.overrideEnabled ? 'Enabled' : 'Disabled',
-          `Current: ${levelToLabel(identity?.currentLevel ?? 0)} • Override: ${levelToLabel(
-            identity?.overrideLevel ?? 0
-          )}`
-        )}
-      </div>
-    </div>
-
-    <div class="fourteen-ambassador-cabinet-section">
-      <div class="fourteen-ambassador-cabinet-section__title">Links</div>
-      <div class="fourteen-ambassador-cabinet-links">
         ${
           walletExplorerUrl
             ? `
@@ -1704,7 +1625,88 @@ function createDashboardStateMarkup(config, state, walletAddress) {
             : ''
         }
       </div>
+    `
+  );
+}
+
+function createAdvancedSection(state, walletAddress) {
+  const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
+  const identity = dashboard.identity ?? {};
+  const progress = dashboard.progress ?? {};
+  const rewards = dashboard.rewards ?? {};
+  const stats = dashboard.stats ?? {};
+
+  return createSection(
+    'Advanced details',
+    `
+      <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
+        ${createValueCard('Slug hash', identity?.slugHash || '—')}
+        ${createValueCard('Meta hash', identity?.metaHash || '—')}
+        ${createValueCard(
+          'Registration mode',
+          identity?.selfRegistered
+            ? 'Self-registered'
+            : identity?.manualAssigned
+              ? 'Manually assigned'
+              : state.isRegistered
+                ? 'Registered'
+                : '—'
+        )}
+        ${createValueCard(
+          'Override',
+          identity?.overrideEnabled ? 'Enabled' : 'Disabled',
+          `Current: ${levelToLabel(identity?.currentLevel ?? 0)} • Override: ${levelToLabel(
+            identity?.overrideLevel ?? 0
+          )}`
+        )}
+        ${createValueCard('Next threshold', String(progress?.nextThreshold ?? 0), 'Buyers needed for next milestone')}
+        ${createValueCard('Remaining', String(progress?.remainingToNextLevel ?? 0), 'Buyers left to next level')}
+        ${createValueCard('Lifetime rewards', `${rewards?.lifetimeTrx ?? '0'} TRX`, `${rewards?.lifetimeSun ?? '0'} SUN`)}
+        ${createValueCard('Withdrawn rewards', `${rewards?.withdrawnTrx ?? '0'} TRX`, `${rewards?.withdrawnSun ?? '0'} SUN`)}
+        ${createValueCard('Accrued total', `${stats?.totalRewardsAccruedTrx ?? '0'} TRX`, `${stats?.totalRewardsAccruedSun ?? '0'} SUN`)}
+        ${createValueCard('Tracked wallet', walletAddress || '—')}
+      </div>
+    `
+  );
+}
+
+function createLimitedDashboardStateMarkup(config, state, walletAddress) {
+  return `
+    ${createConnectedWalletSummary(walletAddress)}
+
+    <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
+      ${escapeHtml(buildWithdrawHint(state))}
     </div>
+
+    ${
+      state.dashboardWarning
+        ? `
+          <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--amber">
+            ${escapeHtml(state.dashboardWarning)}
+          </div>
+        `
+        : ''
+    }
+
+    ${createIdentitySection(config, state, walletAddress)}
+    ${createActionsSection(state, walletAddress, config)}
+    ${createAdvancedSection(state, walletAddress)}
+  `;
+}
+
+function createFullDashboardStateMarkup(config, state, walletAddress) {
+  return `
+    ${createConnectedWalletSummary(walletAddress)}
+
+    <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
+      ${escapeHtml(buildWithdrawHint(state))}
+    </div>
+
+    ${createIdentitySection(config, state, walletAddress)}
+    ${createRewardStatusSection(state)}
+    ${createPerformanceSection(state, walletAddress)}
+    ${createActionsSection(state, walletAddress, config)}
+    ${createAdvancedSection(state, walletAddress)}
   `;
 }
 
@@ -1728,8 +1730,10 @@ function createMarkup(config, state, walletAddress) {
         Checking ambassador profile...
       </div>
     `;
+  } else if (!state.dashboardAvailable) {
+    stateMarkup = createLimitedDashboardStateMarkup(config, state, walletAddress);
   } else {
-    stateMarkup = createDashboardStateMarkup(config, state, walletAddress);
+    stateMarkup = createFullDashboardStateMarkup(config, state, walletAddress);
   }
 
   return `
@@ -1746,8 +1750,14 @@ function createMarkup(config, state, walletAddress) {
               ${escapeHtml(config.subtitle)}
             </div>
           </div>
+        </div>
 
-          <div class="fourteen-ambassador-cabinet-hero__actions">
+        <div class="fourteen-ambassador-cabinet-topbar">
+          <div class="fourteen-ambassador-cabinet-wallet" data-role="wallet-label">
+            Wallet not connected
+          </div>
+
+          <div class="fourteen-ambassador-cabinet-topbar__actions">
             <div class="fourteen-ambassador-cabinet-info-toggle-wrap">
               <button
                 class="fourteen-ambassador-cabinet-info-toggle"
@@ -1773,12 +1783,6 @@ function createMarkup(config, state, walletAddress) {
             >
               ${state.isRefreshing ? 'Refreshing...' : escapeHtml(config.refreshText)}
             </button>
-          </div>
-        </div>
-
-        <div class="fourteen-ambassador-cabinet-topbar">
-          <div class="fourteen-ambassador-cabinet-wallet" data-role="wallet-label">
-            Wallet not connected
           </div>
         </div>
 
@@ -2240,6 +2244,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
     if (!isAlive()) return;
     unmountEmbeddedWalletButton();
     syncEmbeddedWalletUi();
+    closePopover();
   }
 
   function render() {
