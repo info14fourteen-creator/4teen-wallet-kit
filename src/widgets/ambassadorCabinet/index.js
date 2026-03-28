@@ -22,6 +22,10 @@ const DEFAULT_CONFIG = {
   processingText: 'Processing...',
   replayText: 'Process pending rewards',
   replayProcessingText: 'Processing pending rewards...',
+  copyLinkText: 'Copy referral link',
+  openLinkText: 'Open referral link',
+  walletExplorerText: 'Wallet on Tronscan',
+  withdrawExplorerText: 'Last withdrawal tx',
   profileEndpoint: '/cabinet/profile',
   walletLookupEndpoint: '/ambassador/by-wallet',
   replayPendingEndpoint: '/cabinet/replay-pending',
@@ -35,6 +39,14 @@ const DEFAULT_CONFIG = {
   infoTitle: 'What you can do inside this cabinet',
   infoContent:
     'This cabinet is your ambassador control panel. After connecting your wallet, it shows whether this wallet is already registered as an ambassador, your profile, tracked referral stats, reward state and withdrawal availability.\n\nIf rewards are already available, you can request withdrawal here. If part of rewards is still pending processing, the cabinet will show that state separately.\n\nIf this wallet is not registered yet, you can continue to the ambassador registration page.'
+};
+
+const DEFAULT_SECTION_STATE = {
+  actions: true,
+  identity: true,
+  rewards: true,
+  performance: false,
+  advanced: false
 };
 
 function escapeHtml(value) {
@@ -64,6 +76,20 @@ function shortenAddress(address) {
   if (!address || typeof address !== 'string') return '';
   if (address.length <= 12) return address;
   return `${address.slice(0, 6)}...${address.slice(-6)}`;
+}
+
+function shortenMiddle(value, start = 20, end = 12) {
+  const text = String(value || '').trim();
+
+  if (!text) {
+    return '';
+  }
+
+  if (text.length <= start + end + 3) {
+    return text;
+  }
+
+  return `${text.slice(0, start)}...${text.slice(-end)}`;
 }
 
 function isMobileViewport() {
@@ -268,16 +294,6 @@ async function readJson(response) {
   }
 }
 
-async function getConnectedWalletAddress(wallet) {
-  const address = getWalletAddressSafe(wallet);
-
-  if (!address) {
-    throw new Error('Wallet is not connected');
-  }
-
-  return assertNonEmpty(address, 'wallet');
-}
-
 async function getControllerContractInstance(wallet, controllerContractAddress) {
   const tronWeb = getActiveTronWeb(wallet);
 
@@ -327,6 +343,30 @@ async function replayPendingRewards(config, walletAddress) {
   }
 
   return payload?.result || payload || {};
+}
+
+async function copyText(value) {
+  const text = String(value || '').trim();
+
+  if (!text) {
+    throw new Error('Nothing to copy');
+  }
+
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  textarea.style.pointerEvents = 'none';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
 }
 
 function createEmptyDashboard(walletAddress = '') {
@@ -502,7 +542,7 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
       exists: true,
       active: profile?.status ? profile.status === 'active' : safeBoolean(identity.active),
       effectiveLevel: safeNumber(identity.level, 0),
-      currentLevel: safeNumber(identity.currentLevel, safeNumber(identity.level, 0)),
+      currentLevel: safeNumber(identity.level, 0),
       overrideLevel: safeNumber(identity.overrideLevel, 0),
       rewardPercent: safeNumber(identity.rewardPercent, 0),
       createdAt: safeNumber(identity.createdAt, 0),
@@ -535,7 +575,7 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
     },
     progress: {
       ...empty.progress,
-      currentLevel: safeNumber(progress.currentLevel, safeNumber(identity.currentLevel, safeNumber(identity.level, 0))),
+      currentLevel: safeNumber(progress.currentLevel, safeNumber(identity.level, 0)),
       buyersCount: safeNumber(progress.buyersCount, safeNumber(stats.totalBuyers, 0)),
       nextThreshold: safeNumber(progress.nextThreshold, 0),
       remainingToNextLevel: safeNumber(progress.remainingToNextLevel, 0)
@@ -621,39 +661,9 @@ function buildReferralLink(config, profile, identity) {
   return '—';
 }
 
-async function copyText(value) {
-  const text = String(value || '').trim();
-
-  if (!text) {
-    throw new Error('Nothing to copy');
-  }
-
-  if (navigator?.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.setAttribute('readonly', '');
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  textarea.style.pointerEvents = 'none';
-  document.body.appendChild(textarea);
-  textarea.select();
-  textarea.setSelectionRange(0, textarea.value.length);
-
-  const ok = document.execCommand('copy');
-  document.body.removeChild(textarea);
-
-  if (!ok) {
-    throw new Error('Copy failed');
-  }
-}
-
-function buildWithdrawButtonLabel(state) {
+function buildWithdrawButtonLabel(state, config) {
   if (state.isWithdrawing) {
-    return 'Processing withdrawal...';
+    return config.processingText || 'Processing withdrawal...';
   }
 
   if (state.hasProcessingWithdrawal || state.statusCards.hasRequestedForProcessing) {
@@ -665,7 +675,7 @@ function buildWithdrawButtonLabel(state) {
   }
 
   if (state.statusCards.hasAvailableOnChain) {
-    return 'Withdraw rewards';
+    return config.withdrawText || 'Withdraw rewards';
   }
 
   return 'No rewards available';
@@ -677,26 +687,6 @@ function buildReplayButtonLabel(config, state) {
   }
 
   return config.replayText || 'Process pending rewards';
-}
-
-function buildWithdrawHint(state) {
-  if (state.statusCards.hasRequestedForProcessing) {
-    return 'Your withdrawal request was created and is waiting for backend processing.';
-  }
-
-  if (state.statusCards.hasPendingBackendSync && state.statusCards.hasAvailableOnChain) {
-    return 'Part of rewards is already available, and part is still waiting for backend sync.';
-  }
-
-  if (state.statusCards.hasPendingBackendSync) {
-    return 'Rewards exist, but they are not yet fully available for withdrawal.';
-  }
-
-  if (state.statusCards.hasAvailableOnChain) {
-    return 'These rewards are already available for withdrawal.';
-  }
-
-  return 'No rewards are currently available.';
 }
 
 function buildStatusCards(withdrawalQueue) {
@@ -747,30 +737,6 @@ function createValueCard(label, value, hint = '') {
   `;
 }
 
-function createCopyValueCard(label, value, hint = '', copyValue = '') {
-  return `
-    <div class="fourteen-ambassador-cabinet-card">
-      <div class="fourteen-ambassador-cabinet-card__label">${escapeHtml(label)}</div>
-      <div class="fourteen-ambassador-cabinet-card__value">${escapeHtml(value)}</div>
-      ${hint ? `<div class="fourteen-ambassador-cabinet-card__hint">${escapeHtml(hint)}</div>` : ''}
-      ${
-        copyValue
-          ? `
-            <button
-              type="button"
-              class="fourteen-ambassador-cabinet-copy"
-              data-role="copy-button"
-              data-copy-value="${escapeHtml(copyValue)}"
-            >
-              Copy
-            </button>
-          `
-          : ''
-      }
-    </div>
-  `;
-}
-
 function createStatusCard(label, trxValue, sunValue, count, modifier) {
   return `
     <div class="fourteen-ambassador-cabinet-card fourteen-ambassador-cabinet-card--${escapeHtml(
@@ -786,20 +752,31 @@ function createStatusCard(label, trxValue, sunValue, count, modifier) {
   `;
 }
 
-function createSection(title, content) {
+function createAccordionSection(id, title, isOpen, content) {
   return `
-    <div class="fourteen-ambassador-cabinet-section">
-      <div class="fourteen-ambassador-cabinet-section__title">${escapeHtml(title)}</div>
-      ${content}
-    </div>
-  `;
-}
+    <section class="fourteen-ambassador-cabinet-section fourteen-ambassador-cabinet-section--accordion" data-section="${escapeHtml(
+      id
+    )}">
+      <button
+        type="button"
+        class="fourteen-ambassador-cabinet-section__toggle"
+        data-role="section-toggle"
+        data-section-id="${escapeHtml(id)}"
+        aria-expanded="${isOpen ? 'true' : 'false'}"
+      >
+        <span class="fourteen-ambassador-cabinet-section__toggle-left">
+          <span class="fourteen-ambassador-cabinet-section__icon">${isOpen ? '−' : '+'}</span>
+          <span class="fourteen-ambassador-cabinet-section__title">${escapeHtml(title)}</span>
+        </span>
+      </button>
 
-function createConnectedWalletSummary(walletAddress) {
-  return `
-    <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
-      Connected wallet: ${escapeHtml(walletAddress)}
-    </div>
+      <div
+        class="fourteen-ambassador-cabinet-section__content ${isOpen ? 'is-open' : ''}"
+        ${isOpen ? '' : 'hidden'}
+      >
+        ${content}
+      </div>
+    </section>
   `;
 }
 
@@ -821,7 +798,6 @@ function createRegistrationStateMarkup(config, walletAddress) {
   const useRedirect = String(config.registrationMode || 'redirect') === 'redirect';
 
   return `
-    ${createConnectedWalletSummary(walletAddress)}
     <div class="fourteen-ambassador-cabinet-empty">
       <div class="fourteen-ambassador-cabinet-empty__title">${escapeHtml(config.registerTitle)}</div>
       <div class="fourteen-ambassador-cabinet-empty__text">
@@ -840,13 +816,28 @@ function createRegistrationStateMarkup(config, walletAddress) {
               </a>
             </div>
           `
-          : createSection('Ambassador registration', '<div data-role="register-slot"></div>')
+          : createAccordionSection(
+              'register',
+              'Ambassador registration',
+              true,
+              '<div data-role="register-slot"></div>'
+            )
+      }
+
+      ${
+        walletAddress
+          ? `
+            <div class="fourteen-ambassador-cabinet-empty__hint">
+              Connected wallet: ${escapeHtml(shortenAddress(walletAddress))}
+            </div>
+          `
+          : ''
       }
     </div>
   `;
 }
 
-function createIdentitySection(config, state, walletAddress) {
+function createIdentityContent(config, state, walletAddress) {
   const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
   const identity = dashboard.identity ?? {};
   const profile = state.profile ?? null;
@@ -857,107 +848,95 @@ function createIdentitySection(config, state, walletAddress) {
     profile?.publicSlug ||
     '—';
   const referralLink = buildReferralLink(config, profile, identity);
-  const statusLabel =
-    profile?.status
-      ? profile.status.charAt(0).toUpperCase() + profile.status.slice(1)
-      : identity?.active
-        ? 'Active'
-        : 'Inactive';
 
-  return createSection(
-    'Identity',
-    `
-      <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
-        ${createValueCard('Wallet', shortenAddress(walletAddress || '—'), walletAddress || '—')}
-        ${createValueCard(
-          'Ambassador status',
-          statusLabel,
-          `Level: ${levelToLabel(identity?.effectiveLevel ?? identity?.currentLevel ?? 0)}`
-        )}
-        ${createValueCard('Slug', slugValue, 'Public ambassador handle')}
-        ${createCopyValueCard(
-          'Referral link',
-          referralLink,
-          slugValue !== '—' ? 'Public ambassador link' : 'Unavailable yet',
-          referralLink !== '—' ? referralLink : ''
-        )}
-      </div>
-    `
-  );
+  return `
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
+      ${createValueCard('Wallet', shortenAddress(walletAddress || '—'), walletAddress || '—')}
+      ${createValueCard(
+        'Ambassador status',
+        profile?.status
+          ? profile.status.charAt(0).toUpperCase() + profile.status.slice(1)
+          : identity?.active
+            ? 'Active'
+            : 'Inactive',
+        `Level: ${levelToLabel(identity?.effectiveLevel ?? identity?.currentLevel ?? 0)}`
+      )}
+      ${createValueCard('Slug', slugValue, 'Public ambassador handle')}
+      ${createValueCard(
+        'Referral link',
+        shortenMiddle(referralLink || '—', 24, 16),
+        referralLink && referralLink !== '—' ? 'Use copy or open in Actions' : 'Unavailable yet'
+      )}
+    </div>
+  `;
 }
 
-function createRewardStatusSection(state) {
-  return createSection(
-    'Reward status',
-    `
-      <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-        ${createStatusCard(
-          'Available now',
-          sunToTrxString(state.statusCards.availableOnChainSun),
-          state.statusCards.availableOnChainSun,
-          state.statusCards.availableOnChainCount,
-          'green'
-        )}
-        ${createStatusCard(
-          'Pending backend sync',
-          sunToTrxString(state.statusCards.pendingBackendSyncSun),
-          state.statusCards.pendingBackendSyncSun,
-          state.statusCards.pendingBackendSyncCount,
-          'amber'
-        )}
-        ${createStatusCard(
-          'Requested for processing',
-          sunToTrxString(state.statusCards.requestedForProcessingSun),
-          state.statusCards.requestedForProcessingSun,
-          state.statusCards.requestedForProcessingCount,
-          'blue'
-        )}
-      </div>
-    `
-  );
+function createRewardStatusContent(state) {
+  return `
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+      ${createStatusCard(
+        'Available now',
+        sunToTrxString(state.statusCards.availableOnChainSun),
+        state.statusCards.availableOnChainSun,
+        state.statusCards.availableOnChainCount,
+        'green'
+      )}
+      ${createStatusCard(
+        'Pending backend sync',
+        sunToTrxString(state.statusCards.pendingBackendSyncSun),
+        state.statusCards.pendingBackendSyncSun,
+        state.statusCards.pendingBackendSyncCount,
+        'amber'
+      )}
+      ${createStatusCard(
+        'Requested for processing',
+        sunToTrxString(state.statusCards.requestedForProcessingSun),
+        state.statusCards.requestedForProcessingSun,
+        state.statusCards.requestedForProcessingCount,
+        'blue'
+      )}
+    </div>
+  `;
 }
 
-function createPerformanceSection(state, walletAddress) {
+function createPerformanceContent(state, walletAddress) {
   const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
   const stats = dashboard.stats ?? {};
   const rewards = dashboard.rewards ?? {};
   const identity = dashboard.identity ?? {};
   const progress = dashboard.progress ?? {};
 
-  return createSection(
-    'Performance',
-    `
-      <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-        ${createValueCard('Total buyers', String(stats?.totalBuyers ?? 0))}
-        ${createValueCard(
-          'Tracked volume',
-          `${stats?.totalVolumeTrx ?? '0'} TRX`,
-          `${stats?.totalVolumeSun ?? '0'} SUN`
-        )}
-        ${createValueCard(
-          'Claimable rewards',
-          `${rewards?.availableTrx ?? '0'} TRX`,
-          `${rewards?.availableSun ?? '0'} SUN`
-        )}
-      </div>
-      <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-        ${createValueCard(
-          'Reward percent',
-          `${identity?.rewardPercent ?? 0}%`,
-          `Effective level: ${levelToLabel(identity?.effectiveLevel ?? 0)}`
-        )}
-        ${createValueCard(
-          'Current level',
-          levelToLabel(progress?.currentLevel ?? identity?.effectiveLevel ?? 0),
-          `Current buyers: ${progress?.buyersCount ?? stats?.totalBuyers ?? 0}`
-        )}
-        ${createValueCard('Created at', formatDate(identity?.createdAt ?? 0))}
-      </div>
-    `
-  );
+  return `
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+      ${createValueCard('Total buyers', String(stats?.totalBuyers ?? 0))}
+      ${createValueCard(
+        'Tracked volume',
+        `${stats?.totalVolumeTrx ?? '0'} TRX`,
+        `${stats?.totalVolumeSun ?? '0'} SUN`
+      )}
+      ${createValueCard(
+        'Claimable rewards',
+        `${rewards?.availableTrx ?? '0'} TRX`,
+        `${rewards?.availableSun ?? '0'} SUN`
+      )}
+    </div>
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+      ${createValueCard(
+        'Reward percent',
+        `${identity?.rewardPercent ?? 0}%`,
+        `Effective level: ${levelToLabel(identity?.effectiveLevel ?? 0)}`
+      )}
+      ${createValueCard(
+        'Current level',
+        levelToLabel(progress?.currentLevel ?? identity?.effectiveLevel ?? 0),
+        `Current buyers: ${progress?.buyersCount ?? stats?.totalBuyers ?? 0}`
+      )}
+      ${createValueCard('Created at', formatDate(identity?.createdAt ?? 0))}
+    </div>
+  `;
 }
 
-function createActionsSection(state, walletAddress, config) {
+function createActionsContent(state, walletAddress, config) {
   const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
   const profile = state.profile ?? null;
   const identity = dashboard.identity ?? {};
@@ -968,175 +947,203 @@ function createActionsSection(state, walletAddress, config) {
   const withdrawExplorerUrl = state.lastWithdrawTxid
     ? `https://tronscan.org/#/transaction/${state.lastWithdrawTxid}`
     : '';
-  const withdrawButtonLabel = buildWithdrawButtonLabel(state);
+  const withdrawButtonLabel = buildWithdrawButtonLabel(state, config);
   const replayButtonLabel = buildReplayButtonLabel(config, state);
-  const refreshButtonLabel = state.isRefreshing ? 'Refreshing...' : config.refreshText;
   const canReplayPending =
     state.statusCards.hasPendingBackendSync &&
     !state.isReplayingPending &&
     !state.isWithdrawing;
 
-  return createSection(
-    'Actions',
-    `
-      <div class="fourteen-ambassador-cabinet-links">
-        <button
-          type="button"
-          class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
-          data-role="refresh-button"
-          ${state.isRefreshing || state.isWithdrawing || state.isReplayingPending ? 'disabled aria-disabled="true"' : ''}
-        >
-          ${escapeHtml(refreshButtonLabel)}
-        </button>
+  const helperText = state.statusCards.hasAvailableOnChain
+    ? 'Rewards are available right now.'
+    : state.statusCards.hasPendingBackendSync
+      ? 'Some rewards still need backend processing.'
+      : state.statusCards.hasRequestedForProcessing
+        ? 'A withdrawal request is already in progress.'
+        : 'No rewards are currently available.';
 
-        <button
-          type="button"
-          class="fourteen-ambassador-cabinet-action"
-          data-role="withdraw-button"
-          ${
-            state.isWithdrawing ||
-            state.hasProcessingWithdrawal ||
-            state.statusCards.hasRequestedForProcessing ||
-            (!state.statusCards.hasAvailableOnChain && !state.statusCards.hasPendingBackendSync)
-              ? 'disabled aria-disabled="true"'
-              : ''
-          }
-        >
-          ${escapeHtml(withdrawButtonLabel)}
-        </button>
+  return `
+    <div class="fourteen-ambassador-cabinet-actions-helper">${escapeHtml(helperText)}</div>
 
-        <button
-          type="button"
-          class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
-          data-role="replay-button"
-          ${canReplayPending ? '' : 'disabled aria-disabled="true"'}
-        >
-          ${escapeHtml(replayButtonLabel)}
-        </button>
-
+    <div class="fourteen-ambassador-cabinet-links">
+      <button
+        type="button"
+        class="fourteen-ambassador-cabinet-action"
+        data-role="withdraw-button"
         ${
-          walletExplorerUrl
-            ? `
-              <a
-                class="fourteen-ambassador-cabinet-link"
-                href="${escapeHtml(walletExplorerUrl)}"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Wallet on Tronscan
-              </a>
-            `
+          state.isWithdrawing ||
+          state.hasProcessingWithdrawal ||
+          state.statusCards.hasRequestedForProcessing ||
+          (!state.statusCards.hasAvailableOnChain && !state.statusCards.hasPendingBackendSync)
+            ? 'disabled aria-disabled="true"'
             : ''
         }
+      >
+        ${escapeHtml(withdrawButtonLabel)}
+      </button>
 
-        ${
-          withdrawExplorerUrl
-            ? `
-              <a
-                class="fourteen-ambassador-cabinet-link"
-                href="${escapeHtml(withdrawExplorerUrl)}"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Last withdrawal tx
-              </a>
-            `
-            : ''
-        }
+      <button
+        type="button"
+        class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
+        data-role="replay-button"
+        ${canReplayPending ? '' : 'disabled aria-disabled="true"'}
+      >
+        ${escapeHtml(replayButtonLabel)}
+      </button>
 
+      <button
+        type="button"
+        class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
+        data-role="copy-referral-link"
         ${
           referralLink && referralLink !== '—'
-            ? `
-              <a
-                class="fourteen-ambassador-cabinet-link"
-                href="${escapeHtml(referralLink)}"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open referral link
-              </a>
-            `
-            : ''
+            ? ''
+            : 'disabled aria-disabled="true"'
         }
-      </div>
-    `
-  );
+      >
+        ${escapeHtml(config.copyLinkText)}
+      </button>
+
+      ${
+        referralLink && referralLink !== '—'
+          ? `
+            <a
+              class="fourteen-ambassador-cabinet-link"
+              href="${escapeHtml(referralLink)}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ${escapeHtml(config.openLinkText)}
+            </a>
+          `
+          : ''
+      }
+
+      ${
+        walletExplorerUrl
+          ? `
+            <a
+              class="fourteen-ambassador-cabinet-link"
+              href="${escapeHtml(walletExplorerUrl)}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ${escapeHtml(config.walletExplorerText)}
+            </a>
+          `
+          : ''
+      }
+
+      ${
+        withdrawExplorerUrl
+          ? `
+            <a
+              class="fourteen-ambassador-cabinet-link"
+              href="${escapeHtml(withdrawExplorerUrl)}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ${escapeHtml(config.withdrawExplorerText)}
+            </a>
+          `
+          : ''
+      }
+    </div>
+  `;
 }
 
-function createAdvancedSection(state, walletAddress) {
+function createAdvancedContent(state, walletAddress) {
   const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
   const identity = dashboard.identity ?? {};
   const progress = dashboard.progress ?? {};
   const rewards = dashboard.rewards ?? {};
   const stats = dashboard.stats ?? {};
 
-  return createSection(
-    'Advanced details',
-    `
-      <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
-        ${createCopyValueCard('Slug hash', identity?.slugHash || '—', '', identity?.slugHash && identity.slugHash !== '—' ? identity.slugHash : '')}
-        ${createCopyValueCard('Meta hash', identity?.metaHash || '—', '', identity?.metaHash && identity.metaHash !== '—' ? identity.metaHash : '')}
-        ${createValueCard(
-          'Registration mode',
-          identity?.selfRegistered
-            ? 'Self-registered'
-            : identity?.manualAssigned
-              ? 'Manually assigned'
-              : state.isRegistered
-                ? 'Registered'
-                : '—'
-        )}
-        ${createValueCard(
-          'Override',
-          identity?.overrideEnabled ? 'Enabled' : 'Disabled',
-          `Current: ${levelToLabel(identity?.currentLevel ?? 0)} • Override: ${levelToLabel(
-            identity?.overrideLevel ?? 0
-          )}`
-        )}
-        ${createValueCard(
-          'Next threshold',
-          String(progress?.nextThreshold ?? 0),
-          'Buyers needed for next milestone'
-        )}
-        ${createValueCard(
-          'Remaining',
-          String(progress?.remainingToNextLevel ?? 0),
-          'Buyers left to next level'
-        )}
-        ${createValueCard(
-          'Lifetime rewards',
-          `${rewards?.lifetimeTrx ?? '0'} TRX`,
-          `${rewards?.lifetimeSun ?? '0'} SUN`
-        )}
-        ${createValueCard(
-          'Withdrawn rewards',
-          `${rewards?.withdrawnTrx ?? '0'} TRX`,
-          `${rewards?.withdrawnSun ?? '0'} SUN`
-        )}
-        ${createValueCard(
-          'Accrued total',
-          `${stats?.totalRewardsAccruedTrx ?? '0'} TRX`,
-          `${stats?.totalRewardsAccruedSun ?? '0'} SUN`
-        )}
-        ${createValueCard('Tracked wallet', walletAddress || '—')}
-      </div>
-    `
-  );
+  return `
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
+      ${createValueCard('Slug hash', identity?.slugHash || '—')}
+      ${createValueCard('Meta hash', identity?.metaHash || '—')}
+      ${createValueCard(
+        'Registration mode',
+        identity?.selfRegistered
+          ? 'Self-registered'
+          : identity?.manualAssigned
+            ? 'Manually assigned'
+            : state.isRegistered
+              ? 'Registered'
+              : '—'
+      )}
+      ${createValueCard(
+        'Override',
+        identity?.overrideEnabled ? 'Enabled' : 'Disabled',
+        `Current: ${levelToLabel(identity?.currentLevel ?? 0)} • Override: ${levelToLabel(
+          identity?.overrideLevel ?? 0
+        )}`
+      )}
+      ${createValueCard(
+        'Next threshold',
+        String(progress?.nextThreshold ?? 0),
+        'Buyers needed for next milestone'
+      )}
+      ${createValueCard(
+        'Remaining',
+        String(progress?.remainingToNextLevel ?? 0),
+        'Buyers left to next level'
+      )}
+      ${createValueCard(
+        'Lifetime rewards',
+        `${rewards?.lifetimeTrx ?? '0'} TRX`,
+        `${rewards?.lifetimeSun ?? '0'} SUN`
+      )}
+      ${createValueCard(
+        'Withdrawn rewards',
+        `${rewards?.withdrawnTrx ?? '0'} TRX`,
+        `${rewards?.withdrawnSun ?? '0'} SUN`
+      )}
+      ${createValueCard(
+        'Accrued total',
+        `${stats?.totalRewardsAccruedTrx ?? '0'} TRX`,
+        `${stats?.totalRewardsAccruedSun ?? '0'} SUN`
+      )}
+      ${createValueCard('Tracked wallet', walletAddress || '—')}
+    </div>
+  `;
 }
 
 function createDashboardStateMarkup(config, state, walletAddress) {
   return `
-    ${createConnectedWalletSummary(walletAddress)}
-
-    <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
-      ${escapeHtml(buildWithdrawHint(state))}
+    <div class="fourteen-ambassador-cabinet-content">
+      ${createAccordionSection(
+        'actions',
+        'Actions',
+        state.sections.actions,
+        createActionsContent(state, walletAddress, config)
+      )}
+      ${createAccordionSection(
+        'identity',
+        'Identity',
+        state.sections.identity,
+        createIdentityContent(config, state, walletAddress)
+      )}
+      ${createAccordionSection(
+        'rewards',
+        'Reward status',
+        state.sections.rewards,
+        createRewardStatusContent(state)
+      )}
+      ${createAccordionSection(
+        'performance',
+        'Performance',
+        state.sections.performance,
+        createPerformanceContent(state, walletAddress)
+      )}
+      ${createAccordionSection(
+        'advanced',
+        'Advanced details',
+        state.sections.advanced,
+        createAdvancedContent(state, walletAddress)
+      )}
     </div>
-
-    ${createIdentitySection(config, state, walletAddress)}
-    ${createRewardStatusSection(state)}
-    ${createPerformanceSection(state, walletAddress)}
-    ${createActionsSection(state, walletAddress, config)}
-    ${createAdvancedSection(state, walletAddress)}
   `;
 }
 
@@ -1155,7 +1162,6 @@ function createMarkup(config, state, walletAddress) {
     stateMarkup = createRegistrationStateMarkup(config, walletAddress);
   } else if (!state.registrationKnown) {
     stateMarkup = `
-      ${createConnectedWalletSummary(walletAddress)}
       <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
         Checking ambassador profile...
       </div>
@@ -1167,15 +1173,18 @@ function createMarkup(config, state, walletAddress) {
   return `
     <div class="fourteen-ambassador-cabinet-widget">
       <div class="fourteen-ambassador-cabinet-shell">
-        <div class="fourteen-ambassador-cabinet-hero">
-          <div class="fourteen-ambassador-cabinet-hero__bg"></div>
+        <div class="fourteen-ambassador-cabinet-heading">
+          <div class="fourteen-ambassador-cabinet-heading__text">
+            <div class="fourteen-ambassador-cabinet-hero">
+              <div class="fourteen-ambassador-cabinet-hero__bg"></div>
 
-          <div class="fourteen-ambassador-cabinet-hero__text">
-            <div class="fourteen-ambassador-cabinet-hero__title">
-              4TEEN <span>Ambassador Cabinet</span>
-            </div>
-            <div class="fourteen-ambassador-cabinet-hero__subtitle">
-              ${escapeHtml(config.subtitle)}
+              <h2 class="fourteen-ambassador-cabinet-hero__title">
+                4TEEN <span>Ambassador Cabinet</span>
+              </h2>
+
+              <div class="fourteen-ambassador-cabinet-hero__subtitle">
+                ${escapeHtml(config.subtitle)}
+              </div>
             </div>
           </div>
 
@@ -1198,6 +1207,15 @@ function createMarkup(config, state, walletAddress) {
                 <div class="fourteen-ambassador-cabinet-popover__text">${escapeHtml(config.infoContent).replaceAll('\n', '<br><br>')}</div>
               </div>
             </div>
+
+            <button
+              type="button"
+              class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary fourteen-ambassador-cabinet-action--top-refresh"
+              data-role="refresh-button"
+              ${state.isRefreshing || state.isWithdrawing || state.isReplayingPending ? 'disabled aria-disabled="true"' : ''}
+            >
+              ${state.isRefreshing ? 'Refreshing...' : escapeHtml(config.refreshText)}
+            </button>
           </div>
         </div>
 
@@ -1267,7 +1285,10 @@ export function mountAmbassadorCabinet(target, config = {}) {
     dashboard: createEmptyDashboard(''),
     profile: null,
     statusCards: buildStatusCards(null),
-    lastWithdrawTxid: null
+    lastWithdrawTxid: null,
+    sections: {
+      ...DEFAULT_SECTION_STATE
+    }
   };
 
   let isDestroyed = false;
@@ -1639,27 +1660,42 @@ export function mountAmbassadorCabinet(target, config = {}) {
     }
   }
 
-  async function handleCopyClick(button) {
-    const value = String(button?.dataset?.copyValue || '').trim();
+  async function handleCopyReferralLink() {
+    const walletAddress = getWalletAddressSafe(wallet) || '';
+    const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
+    const identity = dashboard.identity ?? {};
+    const referralLink = buildReferralLink(resolvedConfig, state.profile, identity);
 
-    if (!value) {
+    if (!referralLink || referralLink === '—') {
+      showNeutralNotice('Referral link is not available yet.', 5000);
       return;
     }
 
     try {
-      await copyText(value);
-      showSuccessNotice('Copied.', 4000);
+      await copyText(referralLink);
+      showSuccessNotice('Referral link copied.', 5000);
     } catch (error) {
-      showErrorNotice(normalizeError(error), 6000);
+      const message = normalizeError(error);
+      showErrorNotice(message, 7000);
     }
+  }
+
+  function toggleSection(sectionId) {
+    if (!sectionId || !(sectionId in state.sections)) {
+      return;
+    }
+
+    state.sections[sectionId] = !state.sections[sectionId];
+    render();
   }
 
   function bindEvents() {
     const refreshButton = root.querySelector('[data-role="refresh-button"]');
     const withdrawButton = root.querySelector('[data-role="withdraw-button"]');
     const replayButton = root.querySelector('[data-role="replay-button"]');
+    const copyReferralLinkButton = root.querySelector('[data-role="copy-referral-link"]');
     const infoToggleEl = root.querySelector('[data-role="info-toggle"]');
-    const copyButtons = Array.from(root.querySelectorAll('[data-role="copy-button"]'));
+    const sectionToggles = root.querySelectorAll('[data-role="section-toggle"]');
 
     refreshButton?.addEventListener('click', () => {
       refresh('refresh', { force: true }).catch((error) => {
@@ -1679,15 +1715,19 @@ export function mountAmbassadorCabinet(target, config = {}) {
       });
     });
 
-    copyButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        handleCopyClick(button).catch((error) => {
-          console.error('Ambassador cabinet copy failed:', error);
-        });
+    copyReferralLinkButton?.addEventListener('click', () => {
+      handleCopyReferralLink().catch((error) => {
+        console.error('Ambassador cabinet copy referral link failed:', error);
       });
     });
 
     infoToggleEl?.addEventListener('click', togglePopover);
+
+    sectionToggles.forEach((toggle) => {
+      toggle.addEventListener('click', () => {
+        toggleSection(toggle.getAttribute('data-section-id'));
+      });
+    });
   }
 
   function mountRegisterWidgetIfNeeded() {
