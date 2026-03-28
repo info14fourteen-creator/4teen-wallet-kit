@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-28T11:53:13.080Z
+Generated: 2026-03-28T11:56:01.057Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -77,7 +77,7 @@ Branch: main
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
   margin-bottom: 12px;
 }
 
@@ -107,6 +107,15 @@ Branch: main
   z-index: 0;
 }
 
+.fourteen-ambassador-cabinet-hero__text {
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .fourteen-ambassador-cabinet-hero__title {
   position: relative;
   z-index: 1;
@@ -132,8 +141,33 @@ Branch: main
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.7);
-  max-width: 860px;
   line-height: 1.45;
+  max-width: 860px;
+}
+
+.fourteen-ambassador-cabinet-hero__actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 3;
+}
+
+.fourteen-ambassador-cabinet-badge {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 105, 0, 0.22);
+  background: rgba(255, 105, 0, 0.08);
+  color: var(--fourteen-cabinet-accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 /* -------------------------------------------------------
@@ -175,7 +209,7 @@ Branch: main
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  width: min(360px, calc(100vw - 32px));
+  width: min(420px, 92vw);
   max-width: calc(100vw - 32px);
   padding: 14px;
   border-radius: 14px;
@@ -202,9 +236,9 @@ Branch: main
 
 .fourteen-ambassador-cabinet-action {
   appearance: none;
-  border: 0;
+  border: 1px solid rgba(255, 105, 0, 0.34);
   outline: 0;
-  border-radius: 999px;
+  border-radius: 14px;
   min-height: 42px;
   padding: 0 18px;
   display: inline-flex;
@@ -217,9 +251,10 @@ Branch: main
     rgba(255, 105, 0, 0.96) 100%
   );
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(255, 105, 0, 0.22);
   transition:
@@ -254,6 +289,8 @@ Branch: main
   box-shadow: none;
   font-size: 12px;
   font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: none;
 }
 
 .fourteen-ambassador-cabinet-action--secondary:hover {
@@ -342,12 +379,6 @@ Branch: main
   background: rgba(255, 48, 73, 0.08);
 }
 
-.fourteen-ambassador-cabinet-banner--amber {
-  color: #ffe0a8;
-  border-color: rgba(255, 184, 0, 0.22);
-  background: rgba(255, 184, 0, 0.08);
-}
-
 .fourteen-ambassador-cabinet-empty {
   margin-bottom: 18px;
   padding: 18px;
@@ -414,24 +445,18 @@ Branch: main
 }
 
 .fourteen-ambassador-cabinet-card--green {
-  border-color: rgba(26, 224, 58, 0.22);
-  background:
-    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
-    var(--fourteen-cabinet-green-soft);
+  border-color: rgba(26, 224, 58, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 0 0 1px rgba(26, 224, 58, 0.06);
 }
 
 .fourteen-ambassador-cabinet-card--amber {
-  border-color: rgba(255, 184, 0, 0.22);
-  background:
-    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
-    var(--fourteen-cabinet-amber-soft);
+  border-color: rgba(255, 184, 0, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 0 0 1px rgba(255, 184, 0, 0.05);
 }
 
 .fourteen-ambassador-cabinet-card--blue {
-  border-color: rgba(84, 170, 255, 0.22);
-  background:
-    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
-    var(--fourteen-cabinet-blue-soft);
+  border-color: rgba(84, 170, 255, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 0 0 1px rgba(84, 170, 255, 0.05);
 }
 
 .fourteen-ambassador-cabinet-card__label {
@@ -550,6 +575,10 @@ Branch: main
 }
 
 @media (max-width: 860px) {
+  .fourteen-ambassador-cabinet-hero__title {
+    font-size: 36px;
+  }
+
   .fourteen-ambassador-cabinet-popover {
     right: 0;
     left: auto;
@@ -560,6 +589,10 @@ Branch: main
   .fourteen-ambassador-cabinet-heading {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .fourteen-ambassador-cabinet-hero__actions {
+    justify-content: space-between;
   }
 
   .fourteen-ambassador-cabinet-topbar__actions {
@@ -634,6 +667,10 @@ Branch: main
     font-size: 11px;
   }
 
+  .fourteen-ambassador-cabinet-hero__actions {
+    gap: 8px;
+  }
+
   .fourteen-ambassador-cabinet-hero__bg {
     left: -10px;
     top: -14px;
@@ -644,7 +681,7 @@ Branch: main
   .fourteen-ambassador-cabinet-popover {
     right: auto;
     left: 0;
-    width: min(300px, calc(100vw - 28px));
+    width: min(320px, 94vw);
     max-width: calc(100vw - 28px);
   }
 
