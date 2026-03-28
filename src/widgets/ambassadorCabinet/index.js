@@ -22,8 +22,6 @@ const DEFAULT_CONFIG = {
   processingText: 'Processing...',
   replayText: 'Process pending rewards',
   replayProcessingText: 'Processing pending rewards...',
-  copyReferralText: 'Copy referral link',
-  copyReferralSuccessText: 'Referral link copied.',
   profileEndpoint: '/cabinet/profile',
   walletLookupEndpoint: '/ambassador/by-wallet',
   replayPendingEndpoint: '/cabinet/replay-pending',
@@ -36,7 +34,7 @@ const DEFAULT_CONFIG = {
     'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, continue to registration.',
   infoTitle: 'What you can do inside this cabinet',
   infoContent:
-    'This cabinet is your ambassador control panel. After connecting your wallet, it shows whether this wallet is already registered as an ambassador, your profile, tracked referral stats, reward state and withdrawal availability.\n\nIf rewards are already available, you can request withdrawal here. If part of rewards is still pending processing, the cabinet will show that state separately.\n\nIf rewards were not fully allocated earlier because of temporary resource limits, you can process pending rewards here.\n\nIf this wallet is not registered yet, you can continue to the ambassador registration page.'
+    'This cabinet is your ambassador control panel. After connecting your wallet, it shows whether this wallet is already registered as an ambassador, your profile, tracked referral stats, reward state and withdrawal availability.\n\nIf rewards are already available, you can request withdrawal here. If part of rewards is still pending processing, the cabinet will show that state separately.\n\nIf this wallet is not registered yet, you can continue to the ambassador registration page.'
 };
 
 function escapeHtml(value) {
@@ -270,6 +268,16 @@ async function readJson(response) {
   }
 }
 
+async function getConnectedWalletAddress(wallet) {
+  const address = getWalletAddressSafe(wallet);
+
+  if (!address) {
+    throw new Error('Wallet is not connected');
+  }
+
+  return assertNonEmpty(address, 'wallet');
+}
+
 async function getControllerContractInstance(wallet, controllerContractAddress) {
   const tronWeb = getActiveTronWeb(wallet);
 
@@ -319,31 +327,6 @@ async function replayPendingRewards(config, walletAddress) {
   }
 
   return payload?.result || payload || {};
-}
-
-async function copyToClipboard(value) {
-  const text = String(value || '').trim();
-
-  if (!text) {
-    throw new Error('Nothing to copy');
-  }
-
-  if (navigator?.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return true;
-  }
-
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.setAttribute('readonly', '');
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  textarea.style.pointerEvents = 'none';
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand('copy');
-  document.body.removeChild(textarea);
-  return true;
 }
 
 function createEmptyDashboard(walletAddress = '') {
@@ -552,7 +535,7 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
     },
     progress: {
       ...empty.progress,
-      currentLevel: safeNumber(progress.currentLevel, safeNumber(identity.level, 0)),
+      currentLevel: safeNumber(progress.currentLevel, safeNumber(identity.currentLevel, safeNumber(identity.level, 0))),
       buyersCount: safeNumber(progress.buyersCount, safeNumber(stats.totalBuyers, 0)),
       nextThreshold: safeNumber(progress.nextThreshold, 0),
       remainingToNextLevel: safeNumber(progress.remainingToNextLevel, 0)
@@ -636,6 +619,36 @@ function buildReferralLink(config, profile, identity) {
   }
 
   return '—';
+}
+
+async function copyText(value) {
+  const text = String(value || '').trim();
+
+  if (!text) {
+    throw new Error('Nothing to copy');
+  }
+
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  textarea.style.pointerEvents = 'none';
+  document.body.appendChild(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  const ok = document.execCommand('copy');
+  document.body.removeChild(textarea);
+
+  if (!ok) {
+    throw new Error('Copy failed');
+  }
 }
 
 function buildWithdrawButtonLabel(state) {
@@ -730,6 +743,30 @@ function createValueCard(label, value, hint = '') {
       <div class="fourteen-ambassador-cabinet-card__label">${escapeHtml(label)}</div>
       <div class="fourteen-ambassador-cabinet-card__value">${escapeHtml(value)}</div>
       ${hint ? `<div class="fourteen-ambassador-cabinet-card__hint">${escapeHtml(hint)}</div>` : ''}
+    </div>
+  `;
+}
+
+function createCopyValueCard(label, value, hint = '', copyValue = '') {
+  return `
+    <div class="fourteen-ambassador-cabinet-card">
+      <div class="fourteen-ambassador-cabinet-card__label">${escapeHtml(label)}</div>
+      <div class="fourteen-ambassador-cabinet-card__value">${escapeHtml(value)}</div>
+      ${hint ? `<div class="fourteen-ambassador-cabinet-card__hint">${escapeHtml(hint)}</div>` : ''}
+      ${
+        copyValue
+          ? `
+            <button
+              type="button"
+              class="fourteen-ambassador-cabinet-copy"
+              data-role="copy-button"
+              data-copy-value="${escapeHtml(copyValue)}"
+            >
+              Copy
+            </button>
+          `
+          : ''
+      }
     </div>
   `;
 }
@@ -838,10 +875,11 @@ function createIdentitySection(config, state, walletAddress) {
           `Level: ${levelToLabel(identity?.effectiveLevel ?? identity?.currentLevel ?? 0)}`
         )}
         ${createValueCard('Slug', slugValue, 'Public ambassador handle')}
-        ${createValueCard(
+        ${createCopyValueCard(
           'Referral link',
           referralLink,
-          slugValue !== '—' ? 'Public ambassador link' : 'Unavailable yet'
+          slugValue !== '—' ? 'Public ambassador link' : 'Unavailable yet',
+          referralLink !== '—' ? referralLink : ''
         )}
       </div>
     `
@@ -932,6 +970,7 @@ function createActionsSection(state, walletAddress, config) {
     : '';
   const withdrawButtonLabel = buildWithdrawButtonLabel(state);
   const replayButtonLabel = buildReplayButtonLabel(config, state);
+  const refreshButtonLabel = state.isRefreshing ? 'Refreshing...' : config.refreshText;
   const canReplayPending =
     state.statusCards.hasPendingBackendSync &&
     !state.isReplayingPending &&
@@ -941,6 +980,15 @@ function createActionsSection(state, walletAddress, config) {
     'Actions',
     `
       <div class="fourteen-ambassador-cabinet-links">
+        <button
+          type="button"
+          class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
+          data-role="refresh-button"
+          ${state.isRefreshing || state.isWithdrawing || state.isReplayingPending ? 'disabled aria-disabled="true"' : ''}
+        >
+          ${escapeHtml(refreshButtonLabel)}
+        </button>
+
         <button
           type="button"
           class="fourteen-ambassador-cabinet-action"
@@ -965,20 +1013,6 @@ function createActionsSection(state, walletAddress, config) {
         >
           ${escapeHtml(replayButtonLabel)}
         </button>
-
-        ${
-          referralLink && referralLink !== '—'
-            ? `
-              <button
-                type="button"
-                class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
-                data-role="copy-referral-button"
-              >
-                ${escapeHtml(config.copyReferralText)}
-              </button>
-            `
-            : ''
-        }
 
         ${
           walletExplorerUrl
@@ -1040,8 +1074,8 @@ function createAdvancedSection(state, walletAddress) {
     'Advanced details',
     `
       <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
-        ${createValueCard('Slug hash', identity?.slugHash || '—')}
-        ${createValueCard('Meta hash', identity?.metaHash || '—')}
+        ${createCopyValueCard('Slug hash', identity?.slugHash || '—', '', identity?.slugHash && identity.slugHash !== '—' ? identity.slugHash : '')}
+        ${createCopyValueCard('Meta hash', identity?.metaHash || '—', '', identity?.metaHash && identity.metaHash !== '—' ? identity.metaHash : '')}
         ${createValueCard(
           'Registration mode',
           identity?.selfRegistered
@@ -1133,52 +1167,36 @@ function createMarkup(config, state, walletAddress) {
   return `
     <div class="fourteen-ambassador-cabinet-widget">
       <div class="fourteen-ambassador-cabinet-shell">
-        <div class="fourteen-ambassador-cabinet-heading">
-          <div class="fourteen-ambassador-cabinet-heading__text">
-            <div class="fourteen-ambassador-cabinet-hero">
-              <div class="fourteen-ambassador-cabinet-hero__bg"></div>
+        <div class="fourteen-ambassador-cabinet-hero">
+          <div class="fourteen-ambassador-cabinet-hero__bg"></div>
 
-              <div class="fourteen-ambassador-cabinet-hero__text">
-                <h2 class="fourteen-ambassador-cabinet-hero__title">
-                  4TEEN <span>Ambassador Cabinet</span>
-                </h2>
-
-                <div class="fourteen-ambassador-cabinet-hero__subtitle">
-                  ${escapeHtml(config.subtitle)}
-                </div>
-              </div>
+          <div class="fourteen-ambassador-cabinet-hero__text">
+            <div class="fourteen-ambassador-cabinet-hero__title">
+              4TEEN <span>Ambassador Cabinet</span>
+            </div>
+            <div class="fourteen-ambassador-cabinet-hero__subtitle">
+              ${escapeHtml(config.subtitle)}
             </div>
           </div>
 
           <div class="fourteen-ambassador-cabinet-hero__actions">
             <div class="fourteen-ambassador-cabinet-badge">Ambassador</div>
 
-            <div class="fourteen-ambassador-cabinet-topbar__actions">
-              <div class="fourteen-ambassador-cabinet-info-toggle-wrap">
-                <button
-                  class="fourteen-ambassador-cabinet-info-toggle"
-                  type="button"
-                  aria-label="Cabinet info"
-                  aria-expanded="false"
-                  data-role="info-toggle"
-                >
-                  i
-                </button>
-
-                <div class="fourteen-ambassador-cabinet-popover" data-role="info-popover" hidden>
-                  <div class="fourteen-ambassador-cabinet-popover__title">${escapeHtml(config.infoTitle)}</div>
-                  <div class="fourteen-ambassador-cabinet-popover__text">${escapeHtml(config.infoContent).replaceAll('\n', '<br><br>')}</div>
-                </div>
-              </div>
-
+            <div class="fourteen-ambassador-cabinet-info-toggle-wrap">
               <button
+                class="fourteen-ambassador-cabinet-info-toggle"
                 type="button"
-                class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
-                data-role="refresh-button"
-                ${state.isRefreshing || state.isWithdrawing || state.isReplayingPending ? 'disabled aria-disabled="true"' : ''}
+                aria-label="Cabinet info"
+                aria-expanded="false"
+                data-role="info-toggle"
               >
-                ${state.isRefreshing ? 'Refreshing...' : escapeHtml(config.refreshText)}
+                i
               </button>
+
+              <div class="fourteen-ambassador-cabinet-popover" data-role="info-popover" hidden>
+                <div class="fourteen-ambassador-cabinet-popover__title">${escapeHtml(config.infoTitle)}</div>
+                <div class="fourteen-ambassador-cabinet-popover__text">${escapeHtml(config.infoContent).replaceAll('\n', '<br><br>')}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -1621,21 +1639,18 @@ export function mountAmbassadorCabinet(target, config = {}) {
     }
   }
 
-  async function handleCopyReferral() {
-    const dashboard = state.dashboard || createEmptyDashboard('');
-    const referralLink = buildReferralLink(resolvedConfig, state.profile, dashboard.identity);
+  async function handleCopyClick(button) {
+    const value = String(button?.dataset?.copyValue || '').trim();
 
-    if (!referralLink || referralLink === '—') {
-      showNeutralNotice('Referral link is not available yet.', 5000);
+    if (!value) {
       return;
     }
 
     try {
-      await copyToClipboard(referralLink);
-      showSuccessNotice(resolvedConfig.copyReferralSuccessText, 5000);
+      await copyText(value);
+      showSuccessNotice('Copied.', 4000);
     } catch (error) {
-      const message = normalizeError(error);
-      showErrorNotice(message, 7000);
+      showErrorNotice(normalizeError(error), 6000);
     }
   }
 
@@ -1643,8 +1658,8 @@ export function mountAmbassadorCabinet(target, config = {}) {
     const refreshButton = root.querySelector('[data-role="refresh-button"]');
     const withdrawButton = root.querySelector('[data-role="withdraw-button"]');
     const replayButton = root.querySelector('[data-role="replay-button"]');
-    const copyReferralButton = root.querySelector('[data-role="copy-referral-button"]');
     const infoToggleEl = root.querySelector('[data-role="info-toggle"]');
+    const copyButtons = Array.from(root.querySelectorAll('[data-role="copy-button"]'));
 
     refreshButton?.addEventListener('click', () => {
       refresh('refresh', { force: true }).catch((error) => {
@@ -1664,9 +1679,11 @@ export function mountAmbassadorCabinet(target, config = {}) {
       });
     });
 
-    copyReferralButton?.addEventListener('click', () => {
-      handleCopyReferral().catch((error) => {
-        console.error('Ambassador cabinet copy referral failed:', error);
+    copyButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        handleCopyClick(button).catch((error) => {
+          console.error('Ambassador cabinet copy failed:', error);
+        });
       });
     });
 
