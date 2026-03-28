@@ -38,25 +38,13 @@
   box-shadow: none;
 }
 
-/* -------------------------------------------------------
-   HEADER / HERO
-------------------------------------------------------- */
-
-.fourteen-ambassador-cabinet-heading {
+.fourteen-ambassador-cabinet-hero {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 12px;
-}
-
-.fourteen-ambassador-cabinet-heading__text {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.fourteen-ambassador-cabinet-hero {
-  position: relative;
   padding: 14px 0 12px 0;
   overflow: visible;
 }
@@ -110,8 +98,8 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.7);
-  line-height: 1.45;
   max-width: 860px;
+  line-height: 1.45;
 }
 
 .fourteen-ambassador-cabinet-hero__actions {
@@ -138,10 +126,6 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-
-/* -------------------------------------------------------
-   ACTIONS / INFO
-------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-info-toggle-wrap {
   position: relative;
@@ -178,7 +162,7 @@
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  width: min(420px, 92vw);
+  width: min(360px, calc(100vw - 32px));
   max-width: calc(100vw - 32px);
   padding: 14px;
   border-radius: 14px;
@@ -205,9 +189,9 @@
 
 .fourteen-ambassador-cabinet-action {
   appearance: none;
-  border: 1px solid rgba(255, 105, 0, 0.34);
+  border: 0;
   outline: 0;
-  border-radius: 14px;
+  border-radius: 999px;
   min-height: 42px;
   padding: 0 18px;
   display: inline-flex;
@@ -220,10 +204,9 @@
     rgba(255, 105, 0, 0.96) 100%
   );
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.03em;
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(255, 105, 0, 0.22);
   transition:
@@ -258,18 +241,12 @@
   box-shadow: none;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: none;
 }
 
 .fourteen-ambassador-cabinet-action--secondary:hover {
   background: rgba(255, 255, 255, 0.08);
   box-shadow: none;
 }
-
-/* -------------------------------------------------------
-   TOPBAR / CONNECT
-------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-topbar {
   display: flex;
@@ -284,14 +261,6 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--fourteen-cabinet-text-soft);
-}
-
-.fourteen-ambassador-cabinet-topbar__actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex: 0 0 auto;
 }
 
 .fourteen-ambassador-cabinet-connect-slot {
@@ -324,10 +293,6 @@
   text-align: center;
 }
 
-/* -------------------------------------------------------
-   BANNERS / EMPTY STATES
-------------------------------------------------------- */
-
 .fourteen-ambassador-cabinet-banner {
   margin-bottom: 14px;
   padding: 14px 16px;
@@ -346,6 +311,12 @@
   color: #ffd4db;
   border-color: rgba(255, 48, 73, 0.24);
   background: rgba(255, 48, 73, 0.08);
+}
+
+.fourteen-ambassador-cabinet-banner--amber {
+  color: #ffe0a8;
+  border-color: rgba(255, 184, 0, 0.22);
+  background: rgba(255, 184, 0, 0.08);
 }
 
 .fourteen-ambassador-cabinet-empty {
@@ -372,10 +343,6 @@
   line-height: 1.55;
   color: var(--fourteen-cabinet-text-soft);
 }
-
-/* -------------------------------------------------------
-   GRID / CARDS
-------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-grid {
   display: grid;
@@ -409,23 +376,29 @@
     rgba(20, 20, 20, 0.98) 0%,
     rgba(15, 15, 15, 0.98) 100%
   );
-  padding: 15px 16px;
+  padding: 15px 16px 56px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .fourteen-ambassador-cabinet-card--green {
-  border-color: rgba(26, 224, 58, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 0 0 1px rgba(26, 224, 58, 0.06);
+  border-color: rgba(26, 224, 58, 0.22);
+  background:
+    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
+    var(--fourteen-cabinet-green-soft);
 }
 
 .fourteen-ambassador-cabinet-card--amber {
-  border-color: rgba(255, 184, 0, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 0 0 1px rgba(255, 184, 0, 0.05);
+  border-color: rgba(255, 184, 0, 0.22);
+  background:
+    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
+    var(--fourteen-cabinet-amber-soft);
 }
 
 .fourteen-ambassador-cabinet-card--blue {
-  border-color: rgba(84, 170, 255, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 0 0 1px rgba(84, 170, 255, 0.05);
+  border-color: rgba(84, 170, 255, 0.22);
+  background:
+    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
+    var(--fourteen-cabinet-blue-soft);
 }
 
 .fourteen-ambassador-cabinet-card__label {
@@ -453,9 +426,33 @@
   word-break: break-word;
 }
 
-/* -------------------------------------------------------
-   SECTIONS / LINKS
-------------------------------------------------------- */
+.fourteen-ambassador-cabinet-copy {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 105, 0, 0.22);
+  background: rgba(255, 105, 0, 0.08);
+  color: var(--fourteen-cabinet-accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.fourteen-ambassador-cabinet-copy:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 105, 0, 0.14);
+  border-color: rgba(255, 105, 0, 0.34);
+  color: #fff;
+}
 
 .fourteen-ambassador-cabinet-section {
   margin-bottom: 14px;
@@ -511,7 +508,8 @@
 
 .fourteen-ambassador-cabinet-link:focus-visible,
 .fourteen-ambassador-cabinet-action:focus-visible,
-.fourteen-ambassador-cabinet-info-toggle:focus-visible {
+.fourteen-ambassador-cabinet-info-toggle:focus-visible,
+.fourteen-ambassador-cabinet-copy:focus-visible {
   outline: 2px solid rgba(255, 105, 0, 0.5);
   outline-offset: 2px;
 }
@@ -529,10 +527,6 @@
   max-width: 100%;
 }
 
-/* -------------------------------------------------------
-   RESPONSIVE
-------------------------------------------------------- */
-
 @media (max-width: 1100px) {
   .fourteen-ambassador-cabinet-grid--four {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -544,10 +538,6 @@
 }
 
 @media (max-width: 860px) {
-  .fourteen-ambassador-cabinet-hero__title {
-    font-size: 36px;
-  }
-
   .fourteen-ambassador-cabinet-popover {
     right: 0;
     left: auto;
@@ -555,16 +545,12 @@
 }
 
 @media (max-width: 720px) {
-  .fourteen-ambassador-cabinet-heading {
+  .fourteen-ambassador-cabinet-hero {
     flex-direction: column;
     align-items: stretch;
   }
 
   .fourteen-ambassador-cabinet-hero__actions {
-    justify-content: space-between;
-  }
-
-  .fourteen-ambassador-cabinet-topbar__actions {
     justify-content: flex-start;
   }
 
@@ -579,11 +565,16 @@
   }
 
   .fourteen-ambassador-cabinet-card {
-    padding: 14px;
+    padding: 14px 14px 54px;
   }
 
   .fourteen-ambassador-cabinet-card__value {
     font-size: 20px;
+  }
+
+  .fourteen-ambassador-cabinet-copy {
+    left: 14px;
+    bottom: 14px;
   }
 }
 
@@ -591,15 +582,6 @@
   .fourteen-ambassador-cabinet-topbar {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .fourteen-ambassador-cabinet-topbar__actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .fourteen-ambassador-cabinet-action--secondary {
-    flex: 1 1 auto;
   }
 
   .fourteen-ambassador-cabinet-connect-slot__desktop {
@@ -636,10 +618,6 @@
     font-size: 11px;
   }
 
-  .fourteen-ambassador-cabinet-hero__actions {
-    gap: 8px;
-  }
-
   .fourteen-ambassador-cabinet-hero__bg {
     left: -10px;
     top: -14px;
@@ -650,7 +628,7 @@
   .fourteen-ambassador-cabinet-popover {
     right: auto;
     left: 0;
-    width: min(320px, 94vw);
+    width: min(300px, calc(100vw - 28px));
     max-width: calc(100vw - 28px);
   }
 
