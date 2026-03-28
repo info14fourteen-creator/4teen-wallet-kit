@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-27T23:36:27.348Z
+Generated: 2026-03-28T11:53:13.080Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -699,6 +699,8 @@ const DEFAULT_CONFIG = {
   processingText: 'Processing...',
   replayText: 'Process pending rewards',
   replayProcessingText: 'Processing pending rewards...',
+  copyReferralText: 'Copy referral link',
+  copyReferralSuccessText: 'Referral link copied.',
   profileEndpoint: '/cabinet/profile',
   walletLookupEndpoint: '/ambassador/by-wallet',
   replayPendingEndpoint: '/cabinet/replay-pending',
@@ -711,7 +713,7 @@ const DEFAULT_CONFIG = {
     'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, continue to registration.',
   infoTitle: 'What you can do inside this cabinet',
   infoContent:
-    'This cabinet is your ambassador control panel. After connecting your wallet, it shows whether this wallet is already registered as an ambassador, your profile, tracked referral stats, reward state and withdrawal availability.\n\nIf rewards are already available, you can request withdrawal here. If part of rewards is still pending processing, the cabinet will show that state separately.\n\nIf this wallet is not registered yet, you can continue to the ambassador registration page.'
+    'This cabinet is your ambassador control panel. After connecting your wallet, it shows whether this wallet is already registered as an ambassador, your profile, tracked referral stats, reward state and withdrawal availability.\n\nIf rewards are already available, you can request withdrawal here. If part of rewards is still pending processing, the cabinet will show that state separately.\n\nIf rewards were not fully allocated earlier because of temporary resource limits, you can process pending rewards here.\n\nIf this wallet is not registered yet, you can continue to the ambassador registration page.'
 };
 
 function escapeHtml(value) {
@@ -945,16 +947,6 @@ async function readJson(response) {
   }
 }
 
-async function getConnectedWalletAddress(wallet) {
-  const address = getWalletAddressSafe(wallet);
-
-  if (!address) {
-    throw new Error('Wallet is not connected');
-  }
-
-  return assertNonEmpty(address, 'wallet');
-}
-
 async function getControllerContractInstance(wallet, controllerContractAddress) {
   const tronWeb = getActiveTronWeb(wallet);
 
@@ -1004,6 +996,31 @@ async function replayPendingRewards(config, walletAddress) {
   }
 
   return payload?.result || payload || {};
+}
+
+async function copyToClipboard(value) {
+  const text = String(value || '').trim();
+
+  if (!text) {
+    throw new Error('Nothing to copy');
+  }
+
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  textarea.style.pointerEvents = 'none';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+  return true;
 }
 
 function createEmptyDashboard(walletAddress = '') {
@@ -1179,7 +1196,7 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
       exists: true,
       active: profile?.status ? profile.status === 'active' : safeBoolean(identity.active),
       effectiveLevel: safeNumber(identity.level, 0),
-      currentLevel: safeNumber(identity.level, 0),
+      currentLevel: safeNumber(identity.currentLevel, safeNumber(identity.level, 0)),
       overrideLevel: safeNumber(identity.overrideLevel, 0),
       rewardPercent: safeNumber(identity.rewardPercent, 0),
       createdAt: safeNumber(identity.createdAt, 0),
@@ -1627,6 +1644,20 @@ function createActionsSection(state, walletAddress, config) {
         </button>
 
         ${
+          referralLink && referralLink !== '—'
+            ? `
+              <button
+                type="button"
+                class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
+                data-role="copy-referral-button"
+              >
+                ${escapeHtml(config.copyReferralText)}
+              </button>
+            `
+            : ''
+        }
+
+        ${
           walletExplorerUrl
             ? `
               <a
@@ -1784,42 +1815,48 @@ function createMarkup(config, state, walletAddress) {
             <div class="fourteen-ambassador-cabinet-hero">
               <div class="fourteen-ambassador-cabinet-hero__bg"></div>
 
-              <h2 class="fourteen-ambassador-cabinet-hero__title">
-                4TEEN <span>Ambassador Cabinet</span>
-              </h2>
+              <div class="fourteen-ambassador-cabinet-hero__text">
+                <h2 class="fourteen-ambassador-cabinet-hero__title">
+                  4TEEN <span>Ambassador Cabinet</span>
+                </h2>
 
-              <div class="fourteen-ambassador-cabinet-hero__subtitle">
-                ${escapeHtml(config.subtitle)}
+                <div class="fourteen-ambassador-cabinet-hero__subtitle">
+                  ${escapeHtml(config.subtitle)}
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="fourteen-ambassador-cabinet-topbar__actions">
-            <div class="fourteen-ambassador-cabinet-info-toggle-wrap">
-              <button
-                class="fourteen-ambassador-cabinet-info-toggle"
-                type="button"
-                aria-label="Cabinet info"
-                aria-expanded="false"
-                data-role="info-toggle"
-              >
-                i
-              </button>
+          <div class="fourteen-ambassador-cabinet-hero__actions">
+            <div class="fourteen-ambassador-cabinet-badge">Ambassador</div>
 
-              <div class="fourteen-ambassador-cabinet-popover" data-role="info-popover" hidden>
-                <div class="fourteen-ambassador-cabinet-popover__title">${escapeHtml(config.infoTitle)}</div>
-                <div class="fourteen-ambassador-cabinet-popover__text">${escapeHtml(config.infoContent).replaceAll('\n', '<br><br>')}</div>
+            <div class="fourteen-ambassador-cabinet-topbar__actions">
+              <div class="fourteen-ambassador-cabinet-info-toggle-wrap">
+                <button
+                  class="fourteen-ambassador-cabinet-info-toggle"
+                  type="button"
+                  aria-label="Cabinet info"
+                  aria-expanded="false"
+                  data-role="info-toggle"
+                >
+                  i
+                </button>
+
+                <div class="fourteen-ambassador-cabinet-popover" data-role="info-popover" hidden>
+                  <div class="fourteen-ambassador-cabinet-popover__title">${escapeHtml(config.infoTitle)}</div>
+                  <div class="fourteen-ambassador-cabinet-popover__text">${escapeHtml(config.infoContent).replaceAll('\n', '<br><br>')}</div>
+                </div>
               </div>
-            </div>
 
-            <button
-              type="button"
-              class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
-              data-role="refresh-button"
-              ${state.isRefreshing || state.isWithdrawing || state.isReplayingPending ? 'disabled aria-disabled="true"' : ''}
-            >
-              ${state.isRefreshing ? 'Refreshing...' : escapeHtml(config.refreshText)}
-            </button>
+              <button
+                type="button"
+                class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
+                data-role="refresh-button"
+                ${state.isRefreshing || state.isWithdrawing || state.isReplayingPending ? 'disabled aria-disabled="true"' : ''}
+              >
+                ${state.isRefreshing ? 'Refreshing...' : escapeHtml(config.refreshText)}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -2261,10 +2298,29 @@ export function mountAmbassadorCabinet(target, config = {}) {
     }
   }
 
+  async function handleCopyReferral() {
+    const dashboard = state.dashboard || createEmptyDashboard('');
+    const referralLink = buildReferralLink(resolvedConfig, state.profile, dashboard.identity);
+
+    if (!referralLink || referralLink === '—') {
+      showNeutralNotice('Referral link is not available yet.', 5000);
+      return;
+    }
+
+    try {
+      await copyToClipboard(referralLink);
+      showSuccessNotice(resolvedConfig.copyReferralSuccessText, 5000);
+    } catch (error) {
+      const message = normalizeError(error);
+      showErrorNotice(message, 7000);
+    }
+  }
+
   function bindEvents() {
     const refreshButton = root.querySelector('[data-role="refresh-button"]');
     const withdrawButton = root.querySelector('[data-role="withdraw-button"]');
     const replayButton = root.querySelector('[data-role="replay-button"]');
+    const copyReferralButton = root.querySelector('[data-role="copy-referral-button"]');
     const infoToggleEl = root.querySelector('[data-role="info-toggle"]');
 
     refreshButton?.addEventListener('click', () => {
@@ -2282,6 +2338,12 @@ export function mountAmbassadorCabinet(target, config = {}) {
     replayButton?.addEventListener('click', () => {
       handleReplayPending().catch((error) => {
         console.error('Ambassador cabinet replay pending failed:', error);
+      });
+    });
+
+    copyReferralButton?.addEventListener('click', () => {
+      handleCopyReferral().catch((error) => {
+        console.error('Ambassador cabinet copy referral failed:', error);
       });
     });
 
