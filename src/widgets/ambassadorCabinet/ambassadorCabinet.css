@@ -38,13 +38,25 @@
   box-shadow: none;
 }
 
-.fourteen-ambassador-cabinet-hero {
-  position: relative;
+/* -------------------------------------------------------
+   HEADER / HERO
+------------------------------------------------------- */
+
+.fourteen-ambassador-cabinet-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: 16px;
   margin-bottom: 12px;
+}
+
+.fourteen-ambassador-cabinet-heading__text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.fourteen-ambassador-cabinet-hero {
+  position: relative;
   padding: 14px 0 12px 0;
   overflow: visible;
 }
@@ -62,15 +74,6 @@
   opacity: 1;
   pointer-events: none;
   z-index: 0;
-}
-
-.fourteen-ambassador-cabinet-hero__text {
-  min-width: 0;
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .fourteen-ambassador-cabinet-hero__title {
@@ -126,6 +129,10 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
+
+/* -------------------------------------------------------
+   ACTIONS / INFO
+------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-info-toggle-wrap {
   position: relative;
@@ -248,10 +255,18 @@
   box-shadow: none;
 }
 
+.fourteen-ambassador-cabinet-action--top-refresh {
+  min-width: 96px;
+}
+
+/* -------------------------------------------------------
+   TOPBAR / CONNECT
+------------------------------------------------------- */
+
 .fourteen-ambassador-cabinet-topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
   margin-bottom: 12px;
 }
@@ -293,6 +308,10 @@
   text-align: center;
 }
 
+/* -------------------------------------------------------
+   BANNERS / EMPTY STATES
+------------------------------------------------------- */
+
 .fourteen-ambassador-cabinet-banner {
   margin-bottom: 14px;
   padding: 14px 16px;
@@ -311,12 +330,6 @@
   color: #ffd4db;
   border-color: rgba(255, 48, 73, 0.24);
   background: rgba(255, 48, 73, 0.08);
-}
-
-.fourteen-ambassador-cabinet-banner--amber {
-  color: #ffe0a8;
-  border-color: rgba(255, 184, 0, 0.22);
-  background: rgba(255, 184, 0, 0.08);
 }
 
 .fourteen-ambassador-cabinet-empty {
@@ -343,6 +356,16 @@
   line-height: 1.55;
   color: var(--fourteen-cabinet-text-soft);
 }
+
+.fourteen-ambassador-cabinet-empty__hint {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--fourteen-cabinet-text-faint);
+}
+
+/* -------------------------------------------------------
+   GRID / CARDS
+------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-grid {
   display: grid;
@@ -376,29 +399,29 @@
     rgba(20, 20, 20, 0.98) 0%,
     rgba(15, 15, 15, 0.98) 100%
   );
-  padding: 15px 16px 56px;
+  padding: 15px 16px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .fourteen-ambassador-cabinet-card--green {
   border-color: rgba(26, 224, 58, 0.22);
-  background:
-    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
-    var(--fourteen-cabinet-green-soft);
+  box-shadow:
+    inset 0 0 0 1px rgba(26, 224, 58, 0.18),
+    0 0 0 1px rgba(26, 224, 58, 0.06);
 }
 
 .fourteen-ambassador-cabinet-card--amber {
   border-color: rgba(255, 184, 0, 0.22);
-  background:
-    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
-    var(--fourteen-cabinet-amber-soft);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 184, 0, 0.14),
+    0 0 0 1px rgba(255, 184, 0, 0.05);
 }
 
 .fourteen-ambassador-cabinet-card--blue {
   border-color: rgba(84, 170, 255, 0.22);
-  background:
-    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
-    var(--fourteen-cabinet-blue-soft);
+  box-shadow:
+    inset 0 0 0 1px rgba(84, 170, 255, 0.14),
+    0 0 0 1px rgba(84, 170, 255, 0.05);
 }
 
 .fourteen-ambassador-cabinet-card__label {
@@ -426,37 +449,17 @@
   word-break: break-word;
 }
 
-.fourteen-ambassador-cabinet-copy {
-  position: absolute;
-  left: 16px;
-  bottom: 16px;
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 105, 0, 0.22);
-  background: rgba(255, 105, 0, 0.08);
-  color: var(--fourteen-cabinet-accent);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition:
-    transform 0.18s ease,
-    background 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease;
-}
+/* -------------------------------------------------------
+   SECTIONS / ACCORDION / LINKS
+------------------------------------------------------- */
 
-.fourteen-ambassador-cabinet-copy:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 105, 0, 0.14);
-  border-color: rgba(255, 105, 0, 0.34);
-  color: #fff;
+.fourteen-ambassador-cabinet-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .fourteen-ambassador-cabinet-section {
-  margin-bottom: 14px;
-  padding: 16px;
   border: 1px solid var(--fourteen-cabinet-border);
   border-radius: 16px;
   background: linear-gradient(
@@ -464,13 +467,64 @@
     rgba(20, 20, 20, 0.98) 0%,
     rgba(15, 15, 15, 0.98) 100%
   );
+  overflow: hidden;
+}
+
+.fourteen-ambassador-cabinet-section__toggle {
+  width: 100%;
+  padding: 16px;
+  border: 0;
+  background: transparent;
+  color: var(--fourteen-cabinet-text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.fourteen-ambassador-cabinet-section__toggle-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.fourteen-ambassador-cabinet-section__icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 105, 0, 0.08);
+  border: 1px solid rgba(255, 105, 0, 0.16);
+  color: var(--fourteen-cabinet-accent);
+  font-size: 16px;
+  font-weight: 900;
+  flex: 0 0 auto;
 }
 
 .fourteen-ambassador-cabinet-section__title {
-  margin-bottom: 14px;
   font-size: 18px;
   font-weight: 800;
   color: var(--fourteen-cabinet-text);
+}
+
+.fourteen-ambassador-cabinet-section__content {
+  padding: 0 16px 16px;
+}
+
+.fourteen-ambassador-cabinet-section__content[hidden] {
+  display: none !important;
+}
+
+.fourteen-ambassador-cabinet-actions-helper {
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fourteen-cabinet-text-soft);
 }
 
 .fourteen-ambassador-cabinet-links {
@@ -509,7 +563,7 @@
 .fourteen-ambassador-cabinet-link:focus-visible,
 .fourteen-ambassador-cabinet-action:focus-visible,
 .fourteen-ambassador-cabinet-info-toggle:focus-visible,
-.fourteen-ambassador-cabinet-copy:focus-visible {
+.fourteen-ambassador-cabinet-section__toggle:focus-visible {
   outline: 2px solid rgba(255, 105, 0, 0.5);
   outline-offset: 2px;
 }
@@ -526,6 +580,10 @@
   width: auto;
   max-width: 100%;
 }
+
+/* -------------------------------------------------------
+   RESPONSIVE
+------------------------------------------------------- */
 
 @media (max-width: 1100px) {
   .fourteen-ambassador-cabinet-grid--four {
@@ -545,7 +603,7 @@
 }
 
 @media (max-width: 720px) {
-  .fourteen-ambassador-cabinet-hero {
+  .fourteen-ambassador-cabinet-heading {
     flex-direction: column;
     align-items: stretch;
   }
@@ -560,30 +618,20 @@
     grid-template-columns: 1fr;
   }
 
-  .fourteen-ambassador-cabinet-section {
-    padding: 14px;
+  .fourteen-ambassador-cabinet-section__content {
+    padding: 0 14px 14px;
   }
 
   .fourteen-ambassador-cabinet-card {
-    padding: 14px 14px 54px;
+    padding: 14px;
   }
 
   .fourteen-ambassador-cabinet-card__value {
     font-size: 20px;
   }
-
-  .fourteen-ambassador-cabinet-copy {
-    left: 14px;
-    bottom: 14px;
-  }
 }
 
 @media (max-width: 640px) {
-  .fourteen-ambassador-cabinet-topbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .fourteen-ambassador-cabinet-connect-slot__desktop {
     display: none;
   }
@@ -600,6 +648,10 @@
   .fourteen-ambassador-cabinet-section .fourteen-ambassador-cabinet-action {
     width: 100%;
     justify-content: center;
+  }
+
+  .fourteen-ambassador-cabinet-action--top-refresh {
+    min-width: 0;
   }
 }
 
@@ -650,5 +702,14 @@
   .fourteen-ambassador-cabinet-banner,
   .fourteen-ambassador-cabinet-empty {
     margin-bottom: 12px;
+  }
+
+  .fourteen-ambassador-cabinet-hero__actions {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .fourteen-ambassador-cabinet-badge {
+    min-height: 28px;
   }
 }
