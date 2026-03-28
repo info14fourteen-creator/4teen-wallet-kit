@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-28T11:56:01.057Z
+Generated: 2026-03-28T12:34:25.847Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -69,25 +69,13 @@ Branch: main
   box-shadow: none;
 }
 
-/* -------------------------------------------------------
-   HEADER / HERO
-------------------------------------------------------- */
-
-.fourteen-ambassador-cabinet-heading {
+.fourteen-ambassador-cabinet-hero {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 12px;
-}
-
-.fourteen-ambassador-cabinet-heading__text {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.fourteen-ambassador-cabinet-hero {
-  position: relative;
   padding: 14px 0 12px 0;
   overflow: visible;
 }
@@ -141,8 +129,8 @@ Branch: main
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.7);
-  line-height: 1.45;
   max-width: 860px;
+  line-height: 1.45;
 }
 
 .fourteen-ambassador-cabinet-hero__actions {
@@ -169,10 +157,6 @@ Branch: main
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-
-/* -------------------------------------------------------
-   ACTIONS / INFO
-------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-info-toggle-wrap {
   position: relative;
@@ -209,7 +193,7 @@ Branch: main
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  width: min(420px, 92vw);
+  width: min(360px, calc(100vw - 32px));
   max-width: calc(100vw - 32px);
   padding: 14px;
   border-radius: 14px;
@@ -236,9 +220,9 @@ Branch: main
 
 .fourteen-ambassador-cabinet-action {
   appearance: none;
-  border: 1px solid rgba(255, 105, 0, 0.34);
+  border: 0;
   outline: 0;
-  border-radius: 14px;
+  border-radius: 999px;
   min-height: 42px;
   padding: 0 18px;
   display: inline-flex;
@@ -251,10 +235,9 @@ Branch: main
     rgba(255, 105, 0, 0.96) 100%
   );
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.03em;
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(255, 105, 0, 0.22);
   transition:
@@ -289,18 +272,12 @@ Branch: main
   box-shadow: none;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: none;
 }
 
 .fourteen-ambassador-cabinet-action--secondary:hover {
   background: rgba(255, 255, 255, 0.08);
   box-shadow: none;
 }
-
-/* -------------------------------------------------------
-   TOPBAR / CONNECT
-------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-topbar {
   display: flex;
@@ -315,14 +292,6 @@ Branch: main
   font-size: 12px;
   font-weight: 700;
   color: var(--fourteen-cabinet-text-soft);
-}
-
-.fourteen-ambassador-cabinet-topbar__actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex: 0 0 auto;
 }
 
 .fourteen-ambassador-cabinet-connect-slot {
@@ -355,10 +324,6 @@ Branch: main
   text-align: center;
 }
 
-/* -------------------------------------------------------
-   BANNERS / EMPTY STATES
-------------------------------------------------------- */
-
 .fourteen-ambassador-cabinet-banner {
   margin-bottom: 14px;
   padding: 14px 16px;
@@ -377,6 +342,12 @@ Branch: main
   color: #ffd4db;
   border-color: rgba(255, 48, 73, 0.24);
   background: rgba(255, 48, 73, 0.08);
+}
+
+.fourteen-ambassador-cabinet-banner--amber {
+  color: #ffe0a8;
+  border-color: rgba(255, 184, 0, 0.22);
+  background: rgba(255, 184, 0, 0.08);
 }
 
 .fourteen-ambassador-cabinet-empty {
@@ -403,10 +374,6 @@ Branch: main
   line-height: 1.55;
   color: var(--fourteen-cabinet-text-soft);
 }
-
-/* -------------------------------------------------------
-   GRID / CARDS
-------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-grid {
   display: grid;
@@ -440,23 +407,29 @@ Branch: main
     rgba(20, 20, 20, 0.98) 0%,
     rgba(15, 15, 15, 0.98) 100%
   );
-  padding: 15px 16px;
+  padding: 15px 16px 56px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .fourteen-ambassador-cabinet-card--green {
-  border-color: rgba(26, 224, 58, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 0 0 1px rgba(26, 224, 58, 0.06);
+  border-color: rgba(26, 224, 58, 0.22);
+  background:
+    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
+    var(--fourteen-cabinet-green-soft);
 }
 
 .fourteen-ambassador-cabinet-card--amber {
-  border-color: rgba(255, 184, 0, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 0 0 1px rgba(255, 184, 0, 0.05);
+  border-color: rgba(255, 184, 0, 0.22);
+  background:
+    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
+    var(--fourteen-cabinet-amber-soft);
 }
 
 .fourteen-ambassador-cabinet-card--blue {
-  border-color: rgba(84, 170, 255, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 0 0 1px rgba(84, 170, 255, 0.05);
+  border-color: rgba(84, 170, 255, 0.22);
+  background:
+    linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(15, 15, 15, 0.98) 100%),
+    var(--fourteen-cabinet-blue-soft);
 }
 
 .fourteen-ambassador-cabinet-card__label {
@@ -484,9 +457,33 @@ Branch: main
   word-break: break-word;
 }
 
-/* -------------------------------------------------------
-   SECTIONS / LINKS
-------------------------------------------------------- */
+.fourteen-ambassador-cabinet-copy {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 105, 0, 0.22);
+  background: rgba(255, 105, 0, 0.08);
+  color: var(--fourteen-cabinet-accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.fourteen-ambassador-cabinet-copy:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 105, 0, 0.14);
+  border-color: rgba(255, 105, 0, 0.34);
+  color: #fff;
+}
 
 .fourteen-ambassador-cabinet-section {
   margin-bottom: 14px;
@@ -542,7 +539,8 @@ Branch: main
 
 .fourteen-ambassador-cabinet-link:focus-visible,
 .fourteen-ambassador-cabinet-action:focus-visible,
-.fourteen-ambassador-cabinet-info-toggle:focus-visible {
+.fourteen-ambassador-cabinet-info-toggle:focus-visible,
+.fourteen-ambassador-cabinet-copy:focus-visible {
   outline: 2px solid rgba(255, 105, 0, 0.5);
   outline-offset: 2px;
 }
@@ -560,10 +558,6 @@ Branch: main
   max-width: 100%;
 }
 
-/* -------------------------------------------------------
-   RESPONSIVE
-------------------------------------------------------- */
-
 @media (max-width: 1100px) {
   .fourteen-ambassador-cabinet-grid--four {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -575,10 +569,6 @@ Branch: main
 }
 
 @media (max-width: 860px) {
-  .fourteen-ambassador-cabinet-hero__title {
-    font-size: 36px;
-  }
-
   .fourteen-ambassador-cabinet-popover {
     right: 0;
     left: auto;
@@ -586,16 +576,12 @@ Branch: main
 }
 
 @media (max-width: 720px) {
-  .fourteen-ambassador-cabinet-heading {
+  .fourteen-ambassador-cabinet-hero {
     flex-direction: column;
     align-items: stretch;
   }
 
   .fourteen-ambassador-cabinet-hero__actions {
-    justify-content: space-between;
-  }
-
-  .fourteen-ambassador-cabinet-topbar__actions {
     justify-content: flex-start;
   }
 
@@ -610,11 +596,16 @@ Branch: main
   }
 
   .fourteen-ambassador-cabinet-card {
-    padding: 14px;
+    padding: 14px 14px 54px;
   }
 
   .fourteen-ambassador-cabinet-card__value {
     font-size: 20px;
+  }
+
+  .fourteen-ambassador-cabinet-copy {
+    left: 14px;
+    bottom: 14px;
   }
 }
 
@@ -622,15 +613,6 @@ Branch: main
   .fourteen-ambassador-cabinet-topbar {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .fourteen-ambassador-cabinet-topbar__actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .fourteen-ambassador-cabinet-action--secondary {
-    flex: 1 1 auto;
   }
 
   .fourteen-ambassador-cabinet-connect-slot__desktop {
@@ -667,10 +649,6 @@ Branch: main
     font-size: 11px;
   }
 
-  .fourteen-ambassador-cabinet-hero__actions {
-    gap: 8px;
-  }
-
   .fourteen-ambassador-cabinet-hero__bg {
     left: -10px;
     top: -14px;
@@ -681,7 +659,7 @@ Branch: main
   .fourteen-ambassador-cabinet-popover {
     right: auto;
     left: 0;
-    width: min(320px, 94vw);
+    width: min(300px, calc(100vw - 28px));
     max-width: calc(100vw - 28px);
   }
 
@@ -736,8 +714,6 @@ const DEFAULT_CONFIG = {
   processingText: 'Processing...',
   replayText: 'Process pending rewards',
   replayProcessingText: 'Processing pending rewards...',
-  copyReferralText: 'Copy referral link',
-  copyReferralSuccessText: 'Referral link copied.',
   profileEndpoint: '/cabinet/profile',
   walletLookupEndpoint: '/ambassador/by-wallet',
   replayPendingEndpoint: '/cabinet/replay-pending',
@@ -750,7 +726,7 @@ const DEFAULT_CONFIG = {
     'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, continue to registration.',
   infoTitle: 'What you can do inside this cabinet',
   infoContent:
-    'This cabinet is your ambassador control panel. After connecting your wallet, it shows whether this wallet is already registered as an ambassador, your profile, tracked referral stats, reward state and withdrawal availability.\n\nIf rewards are already available, you can request withdrawal here. If part of rewards is still pending processing, the cabinet will show that state separately.\n\nIf rewards were not fully allocated earlier because of temporary resource limits, you can process pending rewards here.\n\nIf this wallet is not registered yet, you can continue to the ambassador registration page.'
+    'This cabinet is your ambassador control panel. After connecting your wallet, it shows whether this wallet is already registered as an ambassador, your profile, tracked referral stats, reward state and withdrawal availability.\n\nIf rewards are already available, you can request withdrawal here. If part of rewards is still pending processing, the cabinet will show that state separately.\n\nIf this wallet is not registered yet, you can continue to the ambassador registration page.'
 };
 
 function escapeHtml(value) {
@@ -984,6 +960,16 @@ async function readJson(response) {
   }
 }
 
+async function getConnectedWalletAddress(wallet) {
+  const address = getWalletAddressSafe(wallet);
+
+  if (!address) {
+    throw new Error('Wallet is not connected');
+  }
+
+  return assertNonEmpty(address, 'wallet');
+}
+
 async function getControllerContractInstance(wallet, controllerContractAddress) {
   const tronWeb = getActiveTronWeb(wallet);
 
@@ -1033,31 +1019,6 @@ async function replayPendingRewards(config, walletAddress) {
   }
 
   return payload?.result || payload || {};
-}
-
-async function copyToClipboard(value) {
-  const text = String(value || '').trim();
-
-  if (!text) {
-    throw new Error('Nothing to copy');
-  }
-
-  if (navigator?.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return true;
-  }
-
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.setAttribute('readonly', '');
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  textarea.style.pointerEvents = 'none';
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand('copy');
-  document.body.removeChild(textarea);
-  return true;
 }
 
 function createEmptyDashboard(walletAddress = '') {
@@ -1266,7 +1227,7 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
     },
     progress: {
       ...empty.progress,
-      currentLevel: safeNumber(progress.currentLevel, safeNumber(identity.level, 0)),
+      currentLevel: safeNumber(progress.currentLevel, safeNumber(identity.currentLevel, safeNumber(identity.level, 0))),
       buyersCount: safeNumber(progress.buyersCount, safeNumber(stats.totalBuyers, 0)),
       nextThreshold: safeNumber(progress.nextThreshold, 0),
       remainingToNextLevel: safeNumber(progress.remainingToNextLevel, 0)
@@ -1350,6 +1311,36 @@ function buildReferralLink(config, profile, identity) {
   }
 
   return '—';
+}
+
+async function copyText(value) {
+  const text = String(value || '').trim();
+
+  if (!text) {
+    throw new Error('Nothing to copy');
+  }
+
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  textarea.style.pointerEvents = 'none';
+  document.body.appendChild(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  const ok = document.execCommand('copy');
+  document.body.removeChild(textarea);
+
+  if (!ok) {
+    throw new Error('Copy failed');
+  }
 }
 
 function buildWithdrawButtonLabel(state) {
@@ -1444,6 +1435,30 @@ function createValueCard(label, value, hint = '') {
       <div class="fourteen-ambassador-cabinet-card__label">${escapeHtml(label)}</div>
       <div class="fourteen-ambassador-cabinet-card__value">${escapeHtml(value)}</div>
       ${hint ? `<div class="fourteen-ambassador-cabinet-card__hint">${escapeHtml(hint)}</div>` : ''}
+    </div>
+  `;
+}
+
+function createCopyValueCard(label, value, hint = '', copyValue = '') {
+  return `
+    <div class="fourteen-ambassador-cabinet-card">
+      <div class="fourteen-ambassador-cabinet-card__label">${escapeHtml(label)}</div>
+      <div class="fourteen-ambassador-cabinet-card__value">${escapeHtml(value)}</div>
+      ${hint ? `<div class="fourteen-ambassador-cabinet-card__hint">${escapeHtml(hint)}</div>` : ''}
+      ${
+        copyValue
+          ? `
+            <button
+              type="button"
+              class="fourteen-ambassador-cabinet-copy"
+              data-role="copy-button"
+              data-copy-value="${escapeHtml(copyValue)}"
+            >
+              Copy
+            </button>
+          `
+          : ''
+      }
     </div>
   `;
 }
@@ -1552,10 +1567,11 @@ function createIdentitySection(config, state, walletAddress) {
           `Level: ${levelToLabel(identity?.effectiveLevel ?? identity?.currentLevel ?? 0)}`
         )}
         ${createValueCard('Slug', slugValue, 'Public ambassador handle')}
-        ${createValueCard(
+        ${createCopyValueCard(
           'Referral link',
           referralLink,
-          slugValue !== '—' ? 'Public ambassador link' : 'Unavailable yet'
+          slugValue !== '—' ? 'Public ambassador link' : 'Unavailable yet',
+          referralLink !== '—' ? referralLink : ''
         )}
       </div>
     `
@@ -1646,6 +1662,7 @@ function createActionsSection(state, walletAddress, config) {
     : '';
   const withdrawButtonLabel = buildWithdrawButtonLabel(state);
   const replayButtonLabel = buildReplayButtonLabel(config, state);
+  const refreshButtonLabel = state.isRefreshing ? 'Refreshing...' : config.refreshText;
   const canReplayPending =
     state.statusCards.hasPendingBackendSync &&
     !state.isReplayingPending &&
@@ -1655,6 +1672,15 @@ function createActionsSection(state, walletAddress, config) {
     'Actions',
     `
       <div class="fourteen-ambassador-cabinet-links">
+        <button
+          type="button"
+          class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
+          data-role="refresh-button"
+          ${state.isRefreshing || state.isWithdrawing || state.isReplayingPending ? 'disabled aria-disabled="true"' : ''}
+        >
+          ${escapeHtml(refreshButtonLabel)}
+        </button>
+
         <button
           type="button"
           class="fourteen-ambassador-cabinet-action"
@@ -1679,20 +1705,6 @@ function createActionsSection(state, walletAddress, config) {
         >
           ${escapeHtml(replayButtonLabel)}
         </button>
-
-        ${
-          referralLink && referralLink !== '—'
-            ? `
-              <button
-                type="button"
-                class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
-                data-role="copy-referral-button"
-              >
-                ${escapeHtml(config.copyReferralText)}
-              </button>
-            `
-            : ''
-        }
 
         ${
           walletExplorerUrl
@@ -1754,8 +1766,8 @@ function createAdvancedSection(state, walletAddress) {
     'Advanced details',
     `
       <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
-        ${createValueCard('Slug hash', identity?.slugHash || '—')}
-        ${createValueCard('Meta hash', identity?.metaHash || '—')}
+        ${createCopyValueCard('Slug hash', identity?.slugHash || '—', '', identity?.slugHash && identity.slugHash !== '—' ? identity.slugHash : '')}
+        ${createCopyValueCard('Meta hash', identity?.metaHash || '—', '', identity?.metaHash && identity.metaHash !== '—' ? identity.metaHash : '')}
         ${createValueCard(
           'Registration mode',
           identity?.selfRegistered
@@ -1847,52 +1859,36 @@ function createMarkup(config, state, walletAddress) {
   return `
     <div class="fourteen-ambassador-cabinet-widget">
       <div class="fourteen-ambassador-cabinet-shell">
-        <div class="fourteen-ambassador-cabinet-heading">
-          <div class="fourteen-ambassador-cabinet-heading__text">
-            <div class="fourteen-ambassador-cabinet-hero">
-              <div class="fourteen-ambassador-cabinet-hero__bg"></div>
+        <div class="fourteen-ambassador-cabinet-hero">
+          <div class="fourteen-ambassador-cabinet-hero__bg"></div>
 
-              <div class="fourteen-ambassador-cabinet-hero__text">
-                <h2 class="fourteen-ambassador-cabinet-hero__title">
-                  4TEEN <span>Ambassador Cabinet</span>
-                </h2>
-
-                <div class="fourteen-ambassador-cabinet-hero__subtitle">
-                  ${escapeHtml(config.subtitle)}
-                </div>
-              </div>
+          <div class="fourteen-ambassador-cabinet-hero__text">
+            <div class="fourteen-ambassador-cabinet-hero__title">
+              4TEEN <span>Ambassador Cabinet</span>
+            </div>
+            <div class="fourteen-ambassador-cabinet-hero__subtitle">
+              ${escapeHtml(config.subtitle)}
             </div>
           </div>
 
           <div class="fourteen-ambassador-cabinet-hero__actions">
             <div class="fourteen-ambassador-cabinet-badge">Ambassador</div>
 
-            <div class="fourteen-ambassador-cabinet-topbar__actions">
-              <div class="fourteen-ambassador-cabinet-info-toggle-wrap">
-                <button
-                  class="fourteen-ambassador-cabinet-info-toggle"
-                  type="button"
-                  aria-label="Cabinet info"
-                  aria-expanded="false"
-                  data-role="info-toggle"
-                >
-                  i
-                </button>
-
-                <div class="fourteen-ambassador-cabinet-popover" data-role="info-popover" hidden>
-                  <div class="fourteen-ambassador-cabinet-popover__title">${escapeHtml(config.infoTitle)}</div>
-                  <div class="fourteen-ambassador-cabinet-popover__text">${escapeHtml(config.infoContent).replaceAll('\n', '<br><br>')}</div>
-                </div>
-              </div>
-
+            <div class="fourteen-ambassador-cabinet-info-toggle-wrap">
               <button
+                class="fourteen-ambassador-cabinet-info-toggle"
                 type="button"
-                class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
-                data-role="refresh-button"
-                ${state.isRefreshing || state.isWithdrawing || state.isReplayingPending ? 'disabled aria-disabled="true"' : ''}
+                aria-label="Cabinet info"
+                aria-expanded="false"
+                data-role="info-toggle"
               >
-                ${state.isRefreshing ? 'Refreshing...' : escapeHtml(config.refreshText)}
+                i
               </button>
+
+              <div class="fourteen-ambassador-cabinet-popover" data-role="info-popover" hidden>
+                <div class="fourteen-ambassador-cabinet-popover__title">${escapeHtml(config.infoTitle)}</div>
+                <div class="fourteen-ambassador-cabinet-popover__text">${escapeHtml(config.infoContent).replaceAll('\n', '<br><br>')}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -2335,21 +2331,18 @@ export function mountAmbassadorCabinet(target, config = {}) {
     }
   }
 
-  async function handleCopyReferral() {
-    const dashboard = state.dashboard || createEmptyDashboard('');
-    const referralLink = buildReferralLink(resolvedConfig, state.profile, dashboard.identity);
+  async function handleCopyClick(button) {
+    const value = String(button?.dataset?.copyValue || '').trim();
 
-    if (!referralLink || referralLink === '—') {
-      showNeutralNotice('Referral link is not available yet.', 5000);
+    if (!value) {
       return;
     }
 
     try {
-      await copyToClipboard(referralLink);
-      showSuccessNotice(resolvedConfig.copyReferralSuccessText, 5000);
+      await copyText(value);
+      showSuccessNotice('Copied.', 4000);
     } catch (error) {
-      const message = normalizeError(error);
-      showErrorNotice(message, 7000);
+      showErrorNotice(normalizeError(error), 6000);
     }
   }
 
@@ -2357,8 +2350,8 @@ export function mountAmbassadorCabinet(target, config = {}) {
     const refreshButton = root.querySelector('[data-role="refresh-button"]');
     const withdrawButton = root.querySelector('[data-role="withdraw-button"]');
     const replayButton = root.querySelector('[data-role="replay-button"]');
-    const copyReferralButton = root.querySelector('[data-role="copy-referral-button"]');
     const infoToggleEl = root.querySelector('[data-role="info-toggle"]');
+    const copyButtons = Array.from(root.querySelectorAll('[data-role="copy-button"]'));
 
     refreshButton?.addEventListener('click', () => {
       refresh('refresh', { force: true }).catch((error) => {
@@ -2378,9 +2371,11 @@ export function mountAmbassadorCabinet(target, config = {}) {
       });
     });
 
-    copyReferralButton?.addEventListener('click', () => {
-      handleCopyReferral().catch((error) => {
-        console.error('Ambassador cabinet copy referral failed:', error);
+    copyButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        handleCopyClick(button).catch((error) => {
+          console.error('Ambassador cabinet copy failed:', error);
+        });
       });
     });
 
