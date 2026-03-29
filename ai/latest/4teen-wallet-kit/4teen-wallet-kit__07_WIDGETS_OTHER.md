@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-29T11:31:10.541Z
+Generated: 2026-03-29T15:59:03.781Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -5707,6 +5707,7 @@ const ACTIVE_INSTANCES = new WeakMap();
 
 const DEFAULT_CONFIG = {
   controllerAddress: 'TVKBLwg222skKnZ3F3boTiH35KC7nvYEuZ',
+  executorAddress: 'TWfUee6qFV91t7KbFdYLEfpi8nprUaJ7dc',
   apiKey: 'd4fcb4c1-89d8-4651-9e34-11dd7848789b',
   explorerBase: 'https://tronscan.org/#/transaction/',
   contractEventsUrl: 'https://tronscan.org/#/contract/TVKBLwg222skKnZ3F3boTiH35KC7nvYEuZ/events',
@@ -5732,11 +5733,11 @@ No backend. No manual control. No hidden logic.
 If it's shown here — it's on-chain and verifiable.`
 };
 
-const LIQUIDITY_CONTROLLER_ABI = [
+const LIQUIDITY_EXECUTOR_ABI = [
   {
     constant: false,
     inputs: [],
-    name: 'executeLiquidity',
+    name: 'bootstrapAndExecute',
     outputs: [],
     payable: false,
     stateMutability: 'nonpayable',
@@ -5860,6 +5861,7 @@ async function refreshBalancesSafe(wallet) {
 export function mountLiquidityController(target, config = {}) {
   const {
     controllerAddress,
+    executorAddress,
     apiKey,
     explorerBase,
     contractEventsUrl,
@@ -5879,6 +5881,10 @@ export function mountLiquidityController(target, config = {}) {
 
   if (!controllerAddress) {
     throw new Error('mountLiquidityController: controllerAddress is required');
+  }
+
+  if (!executorAddress) {
+    throw new Error('mountLiquidityController: executorAddress is required');
   }
 
   if (!apiKey) {
@@ -5905,8 +5911,8 @@ export function mountLiquidityController(target, config = {}) {
 
           <div class="fourteen-liquidity-hero__text">
             <div class="fourteen-liquidity-hero__title">
-  Liquidity <span>Controller</span>
-</div>
+              ${escapeHtml(title.split(' ')[0] || 'Liquidity')} <span>${escapeHtml(title.split(' ').slice(1).join(' ') || 'Controller')}</span>
+            </div>
             <div class="fourteen-liquidity-hero__subtitle">${escapeHtml(subtitle)}</div>
           </div>
 
@@ -6052,7 +6058,7 @@ export function mountLiquidityController(target, config = {}) {
   let walletUnsubscribe = null;
   let embeddedWalletUnmount = null;
   let resizeListenerBound = false;
-  let contract = null;
+  let executorContract = null;
 
   function isAlive() {
     return !isDestroyed && document.body.contains(target);
@@ -6128,9 +6134,11 @@ export function mountLiquidityController(target, config = {}) {
 
     if (mobile) {
       unmountEmbeddedWalletButton();
+
       if (mobileConnectHintEl) {
         mobileConnectHintEl.hidden = connected;
       }
+
       return;
     }
 
@@ -6177,15 +6185,19 @@ export function mountLiquidityController(target, config = {}) {
     return false;
   }
 
-  async function ensureContractReady() {
+  async function ensureExecutorReady() {
     const tronWeb = getTronWebSafe(wallet);
 
     if (!tronWeb?.defaultAddress?.base58) {
       throw new Error('Wallet not ready');
     }
 
-    contract = await tronWeb.contract(LIQUIDITY_CONTROLLER_ABI, controllerAddress);
-    return contract;
+    executorContract = await tronWeb.contract(
+      LIQUIDITY_EXECUTOR_ABI,
+      executorAddress
+    );
+
+    return executorContract;
   }
 
   async function fetchEvents(eventName, limit = EVENTS_LIMIT) {
@@ -6366,9 +6378,9 @@ export function mountLiquidityController(target, config = {}) {
       updateActionState();
       setStatus('Sending transaction...');
 
-      await ensureContractReady();
+      await ensureExecutorReady();
 
-      const tx = await contract.executeLiquidity().send({
+      const tx = await executorContract.bootstrapAndExecute().send({
         shouldPollResponse: true
       });
 
@@ -6377,14 +6389,9 @@ export function mountLiquidityController(target, config = {}) {
           ? tx
           : (tx?.txid || tx?.transaction || '');
 
-      setStatus(
-        txid
-          ? `Done · ${txid}`
-          : 'Execution completed.'
-      );
+      setStatus(txid ? `Done · ${txid}` : 'Execution completed.');
 
-      await loadExecuteEvents();
-      await loadTrxReceived();
+      await Promise.all([loadExecuteEvents(), loadTrxReceived()]);
     } catch (error) {
       console.error('executeLiquidity error:', error);
       setStatus(error?.message || 'Transaction failed', true);
@@ -6400,17 +6407,17 @@ export function mountLiquidityController(target, config = {}) {
     updateActionState();
 
     if (!isConnectedSafe(wallet)) {
-      contract = null;
+      executorContract = null;
       return;
     }
 
     try {
-      await ensureContractReady();
+      await ensureExecutorReady();
       setStatus('');
     } catch (error) {
-      console.error('liquidity ensureContractReady error:', error);
-      contract = null;
-      setStatus('Wallet is connected but controller is not ready yet.', true);
+      console.error('liquidity ensureExecutorReady error:', error);
+      executorContract = null;
+      setStatus('Wallet is connected but executor is not ready yet.', true);
     }
   }
 
@@ -6427,15 +6434,16 @@ export function mountLiquidityController(target, config = {}) {
     syncEmbeddedWalletUi();
   }
 
-  executeButtonEl.addEventListener('click', async () => {
+  const handleExecuteClick = async () => {
     if (!isConnectedSafe(wallet)) {
       setStatus('Connect wallet first.', true);
       return;
     }
 
     await executeLiquidity();
-  });
+  };
 
+  executeButtonEl.addEventListener('click', handleExecuteClick);
   infoToggleEl?.addEventListener('click', togglePopover);
   document.addEventListener('click', handleOutsideClick);
 
@@ -6452,7 +6460,7 @@ export function mountLiquidityController(target, config = {}) {
     destroy() {
       isDestroyed = true;
       unmountEmbeddedWalletButton();
-      executeButtonEl.removeEventListener('click', executeLiquidity);
+      executeButtonEl.removeEventListener('click', handleExecuteClick);
       infoToggleEl?.removeEventListener('click', togglePopover);
       document.removeEventListener('click', handleOutsideClick);
 
