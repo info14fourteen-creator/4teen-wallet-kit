@@ -22,15 +22,32 @@ const DEFAULT_CONFIG = {
   connectText: 'Connect Wallet',
   mobileConnectHint: 'Tap connect below to continue.',
   defaultSlug: '',
-  infoTitle: 'What this registration does',
+  infoTitle: 'What happens during registration',
   infoText:
-    'Your slug becomes your public ambassador handle and can be changed later. Registration itself is executed as a real blockchain action.\n\n' +
-    'If your wallet does not have enough free bandwidth and energy, a small amount of TRX may be used to complete the transaction.\n\n' +
-    'Slug availability is checked before registration.\n' +
-    'Registration is confirmed on-chain.\n' +
-    'Service mapping is stored in a protected backend layer.\n' +
-    'Your referral link is generated after successful registration.\n\n' +
-    'Telegram linking and additional profile actions will be handled later through the ambassador cabinet layer.',
+    'This registration creates your ambassador identity for the 4TEEN referral system.\n\n' +
+    'Your slug becomes your public ambassador handle and the core part of your referral link. It is checked for availability before the transaction is sent.\n\n' +
+    'Registration is a real TRON smart contract action. Your wallet signs and broadcasts a live on-chain transaction to the official ambassador registration contract.\n\n' +
+    'The contract call can consume approximately ~98,297 Energy and ~345 Bandwidth. If your wallet does not have enough free or rented resources, the TRON network may burn TRX to complete the transaction. In many cases, wallets may estimate this at around 9–10 TRX.\n\n' +
+    'Because of that, short-term Energy rental is recommended before registration. Energy is used to execute the contract call more efficiently and helps avoid unnecessary TRX burn.\n\n' +
+    'After the on-chain step succeeds, the backend completes the protected service mapping for your wallet and slug, then generates your referral link.\n\n' +
+    'If this wallet is already registered, the widget will detect it and show your existing ambassador profile instead of sending a second registration.\n\n' +
+    'Telegram linking, profile upgrades, stats, rewards, and withdrawal actions are handled later through the Ambassador Cabinet.',
+  infoActions: [
+    {
+      label: 'Rent TRON Energy',
+      href: 'https://www.gasstation.ai/en/buy',
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      variant: 'primary'
+    },
+    {
+      label: 'View Registration Contract',
+      href: 'https://tronscan.org/#/contract/TF8yhohRfMxsdVRr7fFrYLh5fxK8sAFkeZ/code',
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      variant: 'secondary'
+    }
+  ],
   walletLookupEndpoint: '/ambassador/by-wallet',
   cabinetUrl: 'https://4teen.me/a/cab',
   redirectIfRegistered: false,
@@ -406,6 +423,45 @@ function buildPopoverTextHtml(value) {
     .join('');
 }
 
+function buildPopoverActionsHtml(actions) {
+  const normalizedActions = Array.isArray(actions) ? actions.filter(Boolean) : [];
+
+  if (!normalizedActions.length) {
+    return '';
+  }
+
+  return `
+    <div class="fourteen-ambassador-popover__actions">
+      ${normalizedActions
+        .map((action) => {
+          const href = String(action.href || '').trim();
+
+          if (!href) {
+            return '';
+          }
+
+          const variant = String(action.variant || 'secondary').trim().toLowerCase();
+          const modifier =
+            variant === 'primary'
+              ? 'fourteen-ambassador-popover__action--primary'
+              : 'fourteen-ambassador-popover__action--secondary';
+
+          return `
+            <a
+              href="${escapeHtml(href)}"
+              target="${escapeHtml(action.target || '_blank')}"
+              rel="${escapeHtml(action.rel || 'noopener noreferrer')}"
+              class="fourteen-ambassador-popover__action ${modifier}"
+            >
+              ${escapeHtml(action.label || 'Open')}
+            </a>
+          `;
+        })
+        .join('')}
+    </div>
+  `;
+}
+
 function createMarkup(config, state, isConnected) {
   const statusState = state.error
     ? 'error'
@@ -473,6 +529,7 @@ function createMarkup(config, state, isConnected) {
                 <div class="fourteen-ambassador-popover__text">
                   ${buildPopoverTextHtml(config.infoText)}
                 </div>
+                ${buildPopoverActionsHtml(config.infoActions)}
               </div>
             </div>
           </div>
