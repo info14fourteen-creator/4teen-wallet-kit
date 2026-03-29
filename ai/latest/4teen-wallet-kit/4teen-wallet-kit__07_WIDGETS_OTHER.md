@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-28T13:01:19.596Z
+Generated: 2026-03-29T11:28:53.064Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -2622,6 +2622,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
   --fourteen-amb-bg: rgba(17, 17, 17, 0.92);
   --fourteen-amb-bg-soft: rgba(255, 255, 255, 0.03);
   --fourteen-amb-border: rgba(255, 255, 255, 0.08);
+  --fourteen-amb-border-strong: rgba(255, 255, 255, 0.12);
   --fourteen-amb-text: rgba(255, 255, 255, 0.94);
   --fourteen-amb-text-soft: rgba(255, 255, 255, 0.64);
   --fourteen-amb-text-faint: rgba(255, 255, 255, 0.48);
@@ -2797,6 +2798,74 @@ export function mountAmbassadorCabinet(target, config = {}) {
   color: var(--fourteen-amb-text-soft);
 }
 
+.fourteen-ambassador-popover__text p {
+  margin: 0 0 10px 0;
+}
+
+.fourteen-ambassador-popover__text p:last-child {
+  margin-bottom: 0;
+}
+
+.fourteen-ambassador-popover__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.fourteen-ambassador-popover__action {
+  appearance: none;
+  border: 0;
+  outline: 0;
+  text-decoration: none;
+  border-radius: 999px;
+  min-height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.fourteen-ambassador-popover__action--primary {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 145, 52, 1) 0%,
+    rgba(255, 105, 0, 0.96) 100%
+  );
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(255, 105, 0, 0.22);
+}
+
+.fourteen-ambassador-popover__action--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(255, 105, 0, 0.28);
+  filter: brightness(1.03);
+}
+
+.fourteen-ambassador-popover__action--secondary {
+  border: 1px solid var(--fourteen-amb-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fourteen-amb-text);
+  font-weight: 700;
+}
+
+.fourteen-ambassador-popover__action--secondary:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--fourteen-amb-border-strong);
+}
+
 /* -------------------------------------------------------
    TOPBAR / CONNECT
 ------------------------------------------------------- */
@@ -2931,7 +3000,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
     filter 0.18s ease;
 }
 
-.fourteen-ambassador-button:hover:not(:disabled):not([aria-disabled="true"]) {
+.fourteen-ambassador-button:hover:not(:disabled):not([aria-disabled='true']) {
   transform: translateY(-1px);
   box-shadow: 0 14px 30px rgba(255, 105, 0, 0.28);
 }
@@ -2941,7 +3010,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
 }
 
 .fourteen-ambassador-button:disabled,
-.fourteen-ambassador-button[aria-disabled="true"] {
+.fourteen-ambassador-button[aria-disabled='true'] {
   opacity: 0.52;
   cursor: not-allowed;
   transform: none;
@@ -3000,11 +3069,11 @@ export function mountAmbassadorCabinet(target, config = {}) {
   color: var(--fourteen-amb-text-soft);
 }
 
-.fourteen-ambassador-status[data-state="error"] {
+.fourteen-ambassador-status[data-state='error'] {
   color: #ffd4db;
 }
 
-.fourteen-ambassador-status[data-state="success"] {
+.fourteen-ambassador-status[data-state='success'] {
   color: rgba(170, 255, 189, 0.95);
 }
 
@@ -3045,6 +3114,14 @@ export function mountAmbassadorCabinet(target, config = {}) {
 
   .fourteen-ambassador-connect-slot__mobile {
     display: block;
+  }
+
+  .fourteen-ambassador-popover__actions {
+    flex-direction: column;
+  }
+
+  .fourteen-ambassador-popover__action {
+    width: 100%;
   }
 }
 
