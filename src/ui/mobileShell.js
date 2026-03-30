@@ -97,18 +97,6 @@ function getCurrentComparableUrlWithoutHash() {
   return normalizeUrlWithoutHash(window.location.href);
 }
 
-function isActiveHref(href = '') {
-  if (!href) return false;
-  if (href.startsWith('tel:') || href.startsWith('mailto:')) return false;
-
-  const currentFull = getCurrentComparableUrl();
-  const currentBase = getCurrentComparableUrlWithoutHash();
-  const linkFull = normalizeUrl(href);
-  const linkBase = normalizeUrlWithoutHash(href);
-
-  return linkFull === currentFull || linkBase === currentBase;
-}
-
 function isExternalHttpLink(href = '') {
   return /^https?:\/\//i.test(href);
 }
@@ -123,6 +111,25 @@ function shouldOpenInNewTab(href = '') {
   } catch {
     return false;
   }
+}
+
+function isActiveHref(href = '') {
+  if (!href) return false;
+  if (href.startsWith('tel:') || href.startsWith('mailto:')) return false;
+
+  const currentFull = getCurrentComparableUrl();
+  const currentBase = getCurrentComparableUrlWithoutHash();
+  const linkFull = normalizeUrl(href);
+  const linkBase = normalizeUrlWithoutHash(href);
+
+  return linkFull === currentFull || linkBase === currentBase;
+}
+
+function isExactActiveHref(href = '') {
+  if (!href) return false;
+  if (href.startsWith('tel:') || href.startsWith('mailto:')) return false;
+
+  return normalizeUrl(href) === getCurrentComparableUrl();
 }
 
 function splitMenuItems(items = []) {
@@ -283,10 +290,16 @@ function createGroupCard(item = {}) {
   head.dataset.id = item.id || '';
   head.setAttribute('aria-label', item.label || item.id || 'menu group');
 
-  if (isActiveHref(item.href || '')) {
+  const parentActive = isActiveHref(item.href || '');
+  const children = Array.isArray(item.children) ? item.children : [];
+  const childActive = children.some((child) => isExactActiveHref(child.href || ''));
+
+  if (parentActive && !childActive) {
     head.classList.add('is-active');
     head.setAttribute('aria-current', 'page');
     wrap.classList.add('is-active');
+  } else if (childActive) {
+    wrap.classList.add('has-active-child');
   }
 
   if (shouldOpenInNewTab(item.href || '')) {
@@ -301,8 +314,6 @@ function createGroupCard(item = {}) {
 
   wrap.appendChild(head);
 
-  const children = Array.isArray(item.children) ? item.children : [];
-
   if (children.length) {
     const childList = createElement(
       'div',
@@ -316,7 +327,7 @@ function createGroupCard(item = {}) {
       childLink.dataset.id = child.id || '';
       childLink.setAttribute('aria-label', child.label || child.id || 'submenu item');
 
-      if (isActiveHref(child.href || '')) {
+      if (isExactActiveHref(child.href || '')) {
         childLink.classList.add('is-active');
         childLink.setAttribute('aria-current', 'page');
       }
