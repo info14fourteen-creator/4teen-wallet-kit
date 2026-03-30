@@ -17,46 +17,46 @@ import unlockMenu from '../assets/menu/unlock_menu.svg';
 import liquidityMenu from '../assets/menu/liquidity_menu.svg';
 
 export const MOBILE_MENU_LINKS = [
-  { id: 'home', label: 'Home', shortLabel: '/', href: 'https://4teen.me' },
-  { id: 'whitepaper', label: 'Whitepaper', shortLabel: '/wp', href: 'https://4teen.me/wp' },
-  { id: 'blog', label: 'Blog', shortLabel: '/bg', href: 'https://4teen.me/bg' },
-  { id: 'buy', label: 'Direct Buy', shortLabel: '/bt', href: 'https://4teen.me/bt' },
-  { id: 'swap', label: 'Swap 4TEEN', shortLabel: '/sw', href: 'https://4teen.me/sw' },
-  { id: 'unlock-timeline', label: 'Unlock Timeline', shortLabel: '/ult', href: 'https://4teen.me/ult' },
-  { id: 'liquidity-controller', label: 'Liquidity Controller', shortLabel: '/lc', href: 'https://4teen.me/lc' },
+  { id: 'home', label: 'home', shortLabel: '/', href: 'https://4teen.me' },
+  { id: 'whitepaper', label: 'whitepaper', shortLabel: '/wp', href: 'https://4teen.me/wp' },
+  { id: 'blog', label: 'blog', shortLabel: '/bg', href: 'https://4teen.me/bg' },
+  { id: 'buy', label: 'buy', shortLabel: '/bt', href: 'https://4teen.me/bt' },
+  { id: 'swap', label: 'swap', shortLabel: '/sw', href: 'https://4teen.me/sw' },
+  { id: 'unlock-timeline', label: 'unlock timeline', shortLabel: '/ult', href: 'https://4teen.me/ult' },
+  { id: 'liquidity-controller', label: 'liquidity controller', shortLabel: '/lc', href: 'https://4teen.me/lc' },
 
   {
     id: 'ambassador-program',
-    label: 'Ambassador',
+    label: 'ambassador',
     shortLabel: '/a',
     href: 'https://4teen.me/a',
     children: [
       {
         id: 'ambassador-registration',
-        label: 'Registration',
+        label: 'registration',
         shortLabel: '/reg',
-        href: 'https://4teen.me/a#register'
+        href: 'https://4teen.me/a/reg'
       },
       {
         id: 'ambassador-cabinet',
-        label: 'Cabinet',
+        label: 'cabinet',
         shortLabel: '/cab',
-        href: 'https://4teen.me/a#cabinet'
+        href: 'https://4teen.me/a/cab'
       }
     ]
   },
 
   {
     id: 'airdrop',
-    label: 'Airdrop',
+    label: 'airdrop',
     shortLabel: '/ad',
     href: 'https://4teen.me/ad',
     children: [
       {
         id: 'airdrop-telegram',
-        label: 'Telegram Campaign',
+        label: 'telegram',
         shortLabel: '/tg',
-        href: 'https://4teen.me/ad#telegram'
+        href: 'https://4teen.me/ad/tg'
       }
     ]
   },
@@ -83,70 +83,70 @@ export const MOBILE_SOCIALS = [
     shortName: 'facebook',
     href: 'https://facebook.com/Fourteentoken',
     icon: facebookSocial,
-    alt: 'Facebook'
+    alt: 'facebook'
   },
   {
     id: 'x',
     shortName: 'x',
     href: 'https://x.com/4teentoken',
     icon: xSocial,
-    alt: 'X'
+    alt: 'x'
   },
   {
     id: 'instagram',
     shortName: 'instagram',
     href: 'https://instagram.com/fourteentoken',
     icon: instagramSocial,
-    alt: 'Instagram'
+    alt: 'instagram'
   },
   {
     id: 'youtube',
     shortName: 'youtube',
     href: 'https://www.youtube.com/@4teentoken',
     icon: youtubeSocial,
-    alt: 'YouTube'
+    alt: 'youtube'
   },
   {
     id: 'whatsapp',
     shortName: 'whatsapp',
     href: 'https://wa.me/16462178070',
     icon: whatsappSocial,
-    alt: 'WhatsApp'
+    alt: 'whatsapp'
   },
   {
     id: 'telegram',
     shortName: 'telegram',
     href: 'https://t.me/fourteentoken',
     icon: telegramSocial,
-    alt: 'Telegram'
+    alt: 'telegram'
   },
   {
     id: 'threads',
     shortName: 'threads',
     href: 'https://www.threads.com/@fourteentoken',
     icon: threadsSocial,
-    alt: 'Threads'
+    alt: 'threads'
   },
   {
     id: 'tiktok',
     shortName: 'tiktok',
     href: 'https://www.tiktok.com/@4teentoken',
     icon: tiktokSocial,
-    alt: 'TikTok'
+    alt: 'tiktok'
   },
   {
     id: 'discord',
     shortName: 'discord',
     href: 'https://discord.gg/jWZF6KzPCB',
     icon: discordSocial,
-    alt: 'Discord'
+    alt: 'discord'
   },
   {
     id: 'github',
     shortName: 'github',
     href: 'https://github.com/info14fourteen-creator',
     icon: githubSocial,
-    alt: 'GitHub'
+    alt: 'github'
   }
 ];
 
@@ -180,6 +180,5 @@ export const MOBILE_BOTTOM_NAV = [
 export const MOBILE_SHELL_DEFAULTS = {
   brandText: '4teen.me',
   connectText: 'connect',
-  socialRotateMs: 1500,
-  menuHint: 'routes'
+  socialRotateMs: 1500
 };
