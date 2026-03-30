@@ -4,19 +4,13 @@ import './mobileShell.css';
 import { mountWalletButton } from './walletButton.js';
 import {
   MOBILE_MENU_LINKS,
+  MOBILE_MENU_MATRIX,
   MOBILE_BOTTOM_NAV,
   MOBILE_SOCIALS,
   MOBILE_SHELL_DEFAULTS
 } from './mobileShell.config.js';
 
 const MOBILE_SHELL_INSTANCE_KEY = '__fourteenMobileShellInstance__';
-const EXCLUDED_MENU_IDS = new Set(['buy', 'swap', 'unlock', 'liquidity']);
-const EXCLUDED_MENU_HREFS = new Set([
-  'https://4teen.me/bt',
-  'https://4teen.me/sw',
-  'https://4teen.me/ult',
-  'https://4teen.me/lc'
-]);
 
 function ensureTarget(target) {
   if (!target) return document.body;
@@ -56,6 +50,15 @@ function nlToBr(value = '') {
   return String(value).replace(/\n/g, '<br>');
 }
 
+function escapeHtml(value = '') {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 function lockBodyScroll() {
   document.documentElement.classList.add('mobile-shell-lock');
   document.body.classList.add('mobile-shell-lock');
@@ -69,7 +72,18 @@ function unlockBodyScroll() {
 function normalizeUrl(input = '') {
   try {
     const url = new URL(input, window.location.origin);
-    return `${url.origin}${url.pathname}`.replace(/\/+$/, '') || url.origin;
+    const pathname = url.pathname.replace(/\/+$/, '') || '/';
+    return `${url.origin}${pathname}${url.hash || ''}`;
+  } catch {
+    return String(input).replace(/\/+$/, '');
+  }
+}
+
+function normalizeUrlWithoutHash(input = '') {
+  try {
+    const url = new URL(input, window.location.origin);
+    const pathname = url.pathname.replace(/\/+$/, '') || '/';
+    return `${url.origin}${pathname}`;
   } catch {
     return String(input).replace(/\/+$/, '');
   }
@@ -79,11 +93,8 @@ function getCurrentComparableUrl() {
   return normalizeUrl(window.location.href);
 }
 
-function isActiveHref(href = '') {
-  if (!href) return false;
-  if (href.startsWith('tel:') || href.startsWith('mailto:')) return false;
-
-  return normalizeUrl(href) === getCurrentComparableUrl();
+function getCurrentComparableUrlWithoutHash() {
+  return normalizeUrlWithoutHash(window.location.href);
 }
 
 function isExternalHttpLink(href = '') {
@@ -102,11 +113,16 @@ function shouldOpenInNewTab(href = '') {
   }
 }
 
-function shouldHideFromBurgerMenu(item = {}) {
-  const id = String(item.id || '').trim().toLowerCase();
-  const href = normalizeUrl(item.href || '');
+function isActiveHref(href = '') {
+  if (!href) return false;
+  if (href.startsWith('tel:') || href.startsWith('mailto:')) return false;
 
-  return EXCLUDED_MENU_IDS.has(id) || EXCLUDED_MENU_HREFS.has(href);
+  const currentFull = getCurrentComparableUrl();
+  const currentBase = getCurrentComparableUrlWithoutHash();
+  const linkFull = normalizeUrl(href);
+  const linkBase = normalizeUrlWithoutHash(href);
+
+  return linkFull === currentFull || linkBase === currentBase;
 }
 
 function splitMenuItems(items = []) {
@@ -121,93 +137,17 @@ function splitMenuItems(items = []) {
       return;
     }
 
-    if (shouldHideFromBurgerMenu(item)) {
-      return;
-    }
-
     navigation.push(item);
   });
 
   return { navigation, contacts };
 }
 
-function buildMenuLinks(items = []) {
-  const nav = createElement('nav', 'ms-menu-nav');
-  nav.setAttribute('aria-label', 'Mobile menu');
-
-  items.forEach((item) => {
-    const a = document.createElement('a');
-    a.className = 'ms-menu-link';
-    a.href = item.href || '#';
-    a.textContent = item.label || 'link';
-    a.dataset.id = item.id || '';
-
-    if (isActiveHref(item.href || '')) {
-      a.classList.add('is-active');
-      a.setAttribute('aria-current', 'page');
-    }
-
-    if (shouldOpenInNewTab(item.href || '')) {
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-    }
-
-    nav.appendChild(a);
-  });
-
-  return nav;
-}
-
-function getContactMeta(item = {}) {
-  const href = String(item.href || '');
-
-  if (href.startsWith('tel:')) {
-    return {
-      emoji: '📞',
-      label: item.label || 'phone'
-    };
-  }
-
-  if (href.startsWith('mailto:')) {
-    return {
-      emoji: '✉️',
-      label: item.label || 'email'
-    };
-  }
-
-  return {
-    emoji: '•',
-    label: item.label || 'contact'
-  };
-}
-
-function buildContacts(items = []) {
-  if (!items.length) return null;
-
-  const wrap = createElement('div', 'ms-contacts');
-  const title = createElement('div', 'ms-contacts-title', 'Contacts');
-  const list = createElement('div', 'ms-contacts-list');
-
-  items.forEach((item) => {
-    const a = document.createElement('a');
-    const meta = getContactMeta(item);
-
-    a.className = 'ms-contact-link';
-    a.href = item.href || '#';
-    a.dataset.id = item.id || '';
-
-    a.innerHTML = `
-      <span class="ms-contact-link__emoji" aria-hidden="true">${meta.emoji}</span>
-      <span class="ms-contact-link__text">${meta.label}</span>
-    `;
-
-    list.appendChild(a);
-  });
-
-  wrap.appendChild(title);
-  wrap.appendChild(list);
-
-  return wrap;
+function createMenuLookup(items = []) {
+  return items.reduce((acc, item) => {
+    acc[item.id] = item;
+    return acc;
+  }, {});
 }
 
 function buildSocialMenu(items = []) {
@@ -309,6 +249,169 @@ function buildBottomGroups(items = []) {
   return { leftWrap, rightWrap };
 }
 
+function createRouteAnchor(item = {}, extraClassName = '') {
+  const a = document.createElement('a');
+  a.className = `ms-route-card ${extraClassName}`.trim();
+  a.href = item.href || '#';
+  a.dataset.id = item.id || '';
+  a.setAttribute('aria-label', item.label || item.id || 'menu item');
+
+  if (isActiveHref(item.href || '')) {
+    a.classList.add('is-active');
+    a.setAttribute('aria-current', 'page');
+  }
+
+  if (shouldOpenInNewTab(item.href || '')) {
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+  }
+
+  a.innerHTML = `
+    <span class="ms-route-card__code">${escapeHtml(item.shortLabel || '')}</span>
+    <span class="ms-route-card__label">${escapeHtml(item.label || '')}</span>
+    <span class="ms-route-card__shine" aria-hidden="true"></span>
+  `;
+
+  return a;
+}
+
+function createGroupCard(item = {}) {
+  const wrap = createElement('section', 'ms-route-group');
+  wrap.dataset.id = item.id || '';
+
+  if (isActiveHref(item.href || '')) {
+    wrap.classList.add('is-active');
+  }
+
+  const head = createElement('a', 'ms-route-group__main');
+  head.href = item.href || '#';
+  head.dataset.id = item.id || '';
+  head.setAttribute('aria-label', item.label || item.id || 'menu group');
+
+  if (isActiveHref(item.href || '')) {
+    head.classList.add('is-active');
+    head.setAttribute('aria-current', 'page');
+  }
+
+  if (shouldOpenInNewTab(item.href || '')) {
+    head.target = '_blank';
+    head.rel = 'noopener noreferrer';
+  }
+
+  head.innerHTML = `
+    <span class="ms-route-group__code">${escapeHtml(item.shortLabel || '')}</span>
+    <span class="ms-route-group__label">${escapeHtml(item.label || '')}</span>
+    <span class="ms-route-group__grid" aria-hidden="true"></span>
+  `;
+
+  wrap.appendChild(head);
+
+  const children = Array.isArray(item.children) ? item.children : [];
+
+  if (children.length) {
+    const childList = createElement(
+      'div',
+      `ms-route-group__children ms-route-group__children--${children.length === 1 ? 'single' : 'stack'}`
+    );
+
+    children.forEach((child) => {
+      const childLink = document.createElement('a');
+      childLink.className = 'ms-route-subcard';
+      childLink.href = child.href || '#';
+      childLink.dataset.id = child.id || '';
+      childLink.setAttribute('aria-label', child.label || child.id || 'submenu item');
+
+      if (isActiveHref(child.href || '')) {
+        childLink.classList.add('is-active');
+        childLink.setAttribute('aria-current', 'page');
+      }
+
+      if (shouldOpenInNewTab(child.href || '')) {
+        childLink.target = '_blank';
+        childLink.rel = 'noopener noreferrer';
+      }
+
+      childLink.innerHTML = `
+        <span class="ms-route-subcard__code">${escapeHtml(child.shortLabel || '')}</span>
+        <span class="ms-route-subcard__label">${escapeHtml(child.label || '')}</span>
+      `;
+
+      childList.appendChild(childLink);
+    });
+
+    wrap.appendChild(childList);
+  }
+
+  return wrap;
+}
+
+function buildMatrixContacts(items = []) {
+  if (!items.length) return null;
+
+  const wrap = createElement('div', 'ms-menu-contacts-row');
+
+  items.forEach((item) => {
+    const a = document.createElement('a');
+    a.className = 'ms-menu-contact-card';
+    a.href = item.href || '#';
+    a.dataset.id = item.id || '';
+
+    if (shouldOpenInNewTab(item.href || '')) {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    }
+
+    a.innerHTML = `
+      <span class="ms-menu-contact-card__text">${escapeHtml(item.label || '')}</span>
+    `;
+
+    wrap.appendChild(a);
+  });
+
+  return wrap;
+}
+
+function buildMatrixMenu({ items = [], contacts = [], matrix = [] } = {}) {
+  const lookup = createMenuLookup(items);
+  const wrap = createElement('div', 'ms-menu-map');
+  wrap.setAttribute('aria-label', 'Mobile route map');
+
+  const head = createElement(
+    'div',
+    'ms-menu-map__head',
+    `
+      <div class="ms-menu-map__eyebrow">${escapeHtml(MOBILE_SHELL_DEFAULTS.menuHint || 'routes')}</div>
+      <div class="ms-menu-map__title">4TEEN navigation matrix</div>
+    `
+  );
+
+  wrap.appendChild(head);
+
+  const body = createElement('div', 'ms-menu-map__body');
+
+  matrix.forEach((entry) => {
+    const item = lookup[entry.id];
+    if (!item) return;
+
+    if (entry.type === 'group') {
+      body.appendChild(createGroupCard(item));
+      return;
+    }
+
+    body.appendChild(createRouteAnchor(item));
+  });
+
+  wrap.appendChild(body);
+
+  const contactsRow = buildMatrixContacts(contacts);
+
+  if (contactsRow) {
+    wrap.appendChild(contactsRow);
+  }
+
+  return wrap;
+}
+
 export function createMobileShell(options = {}) {
   const target = ensureTarget(options.target);
 
@@ -320,6 +423,7 @@ export function createMobileShell(options = {}) {
   }
 
   const menuItems = options.menuItems || MOBILE_MENU_LINKS;
+  const menuMatrix = options.menuMatrix || MOBILE_MENU_MATRIX;
   const bottomNavItems = options.bottomNavItems || MOBILE_BOTTOM_NAV;
   const socials = options.socials || MOBILE_SOCIALS;
   const socialRotateMs =
@@ -379,20 +483,19 @@ export function createMobileShell(options = {}) {
   const bottomCenter = root.querySelector('.ms-bottom-center');
   const bottomRight = root.querySelector('.ms-bottom-right');
 
-  const menuLinks = buildMenuLinks(mainMenuItems);
-  const contactsBlock = buildContacts(contactMenuItems);
+  const matrixMenu = buildMatrixMenu({
+    items: mainMenuItems,
+    contacts: contactMenuItems,
+    matrix: menuMatrix
+  });
+
   const socialMenuLinks = buildSocialMenu(socials);
   const rotatingSocialButton = buildRotatingSocialButton();
   const topWalletHost = buildWalletHost('ms-wallet-host-top');
   const bottomWalletHost = buildWalletHost('ms-wallet-host-bottom');
   const bottomGroups = buildBottomGroups(bottomNavItems);
 
-  menuShell.appendChild(menuLinks);
-
-  if (contactsBlock) {
-    menuShell.appendChild(contactsBlock);
-  }
-
+  menuShell.appendChild(matrixMenu);
   socialShell.appendChild(socialMenuLinks);
 
   topActions.appendChild(rotatingSocialButton.button);
@@ -511,19 +614,13 @@ export function createMobileShell(options = {}) {
   on(overlay, 'click', closePanels);
   on(document, 'keydown', handleKeydown);
 
-  menuLinks.querySelectorAll('a').forEach((link) => {
+  matrixMenu.querySelectorAll('a').forEach((link) => {
     on(link, 'click', closePanels);
   });
 
   socialMenuLinks.querySelectorAll('a').forEach((link) => {
     on(link, 'click', closePanels);
   });
-
-  if (contactsBlock) {
-    contactsBlock.querySelectorAll('a').forEach((link) => {
-      on(link, 'click', closePanels);
-    });
-  }
 
   bottomLeft.querySelectorAll('a').forEach((link) => {
     on(link, 'click', closePanels);
