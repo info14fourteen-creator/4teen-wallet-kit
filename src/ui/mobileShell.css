@@ -418,12 +418,12 @@ body.mobile-shell-lock {
   z-index: 1;
 }
 
-/* group */
+/* grouped rows */
 
 .ms-route-group {
   position: relative;
   display: grid;
-  grid-template-columns: 58px 1fr;
+  grid-template-columns: 58px 48px 1fr;
   grid-template-rows: minmax(0, 1fr);
   border-top: 1px solid var(--ms-accent-line-soft);
   background:
@@ -441,22 +441,71 @@ body.mobile-shell-lock {
   z-index: 2;
 }
 
+.ms-route-group::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 106px;
+  width: 1px;
+  background: var(--ms-accent-line-soft);
+  z-index: 2;
+}
+
+.ms-route-group__rail,
+.ms-route-group__rail:link,
+.ms-route-group__rail:visited,
+.ms-route-group__rail:hover,
+.ms-route-group__rail:active {
+  grid-column: 1 / 2;
+  grid-row: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none !important;
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 150ms ease, transform 150ms ease;
+  z-index: 3;
+}
+
+.ms-route-group__rail:hover,
+.ms-route-group__rail:active {
+  transform: translateX(1px);
+}
+
+.ms-route-group__rail.is-active {
+  background:
+    linear-gradient(180deg, rgba(255, 106, 0, 0.98) 0%, rgba(255, 122, 28, 0.98) 100%);
+}
+
+.ms-route-group__rail-code {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  text-transform: lowercase;
+  color: inherit;
+}
+
 .ms-route-group__main,
 .ms-route-group__main:link,
 .ms-route-group__main:visited,
 .ms-route-group__main:hover,
 .ms-route-group__main:active {
-  grid-column: 1 / 2;
-  grid-row: 1 / -1;
+  grid-column: 2 / 4;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  min-height: 0;
   text-decoration: none !important;
   color: #fff !important;
-  position: relative;
-  transition: transform 150ms ease, background 150ms ease;
-  border-right: 1px solid transparent;
+  border-bottom: 1px solid var(--ms-accent-line-soft);
+  transition: background 150ms ease, transform 150ms ease;
   z-index: 3;
 }
 
@@ -470,28 +519,11 @@ body.mobile-shell-lock {
     linear-gradient(180deg, rgba(255, 106, 0, 0.98) 0%, rgba(255, 122, 28, 0.98) 100%);
 }
 
-.ms-route-group.has-active-child .ms-route-group__main {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.ms-route-group__code {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 6px 2px;
-  font-size: 15px;
-  line-height: 1;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  text-transform: lowercase;
-  color: inherit;
-}
-
 .ms-route-group__label {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 6px 4px;
+  padding: 4px 10px;
   text-align: center;
   font-size: 15px;
   line-height: 1;
@@ -499,11 +531,10 @@ body.mobile-shell-lock {
   letter-spacing: -0.03em;
   text-transform: lowercase;
   color: inherit;
-  writing-mode: horizontal-tb;
 }
 
 .ms-route-group__children {
-  grid-column: 2 / 3;
+  grid-column: 2 / 4;
   display: grid;
   min-height: 0;
 }
@@ -895,26 +926,28 @@ body.mobile-shell-lock {
   .ms-route-card:link,
   .ms-route-card:visited,
   .ms-route-card:hover,
-  .ms-route-card:active,
-  .ms-route-group {
+  .ms-route-card:active {
     grid-template-columns: 52px 1fr;
   }
 
-  .ms-route-card::after,
+  .ms-route-card::after {
+    left: 52px;
+  }
+
+  .ms-route-group {
+    grid-template-columns: 52px 44px 1fr;
+  }
+
   .ms-route-group::before {
     left: 52px;
   }
 
-  .ms-route-group__main,
-  .ms-route-group__main:link,
-  .ms-route-group__main:visited,
-  .ms-route-group__main:hover,
-  .ms-route-group__main:active {
-    min-width: 52px;
+  .ms-route-group::after {
+    left: 96px;
   }
 
   .ms-route-card__code,
-  .ms-route-group__code {
+  .ms-route-group__rail-code {
     font-size: 14px;
   }
 
