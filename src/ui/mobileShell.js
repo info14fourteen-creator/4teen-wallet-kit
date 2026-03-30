@@ -256,11 +256,12 @@ function buildBottomGroups(items = []) {
   return { leftWrap, rightWrap };
 }
 
-function createRouteAnchor(item = {}) {
+function createRouteAnchor(item = {}, grow = 1) {
   const a = document.createElement('a');
   a.className = 'ms-route-card';
   a.href = item.href || '#';
   a.dataset.id = item.id || '';
+  a.style.setProperty('--ms-grow', String(grow));
   a.setAttribute('aria-label', item.label || item.id || 'menu item');
 
   if (isActiveHref(item.href || '')) {
@@ -281,9 +282,10 @@ function createRouteAnchor(item = {}) {
   return a;
 }
 
-function createGroupCard(item = {}) {
+function createGroupCard(item = {}, grow = 2.4) {
   const wrap = createElement('section', 'ms-route-group');
   wrap.dataset.id = item.id || '';
+  wrap.style.setProperty('--ms-grow', String(grow));
 
   const children = Array.isArray(item.children) ? item.children : [];
   const parentActive = isActiveHref(item.href || '');
@@ -400,6 +402,16 @@ function buildMatrixContacts(items = []) {
   return wrap;
 }
 
+function getEntryGrow(entry, item) {
+  if (entry.type === 'group') {
+    const count = Array.isArray(item.children) ? item.children.length : 0;
+    if (count >= 2) return 3.2;
+    return 2.35;
+  }
+
+  return 1;
+}
+
 function buildMatrixMenu({ items = [], contacts = [], matrix = [] } = {}) {
   const lookup = createMenuLookup(items);
   const wrap = createElement('div', 'ms-menu-map');
@@ -411,12 +423,14 @@ function buildMatrixMenu({ items = [], contacts = [], matrix = [] } = {}) {
     const item = lookup[entry.id];
     if (!item) return;
 
+    const grow = getEntryGrow(entry, item);
+
     if (entry.type === 'group') {
-      body.appendChild(createGroupCard(item));
+      body.appendChild(createGroupCard(item, grow));
       return;
     }
 
-    body.appendChild(createRouteAnchor(item));
+    body.appendChild(createRouteAnchor(item, grow));
   });
 
   wrap.appendChild(body);
