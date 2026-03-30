@@ -46,7 +46,7 @@ body.mobile-shell-lock {
   inset: 0;
   background:
     radial-gradient(circle at 50% 0%, rgba(255, 106, 0, 0.1), transparent 26%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.985) 100%);
+    linear-gradient(180deg, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.84) 100%);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -246,7 +246,7 @@ body.mobile-shell-lock {
   top: calc(var(--ms-top-h) + var(--ms-safe-top));
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: calc(var(--ms-bottom-h) + var(--ms-safe-bottom));
   z-index: var(--ms-z-panel);
   opacity: 0;
   visibility: hidden;
@@ -270,7 +270,7 @@ body.mobile-shell-lock {
 .ms-social-panel-inner {
   height: 100%;
   overflow: auto;
-  padding: 8px 10px calc(var(--ms-bottom-h) + var(--ms-safe-bottom) + 14px);
+  padding: 8px 10px 8px;
   background:
     radial-gradient(circle at 50% 0%, rgba(255, 106, 0, 0.06), transparent 28%),
     linear-gradient(180deg, rgba(8, 9, 11, 0.985) 0%, rgba(3, 3, 5, 0.995) 100%);
@@ -287,14 +287,24 @@ body.mobile-shell-lock {
 
 .ms-menu-map {
   min-height: 100%;
-  display: flex;
-  flex-direction: column;
+  height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 0;
 }
 
 .ms-menu-map__body {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows:
+    minmax(34px, 0.72fr)
+    minmax(34px, 0.72fr)
+    minmax(34px, 0.72fr)
+    minmax(34px, 0.72fr)
+    minmax(34px, 0.72fr)
+    minmax(34px, 0.72fr)
+    minmax(34px, 0.72fr)
+    minmax(92px, 2fr)
+    minmax(74px, 1.5fr);
   border: 1px solid var(--ms-accent-line);
   background:
     linear-gradient(180deg, rgba(10, 10, 12, 0.985) 0%, rgba(4, 4, 6, 0.995) 100%);
@@ -314,6 +324,8 @@ body.mobile-shell-lock {
   pointer-events: none;
 }
 
+/* single rows */
+
 .ms-route-card,
 .ms-route-card:link,
 .ms-route-card:visited,
@@ -323,7 +335,7 @@ body.mobile-shell-lock {
   display: grid;
   grid-template-columns: 58px 1fr;
   align-items: stretch;
-  min-height: 44px;
+  min-height: 34px;
   text-decoration: none !important;
   color: #fff !important;
   border-top: 1px solid var(--ms-accent-line-soft);
@@ -412,6 +424,7 @@ body.mobile-shell-lock {
   position: relative;
   display: grid;
   grid-template-columns: 58px 1fr;
+  grid-template-rows: minmax(0, 1fr);
   border-top: 1px solid var(--ms-accent-line-soft);
   background:
     linear-gradient(180deg, rgba(26, 26, 28, 0.96) 0%, rgba(18, 18, 20, 0.985) 100%);
@@ -433,15 +446,18 @@ body.mobile-shell-lock {
 .ms-route-group__main:visited,
 .ms-route-group__main:hover,
 .ms-route-group__main:active {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: 58px 1fr;
-  min-height: 48px;
+  grid-column: 1 / 2;
+  grid-row: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-decoration: none !important;
   color: #fff !important;
   position: relative;
-  border-bottom: 1px solid var(--ms-accent-line-soft);
   transition: transform 150ms ease, background 150ms ease;
+  border-right: 1px solid transparent;
+  z-index: 3;
 }
 
 .ms-route-group__main:hover,
@@ -454,31 +470,28 @@ body.mobile-shell-lock {
     linear-gradient(180deg, rgba(255, 106, 0, 0.98) 0%, rgba(255, 122, 28, 0.98) 100%);
 }
 
+.ms-route-group.has-active-child .ms-route-group__main {
+  background: rgba(255, 255, 255, 0.02);
+}
+
 .ms-route-group__code {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 6px;
+  padding: 4px 6px 2px;
   font-size: 15px;
   line-height: 1;
   font-weight: 900;
   letter-spacing: -0.04em;
   text-transform: lowercase;
-  background: rgba(255, 255, 255, 0.02);
   color: inherit;
-  position: relative;
-  z-index: 3;
-}
-
-.ms-route-group__main.is-active .ms-route-group__code {
-  background: rgba(0, 0, 0, 0.14);
 }
 
 .ms-route-group__label {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 10px;
+  padding: 2px 6px 4px;
   text-align: center;
   font-size: 15px;
   line-height: 1;
@@ -486,14 +499,21 @@ body.mobile-shell-lock {
   letter-spacing: -0.03em;
   text-transform: lowercase;
   color: inherit;
-  position: relative;
-  z-index: 3;
+  writing-mode: horizontal-tb;
 }
 
 .ms-route-group__children {
   grid-column: 2 / 3;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  min-height: 0;
+}
+
+.ms-route-group__children--stack {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.ms-route-group__children--single {
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .ms-route-subcard,
@@ -503,7 +523,7 @@ body.mobile-shell-lock {
 .ms-route-subcard:active {
   display: grid;
   grid-template-columns: 48px 1fr;
-  min-height: 38px;
+  min-height: 34px;
   text-decoration: none !important;
   color: #fff !important;
   border-top: 1px solid var(--ms-accent-line-soft);
@@ -512,6 +532,10 @@ body.mobile-shell-lock {
   transition:
     transform 150ms ease,
     background 150ms ease;
+}
+
+.ms-route-group__children > .ms-route-subcard:first-child {
+  border-top: 0;
 }
 
 .ms-route-subcard:hover,
@@ -672,12 +696,6 @@ body.mobile-shell-lock {
   z-index: var(--ms-z-bars);
   pointer-events: none;
   transition: opacity 180ms ease, transform 180ms ease;
-}
-
-.mobile-shell.is-open .ms-bottombar {
-  opacity: 0;
-  transform: translateY(12px);
-  pointer-events: none;
 }
 
 .ms-bottombar::before {
@@ -859,6 +877,20 @@ body.mobile-shell-lock {
     font-size: 9px;
   }
 
+  .ms-menu-map__body {
+    grid-template-rows:
+      minmax(32px, 0.72fr)
+      minmax(32px, 0.72fr)
+      minmax(32px, 0.72fr)
+      minmax(32px, 0.72fr)
+      minmax(32px, 0.72fr)
+      minmax(32px, 0.72fr)
+      minmax(32px, 0.72fr)
+      minmax(82px, 2fr)
+      minmax(66px, 1.45fr);
+    overflow-y: auto;
+  }
+
   .ms-route-card,
   .ms-route-card:link,
   .ms-route-card:visited,
@@ -878,7 +910,7 @@ body.mobile-shell-lock {
   .ms-route-group__main:visited,
   .ms-route-group__main:hover,
   .ms-route-group__main:active {
-    grid-template-columns: 52px 1fr;
+    min-width: 52px;
   }
 
   .ms-route-card__code,
@@ -897,7 +929,7 @@ body.mobile-shell-lock {
   .ms-route-subcard:hover,
   .ms-route-subcard:active {
     grid-template-columns: 44px 1fr;
-    min-height: 34px;
+    min-height: 32px;
   }
 
   .ms-route-subcard__code {
