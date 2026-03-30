@@ -97,6 +97,18 @@ function getCurrentComparableUrlWithoutHash() {
   return normalizeUrlWithoutHash(window.location.href);
 }
 
+function isActiveHref(href = '') {
+  if (!href) return false;
+  if (href.startsWith('tel:') || href.startsWith('mailto:')) return false;
+
+  const currentFull = getCurrentComparableUrl();
+  const currentBase = getCurrentComparableUrlWithoutHash();
+  const linkFull = normalizeUrl(href);
+  const linkBase = normalizeUrlWithoutHash(href);
+
+  return linkFull === currentFull || linkBase === currentBase;
+}
+
 function isExternalHttpLink(href = '') {
   return /^https?:\/\//i.test(href);
 }
@@ -111,18 +123,6 @@ function shouldOpenInNewTab(href = '') {
   } catch {
     return false;
   }
-}
-
-function isActiveHref(href = '') {
-  if (!href) return false;
-  if (href.startsWith('tel:') || href.startsWith('mailto:')) return false;
-
-  const currentFull = getCurrentComparableUrl();
-  const currentBase = getCurrentComparableUrlWithoutHash();
-  const linkFull = normalizeUrl(href);
-  const linkBase = normalizeUrlWithoutHash(href);
-
-  return linkFull === currentFull || linkBase === currentBase;
 }
 
 function splitMenuItems(items = []) {
@@ -152,7 +152,7 @@ function createMenuLookup(items = []) {
 
 function buildSocialMenu(items = []) {
   const nav = createElement('nav', 'ms-social-menu-nav');
-  nav.setAttribute('aria-label', 'Social links');
+  nav.setAttribute('aria-label', 'social links');
 
   items.forEach((item) => {
     const a = document.createElement('a');
@@ -184,11 +184,11 @@ function buildSocialMenu(items = []) {
 function buildRotatingSocialButton() {
   const button = createElement('button', 'ms-social-toggle');
   button.type = 'button';
-  button.setAttribute('aria-label', 'Open social links');
+  button.setAttribute('aria-label', 'open social links');
 
   const icon = document.createElement('img');
   icon.className = 'ms-social-toggle-icon';
-  icon.alt = 'Social';
+  icon.alt = 'social';
 
   button.appendChild(icon);
 
@@ -249,9 +249,9 @@ function buildBottomGroups(items = []) {
   return { leftWrap, rightWrap };
 }
 
-function createRouteAnchor(item = {}, extraClassName = '') {
+function createRouteAnchor(item = {}) {
   const a = document.createElement('a');
-  a.className = `ms-route-card ${extraClassName}`.trim();
+  a.className = 'ms-route-card';
   a.href = item.href || '#';
   a.dataset.id = item.id || '';
   a.setAttribute('aria-label', item.label || item.id || 'menu item');
@@ -269,7 +269,6 @@ function createRouteAnchor(item = {}, extraClassName = '') {
   a.innerHTML = `
     <span class="ms-route-card__code">${escapeHtml(item.shortLabel || '')}</span>
     <span class="ms-route-card__label">${escapeHtml(item.label || '')}</span>
-    <span class="ms-route-card__shine" aria-hidden="true"></span>
   `;
 
   return a;
@@ -279,10 +278,6 @@ function createGroupCard(item = {}) {
   const wrap = createElement('section', 'ms-route-group');
   wrap.dataset.id = item.id || '';
 
-  if (isActiveHref(item.href || '')) {
-    wrap.classList.add('is-active');
-  }
-
   const head = createElement('a', 'ms-route-group__main');
   head.href = item.href || '#';
   head.dataset.id = item.id || '';
@@ -291,6 +286,7 @@ function createGroupCard(item = {}) {
   if (isActiveHref(item.href || '')) {
     head.classList.add('is-active');
     head.setAttribute('aria-current', 'page');
+    wrap.classList.add('is-active');
   }
 
   if (shouldOpenInNewTab(item.href || '')) {
@@ -301,7 +297,6 @@ function createGroupCard(item = {}) {
   head.innerHTML = `
     <span class="ms-route-group__code">${escapeHtml(item.shortLabel || '')}</span>
     <span class="ms-route-group__label">${escapeHtml(item.label || '')}</span>
-    <span class="ms-route-group__grid" aria-hidden="true"></span>
   `;
 
   wrap.appendChild(head);
@@ -374,18 +369,7 @@ function buildMatrixContacts(items = []) {
 function buildMatrixMenu({ items = [], contacts = [], matrix = [] } = {}) {
   const lookup = createMenuLookup(items);
   const wrap = createElement('div', 'ms-menu-map');
-  wrap.setAttribute('aria-label', 'Mobile route map');
-
-  const head = createElement(
-    'div',
-    'ms-menu-map__head',
-    `
-      <div class="ms-menu-map__eyebrow">${escapeHtml(MOBILE_SHELL_DEFAULTS.menuHint || 'routes')}</div>
-      <div class="ms-menu-map__title">4TEEN navigation matrix</div>
-    `
-  );
-
-  wrap.appendChild(head);
+  wrap.setAttribute('aria-label', 'mobile route map');
 
   const body = createElement('div', 'ms-menu-map__body');
 
@@ -442,7 +426,7 @@ export function createMobileShell(options = {}) {
     <div class="ms-overlay"></div>
 
     <header class="ms-topbar">
-      <button class="ms-burger" type="button" aria-label="Open menu" aria-expanded="false">
+      <button class="ms-burger" type="button" aria-label="open menu" aria-expanded="false">
         <span class="ms-burger-line"></span>
         <span class="ms-burger-line"></span>
         <span class="ms-burger-line"></span>
@@ -465,7 +449,7 @@ export function createMobileShell(options = {}) {
       </div>
     </aside>
 
-    <nav class="ms-bottombar" aria-label="Bottom mobile bar">
+    <nav class="ms-bottombar" aria-label="bottom mobile bar">
       <div class="ms-bottom-left"></div>
       <div class="ms-bottom-center"></div>
       <div class="ms-bottom-right"></div>
@@ -529,7 +513,7 @@ export function createMobileShell(options = {}) {
 
     const current = socials[socialIndex % socials.length];
     rotatingSocialButton.icon.src = current.icon || '';
-    rotatingSocialButton.icon.alt = current.alt || current.shortName || 'Social';
+    rotatingSocialButton.icon.alt = current.alt || current.shortName || 'social';
   }
 
   function stopSocialRotation() {
