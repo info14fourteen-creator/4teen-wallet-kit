@@ -285,68 +285,91 @@ function createGroupCard(item = {}) {
   const wrap = createElement('section', 'ms-route-group');
   wrap.dataset.id = item.id || '';
 
-  const head = createElement('a', 'ms-route-group__main');
-  head.href = item.href || '#';
-  head.dataset.id = item.id || '';
-  head.setAttribute('aria-label', item.label || item.id || 'menu group');
-
-  const parentActive = isActiveHref(item.href || '');
   const children = Array.isArray(item.children) ? item.children : [];
+  const parentActive = isActiveHref(item.href || '');
   const childActive = children.some((child) => isExactActiveHref(child.href || ''));
 
-  if (parentActive && !childActive) {
-    head.classList.add('is-active');
-    head.setAttribute('aria-current', 'page');
-    wrap.classList.add('is-active');
-  } else if (childActive) {
+  if (childActive) {
     wrap.classList.add('has-active-child');
   }
 
-  if (shouldOpenInNewTab(item.href || '')) {
-    head.target = '_blank';
-    head.rel = 'noopener noreferrer';
+  if (parentActive && !childActive) {
+    wrap.classList.add('is-active');
   }
 
-  head.innerHTML = `
-    <span class="ms-route-group__code">${escapeHtml(item.shortLabel || '')}</span>
+  const rail = createElement('a', 'ms-route-group__rail');
+  rail.href = item.href || '#';
+  rail.dataset.id = item.id || '';
+  rail.setAttribute('aria-label', item.label || item.id || 'menu group');
+
+  if (parentActive && !childActive) {
+    rail.classList.add('is-active');
+    rail.setAttribute('aria-current', 'page');
+  }
+
+  if (shouldOpenInNewTab(item.href || '')) {
+    rail.target = '_blank';
+    rail.rel = 'noopener noreferrer';
+  }
+
+  rail.innerHTML = `
+    <span class="ms-route-group__rail-code">${escapeHtml(item.shortLabel || '')}</span>
+  `;
+
+  wrap.appendChild(rail);
+
+  const main = createElement('a', 'ms-route-group__main');
+  main.href = item.href || '#';
+  main.dataset.id = item.id || '';
+  main.setAttribute('aria-label', item.label || item.id || 'group main row');
+
+  if (parentActive && !childActive) {
+    main.classList.add('is-active');
+    main.setAttribute('aria-current', 'page');
+  }
+
+  if (shouldOpenInNewTab(item.href || '')) {
+    main.target = '_blank';
+    main.rel = 'noopener noreferrer';
+  }
+
+  main.innerHTML = `
     <span class="ms-route-group__label">${escapeHtml(item.label || '')}</span>
   `;
 
-  wrap.appendChild(head);
+  wrap.appendChild(main);
 
-  if (children.length) {
-    const childList = createElement(
-      'div',
-      `ms-route-group__children ms-route-group__children--${children.length === 1 ? 'single' : 'stack'}`
-    );
+  const childList = createElement(
+    'div',
+    `ms-route-group__children ms-route-group__children--${children.length === 1 ? 'single' : 'stack'}`
+  );
 
-    children.forEach((child) => {
-      const childLink = document.createElement('a');
-      childLink.className = 'ms-route-subcard';
-      childLink.href = child.href || '#';
-      childLink.dataset.id = child.id || '';
-      childLink.setAttribute('aria-label', child.label || child.id || 'submenu item');
+  children.forEach((child) => {
+    const childLink = document.createElement('a');
+    childLink.className = 'ms-route-subcard';
+    childLink.href = child.href || '#';
+    childLink.dataset.id = child.id || '';
+    childLink.setAttribute('aria-label', child.label || child.id || 'submenu item');
 
-      if (isExactActiveHref(child.href || '')) {
-        childLink.classList.add('is-active');
-        childLink.setAttribute('aria-current', 'page');
-      }
+    if (isExactActiveHref(child.href || '')) {
+      childLink.classList.add('is-active');
+      childLink.setAttribute('aria-current', 'page');
+    }
 
-      if (shouldOpenInNewTab(child.href || '')) {
-        childLink.target = '_blank';
-        childLink.rel = 'noopener noreferrer';
-      }
+    if (shouldOpenInNewTab(child.href || '')) {
+      childLink.target = '_blank';
+      childLink.rel = 'noopener noreferrer';
+    }
 
-      childLink.innerHTML = `
-        <span class="ms-route-subcard__code">${escapeHtml(child.shortLabel || '')}</span>
-        <span class="ms-route-subcard__label">${escapeHtml(child.label || '')}</span>
-      `;
+    childLink.innerHTML = `
+      <span class="ms-route-subcard__code">${escapeHtml(child.shortLabel || '')}</span>
+      <span class="ms-route-subcard__label">${escapeHtml(child.label || '')}</span>
+    `;
 
-      childList.appendChild(childLink);
-    });
+    childList.appendChild(childLink);
+  });
 
-    wrap.appendChild(childList);
-  }
+  wrap.appendChild(childList);
 
   return wrap;
 }
