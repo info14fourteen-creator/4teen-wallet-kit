@@ -6,10 +6,11 @@
   --ms-text-soft: rgba(255, 255, 255, 0.82);
   --ms-text-dim: rgba(255, 255, 255, 0.56);
   --ms-accent: #ff6a00;
-  --ms-accent-2: #ff7f11;
-  --ms-accent-soft: rgba(255, 106, 0, 0.14);
-  --ms-accent-line: rgba(255, 106, 0, 0.38);
-  --ms-accent-line-soft: rgba(255, 106, 0, 0.16);
+  --ms-accent-line: rgba(255, 106, 0, 0.32);
+  --ms-accent-line-soft: rgba(255, 106, 0, 0.12);
+  --ms-row-left-bg: rgba(255, 255, 255, 0.015);
+  --ms-row-main-bg: rgba(255, 255, 255, 0.01);
+  --ms-row-sub-bg: rgba(255, 255, 255, 0.02);
   --ms-top-h: 72px;
   --ms-bottom-h: 112px;
   --ms-center-size: 96px;
@@ -45,8 +46,8 @@ body.mobile-shell-lock {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 0%, rgba(255, 106, 0, 0.08), transparent 28%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.64) 0%, rgba(0, 0, 0, 0.82) 100%);
+    radial-gradient(circle at 50% 0%, rgba(255, 106, 0, 0.06), transparent 30%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.8) 100%);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -181,7 +182,6 @@ body.mobile-shell-lock {
   transition:
     transform 160ms ease,
     background 160ms ease,
-    box-shadow 160ms ease,
     opacity 160ms ease;
   flex: 0 0 auto;
 }
@@ -189,8 +189,6 @@ body.mobile-shell-lock {
 .ms-social-toggle:hover,
 .ms-social-toggle:active {
   transform: translateY(-1px);
-  background: linear-gradient(180deg, rgba(38, 38, 42, 0.98) 0%, rgba(20, 20, 24, 0.98) 100%);
-  opacity: 1;
 }
 
 .ms-social-toggle-icon {
@@ -272,7 +270,6 @@ body.mobile-shell-lock {
   overflow: auto;
   padding: 8px 10px 8px;
   background:
-    radial-gradient(circle at 50% 0%, rgba(255, 106, 0, 0.05), transparent 32%),
     linear-gradient(180deg, rgba(8, 9, 11, 0.985) 0%, rgba(3, 3, 5, 0.995) 100%);
 }
 
@@ -298,29 +295,10 @@ body.mobile-shell-lock {
   flex-direction: column;
   min-height: 0;
   border: 1px solid var(--ms-accent-line);
-  border-radius: 16px 16px 0 0;
   overflow: hidden;
   background:
     linear-gradient(180deg, rgba(11, 11, 14, 0.985) 0%, rgba(5, 5, 8, 0.995) 100%);
-  box-shadow:
-    0 14px 34px rgba(0, 0, 0, 0.24),
-    inset 0 0 0 1px rgba(255, 106, 0, 0.03);
-  position: relative;
 }
-
-.ms-menu-map__body::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(rgba(255, 106, 0, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 106, 0, 0.02) 1px, transparent 1px);
-  background-size: 18px 18px;
-  opacity: 0.24;
-  pointer-events: none;
-}
-
-/* single rows */
 
 .ms-route-card,
 .ms-route-card:link,
@@ -328,21 +306,16 @@ body.mobile-shell-lock {
 .ms-route-card:hover,
 .ms-route-card:active {
   flex: var(--ms-grow, 1) 1 0;
-  min-height: 38px;
+  min-height: 40px;
   position: relative;
   display: grid;
-  grid-template-columns: 70px 1fr;
+  grid-template-columns: 76px 1fr;
   align-items: stretch;
   text-decoration: none !important;
   color: #fff !important;
   border-top: 1px solid var(--ms-accent-line-soft);
-  background:
-    linear-gradient(180deg, rgba(8, 8, 10, 0.98) 0%, rgba(3, 3, 5, 0.995) 100%);
-  transition:
-    background 150ms ease,
-    transform 150ms ease,
-    opacity 150ms ease,
-    box-shadow 150ms ease;
+  background: transparent;
+  transition: background 150ms ease, transform 150ms ease;
 }
 
 .ms-route-card:first-child {
@@ -354,7 +327,7 @@ body.mobile-shell-lock {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 70px;
+  left: 76px;
   width: 1px;
   background: var(--ms-accent-line-soft);
 }
@@ -362,7 +335,6 @@ body.mobile-shell-lock {
 .ms-route-card:hover,
 .ms-route-card:active {
   transform: translateX(1px);
-  box-shadow: inset 0 0 0 1px rgba(255, 106, 0, 0.06);
 }
 
 .ms-route-card.is-active,
@@ -384,15 +356,13 @@ body.mobile-shell-lock {
   align-items: center;
   justify-content: center;
   padding: 4px 8px;
-  font-size: clamp(16px, 2vw, 20px);
+  font-size: clamp(17px, 2vw, 20px);
   line-height: 1;
   font-weight: 900;
   letter-spacing: -0.04em;
-  color: inherit;
   text-transform: lowercase;
-  background: rgba(255, 255, 255, 0.02);
-  position: relative;
-  z-index: 1;
+  color: inherit;
+  background: var(--ms-row-left-bg);
 }
 
 .ms-route-card.is-active .ms-route-card__code {
@@ -405,28 +375,40 @@ body.mobile-shell-lock {
   justify-content: center;
   padding: 4px 12px;
   text-align: center;
-  font-size: clamp(16px, 2vw, 20px);
+  font-size: clamp(17px, 2vw, 20px);
   line-height: 1;
   font-weight: 700;
   letter-spacing: -0.03em;
   text-transform: lowercase;
   color: inherit;
-  position: relative;
-  z-index: 1;
+  background: var(--ms-row-main-bg);
 }
 
-/* grouped rows */
+/* groups */
 
 .ms-route-group {
   flex: var(--ms-grow, 2.4) 1 0;
-  min-height: 88px;
+  min-height: 104px;
   position: relative;
   display: grid;
-  grid-template-columns: 70px 62px 1fr;
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: 76px 62px 1fr;
   border-top: 1px solid var(--ms-accent-line-soft);
-  background:
-    linear-gradient(180deg, rgba(20, 20, 24, 0.95) 0%, rgba(14, 14, 18, 0.985) 100%);
+  background: transparent;
+}
+
+.ms-route-group.is-multi-child {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "rail main main"
+    "rail sub1code sub1label"
+    "rail sub2code sub2label";
+}
+
+.ms-route-group.is-single-child {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "rail main main"
+    "rail sub1code sub1label";
 }
 
 .ms-route-group::before {
@@ -434,18 +416,7 @@ body.mobile-shell-lock {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 70px;
-  width: 1px;
-  background: var(--ms-accent-line-soft);
-  z-index: 2;
-}
-
-.ms-route-group::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 132px;
+  left: 76px;
   width: 1px;
   background: var(--ms-accent-line-soft);
   z-index: 2;
@@ -456,15 +427,13 @@ body.mobile-shell-lock {
 .ms-route-group__rail:visited,
 .ms-route-group__rail:hover,
 .ms-route-group__rail:active {
-  grid-column: 1 / 2;
-  grid-row: 1 / -1;
+  grid-area: rail;
   display: flex;
   align-items: center;
   justify-content: center;
   text-decoration: none !important;
   color: #fff !important;
-  background:
-    linear-gradient(180deg, rgba(17, 17, 21, 0.98) 0%, rgba(10, 10, 13, 0.995) 100%);
+  background: var(--ms-row-left-bg);
   transition: background 150ms ease, transform 150ms ease;
   z-index: 3;
 }
@@ -483,8 +452,8 @@ body.mobile-shell-lock {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 6px;
-  font-size: clamp(16px, 2vw, 20px);
+  padding: 4px 8px;
+  font-size: clamp(17px, 2vw, 20px);
   line-height: 1;
   font-weight: 900;
   letter-spacing: -0.04em;
@@ -497,26 +466,22 @@ body.mobile-shell-lock {
 .ms-route-group__main:visited,
 .ms-route-group__main:hover,
 .ms-route-group__main:active {
-  grid-column: 2 / 4;
+  grid-area: main;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 0;
   text-decoration: none !important;
   color: #fff !important;
+  border-left: 1px solid var(--ms-accent-line-soft);
   border-bottom: 1px solid var(--ms-accent-line-soft);
-  background: rgba(255, 255, 255, 0.015);
-  transition:
-    background 150ms ease,
-    transform 150ms ease,
-    box-shadow 150ms ease;
+  background: var(--ms-row-main-bg);
+  transition: background 150ms ease, transform 150ms ease;
   z-index: 3;
 }
 
 .ms-route-group__main:hover,
 .ms-route-group__main:active {
   transform: translateX(1px);
-  box-shadow: inset 0 0 0 1px rgba(255, 106, 0, 0.05);
 }
 
 .ms-route-group__main.is-active {
@@ -530,7 +495,7 @@ body.mobile-shell-lock {
   justify-content: center;
   padding: 4px 12px;
   text-align: center;
-  font-size: clamp(16px, 2vw, 20px);
+  font-size: clamp(17px, 2vw, 20px);
   line-height: 1;
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -539,17 +504,17 @@ body.mobile-shell-lock {
 }
 
 .ms-route-group__children {
+  display: contents;
+}
+
+.ms-route-group__children .ms-route-subcard:nth-child(1) {
   grid-column: 2 / 4;
-  display: grid;
-  min-height: 0;
+  grid-row: 2;
 }
 
-.ms-route-group__children--stack {
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-}
-
-.ms-route-group__children--single {
-  grid-template-rows: minmax(0, 1fr);
+.ms-route-group.is-multi-child .ms-route-group__children .ms-route-subcard:nth-child(2) {
+  grid-column: 2 / 4;
+  grid-row: 3;
 }
 
 .ms-route-subcard,
@@ -559,26 +524,21 @@ body.mobile-shell-lock {
 .ms-route-subcard:active {
   display: grid;
   grid-template-columns: 62px 1fr;
-  min-height: 34px;
   text-decoration: none !important;
   color: #fff !important;
-  border-top: 1px solid var(--ms-accent-line-soft);
-  background:
-    linear-gradient(180deg, rgba(26, 26, 30, 0.985) 0%, rgba(18, 18, 22, 0.995) 100%);
-  transition:
-    transform 150ms ease,
-    background 150ms ease,
-    box-shadow 150ms ease;
+  border-left: 1px solid var(--ms-accent-line-soft);
+  border-bottom: 1px solid var(--ms-accent-line-soft);
+  background: var(--ms-row-sub-bg);
+  transition: background 150ms ease, transform 150ms ease;
 }
 
-.ms-route-group__children > .ms-route-subcard:first-child {
-  border-top: 0;
+.ms-route-group.is-single-child .ms-route-subcard {
+  border-bottom: 0;
 }
 
 .ms-route-subcard:hover,
 .ms-route-subcard:active {
   transform: translateX(1px);
-  box-shadow: inset 0 0 0 1px rgba(255, 106, 0, 0.05);
 }
 
 .ms-route-subcard.is-active,
@@ -600,7 +560,7 @@ body.mobile-shell-lock {
   font-weight: 900;
   letter-spacing: -0.04em;
   text-transform: lowercase;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.01);
   border-right: 1px solid var(--ms-accent-line-soft);
 }
 
@@ -626,9 +586,9 @@ body.mobile-shell-lock {
 .ms-menu-contacts-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border: 1px solid var(--ms-accent-line);
-  border-top: 0;
-  border-radius: 0 0 16px 16px;
+  border-left: 1px solid var(--ms-accent-line);
+  border-right: 1px solid var(--ms-accent-line);
+  border-bottom: 1px solid var(--ms-accent-line);
   overflow: hidden;
 }
 
@@ -652,10 +612,7 @@ body.mobile-shell-lock {
   text-transform: lowercase;
   background:
     linear-gradient(180deg, rgba(7, 7, 10, 0.99) 0%, rgba(2, 2, 4, 0.995) 100%);
-  transition:
-    background 150ms ease,
-    opacity 150ms ease,
-    box-shadow 150ms ease;
+  transition: opacity 150ms ease;
 }
 
 .ms-menu-contact-card + .ms-menu-contact-card {
@@ -665,7 +622,6 @@ body.mobile-shell-lock {
 .ms-menu-contact-card:hover,
 .ms-menu-contact-card:active {
   opacity: 0.92;
-  box-shadow: inset 0 0 0 1px rgba(255, 106, 0, 0.04);
 }
 
 .ms-menu-contact-card__text {
@@ -917,37 +873,33 @@ body.mobile-shell-lock {
   }
 
   .ms-route-card {
-    grid-template-columns: 58px 1fr;
+    grid-template-columns: 66px 1fr;
   }
 
   .ms-route-card::after {
-    left: 58px;
+    left: 66px;
   }
 
   .ms-route-group {
-    grid-template-columns: 58px 52px 1fr;
+    grid-template-columns: 66px 56px 1fr;
   }
 
   .ms-route-group::before {
-    left: 58px;
-  }
-
-  .ms-route-group::after {
-    left: 110px;
+    left: 66px;
   }
 
   .ms-route-card__code,
   .ms-route-group__rail-code {
-    font-size: 15px;
+    font-size: 16px;
   }
 
   .ms-route-card__label,
   .ms-route-group__label {
-    font-size: 15px;
+    font-size: 16px;
   }
 
   .ms-route-subcard {
-    grid-template-columns: 52px 1fr;
+    grid-template-columns: 56px 1fr;
   }
 
   .ms-route-subcard__code {
