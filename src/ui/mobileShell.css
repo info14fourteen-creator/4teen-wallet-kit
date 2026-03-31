@@ -1,26 +1,36 @@
 :root {
-  --ms-bg: #050505;
-  --ms-panel: rgba(7, 7, 9, 0.96);
-  --ms-panel-strong: rgba(5, 5, 7, 0.985);
-  --ms-text: #ffffff;
-  --ms-text-soft: rgba(255, 255, 255, 0.82);
-  --ms-text-dim: rgba(255, 255, 255, 0.56);
-  --ms-accent: #ff6a00;
-  --ms-accent-line: rgba(255, 106, 0, 0.32);
-  --ms-accent-line-soft: rgba(255, 106, 0, 0.12);
-  --ms-row-left-bg: rgba(255, 255, 255, 0.015);
-  --ms-row-main-bg: rgba(255, 255, 255, 0.01);
-  --ms-row-sub-bg: rgba(255, 255, 255, 0.02);
+  --ms-accent: var(--ft-accent, rgb(255, 105, 0));
+  --ms-bg: var(--ft-bg, rgb(10, 10, 10));
+  --ms-surface: var(--ft-surface, rgba(26, 26, 26, 0.88));
+  --ms-surface-strong: var(--ft-surface-strong, rgba(17, 17, 17, 0.84));
+  --ms-surface-soft: var(--ft-surface-soft, rgba(255, 255, 255, 0.03));
+  --ms-text: var(--ft-text, rgba(255, 255, 255, 0.96));
+  --ms-text-soft: var(--ft-text-soft, rgba(255, 255, 255, 0.78));
+  --ms-text-dim: var(--ft-text-dim, rgba(255, 255, 255, 0.56));
+  --ms-line: var(--ft-line, rgba(255, 105, 0, 0.16));
+  --ms-line-strong: var(--ft-line-strong, rgba(255, 105, 0, 0.24));
+  --ms-line-soft: var(--ft-line-soft, rgba(255, 255, 255, 0.08));
+
+  --ms-font: var(--ft-font, TTnorms, Arial, sans-serif);
+
   --ms-top-h: 72px;
   --ms-bottom-h: 112px;
   --ms-center-size: 96px;
   --ms-side-gap: 14px;
   --ms-safe-top: env(safe-area-inset-top, 0px);
   --ms-safe-bottom: env(safe-area-inset-bottom, 0px);
+
   --ms-z-overlay: 1200;
   --ms-z-panel: 1250;
   --ms-z-bars: 1300;
   --ms-z-center: 1360;
+
+  --ms-menu-left-col: 72px;
+  --ms-menu-sub-col: 68px;
+  --ms-menu-row-min: 40px;
+  --ms-menu-group-min: 108px;
+  --ms-menu-group-single-min: 84px;
+  --ms-menu-contact-min: 46px;
 }
 
 html.mobile-shell-lock,
@@ -32,7 +42,7 @@ body.mobile-shell-lock {
 .mobile-shell {
   position: relative;
   z-index: 1;
-  font-family: inherit;
+  font-family: var(--ms-font);
   color: var(--ms-text);
 }
 
@@ -46,8 +56,8 @@ body.mobile-shell-lock {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 0%, rgba(255, 106, 0, 0.06), transparent 30%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.8) 100%);
+    radial-gradient(circle at 50% 0%, rgba(255, 105, 0, 0.05), transparent 30%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.48) 0%, rgba(0, 0, 0, 0.72) 100%);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -125,7 +135,6 @@ body.mobile-shell-lock {
   height: 2px;
   border-radius: 999px;
   background: var(--ms-accent);
-  box-shadow: 0 0 10px rgba(255, 106, 0, 0.22);
   transition:
     transform 200ms ease,
     top 200ms ease,
@@ -158,11 +167,11 @@ body.mobile-shell-lock {
   transform: rotate(-45deg);
 }
 
-/* social top button */
+/* social */
 
 .ms-social-toggle {
   appearance: none;
-  border: 0;
+  border: 1px solid var(--ms-line-soft);
   outline: none;
   cursor: pointer;
   width: 42px;
@@ -172,15 +181,13 @@ body.mobile-shell-lock {
   padding: 0;
   margin: 0;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(30, 30, 33, 0.98) 0%, rgba(16, 16, 18, 0.98) 100%);
+  background: rgba(255, 255, 255, 0.03);
   display: inline-grid;
   place-items: center;
   overflow: hidden;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 4px 14px rgba(0, 0, 0, 0.18);
   transition:
     transform 160ms ease,
+    border-color 160ms ease,
     background 160ms ease,
     opacity 160ms ease;
   flex: 0 0 auto;
@@ -189,11 +196,13 @@ body.mobile-shell-lock {
 .ms-social-toggle:hover,
 .ms-social-toggle:active {
   transform: translateY(-1px);
+  border-color: var(--ms-line);
+  background: rgba(255, 105, 0, 0.08);
 }
 
 .ms-social-toggle-icon {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
   display: block;
   flex: 0 0 auto;
@@ -269,8 +278,7 @@ body.mobile-shell-lock {
   height: 100%;
   overflow: auto;
   padding: 8px 10px 8px;
-  background:
-    linear-gradient(180deg, rgba(8, 9, 11, 0.985) 0%, rgba(3, 3, 5, 0.995) 100%);
+  background: transparent;
 }
 
 .ms-menu-shell,
@@ -294,10 +302,9 @@ body.mobile-shell-lock {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border: 1px solid var(--ms-accent-line);
-  overflow: hidden;
+  border: 1px solid var(--ms-line-strong);
   background:
-    linear-gradient(180deg, rgba(11, 11, 14, 0.985) 0%, rgba(5, 5, 8, 0.995) 100%);
+    linear-gradient(180deg, rgba(17, 17, 17, 0.92) 0%, rgba(10, 10, 10, 0.94) 100%);
 }
 
 .ms-route-card,
@@ -306,16 +313,16 @@ body.mobile-shell-lock {
 .ms-route-card:hover,
 .ms-route-card:active {
   flex: var(--ms-grow, 1) 1 0;
-  min-height: 40px;
+  min-height: var(--ms-menu-row-min);
   position: relative;
   display: grid;
-  grid-template-columns: 76px 1fr;
+  grid-template-columns: var(--ms-menu-left-col) 1fr;
   align-items: stretch;
   text-decoration: none !important;
-  color: #fff !important;
-  border-top: 1px solid var(--ms-accent-line-soft);
+  color: var(--ms-text) !important;
+  border-top: 1px solid var(--ms-line-soft);
   background: transparent;
-  transition: background 150ms ease, transform 150ms ease;
+  transition: background 160ms ease, opacity 160ms ease;
 }
 
 .ms-route-card:first-child {
@@ -327,14 +334,14 @@ body.mobile-shell-lock {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 76px;
+  left: var(--ms-menu-left-col);
   width: 1px;
-  background: var(--ms-accent-line-soft);
+  background: var(--ms-line-soft);
 }
 
 .ms-route-card:hover,
 .ms-route-card:active {
-  transform: translateX(1px);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .ms-route-card.is-active,
@@ -342,9 +349,8 @@ body.mobile-shell-lock {
 .ms-route-card.is-active:visited,
 .ms-route-card.is-active:hover,
 .ms-route-card.is-active:active {
-  background:
-    linear-gradient(180deg, rgba(255, 106, 0, 0.98) 0%, rgba(255, 122, 28, 0.98) 100%);
-  color: #fff !important;
+  background: var(--ms-accent);
+  color: rgb(255, 255, 255) !important;
 }
 
 .ms-route-card.is-active::after {
@@ -356,17 +362,12 @@ body.mobile-shell-lock {
   align-items: center;
   justify-content: center;
   padding: 4px 8px;
-  font-size: clamp(17px, 2vw, 20px);
+  font-size: clamp(16px, 2vw, 19px);
   line-height: 1;
-  font-weight: 900;
-  letter-spacing: -0.04em;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   text-transform: lowercase;
   color: inherit;
-  background: var(--ms-row-left-bg);
-}
-
-.ms-route-card.is-active .ms-route-card__code {
-  background: rgba(0, 0, 0, 0.12);
 }
 
 .ms-route-card__label {
@@ -375,25 +376,24 @@ body.mobile-shell-lock {
   justify-content: center;
   padding: 4px 12px;
   text-align: center;
-  font-size: clamp(17px, 2vw, 20px);
+  font-size: clamp(16px, 2vw, 19px);
   line-height: 1;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   text-transform: lowercase;
   color: inherit;
-  background: var(--ms-row-main-bg);
 }
 
-/* groups */
+/* grouped rows */
 
 .ms-route-group {
-  flex: var(--ms-grow, 2.4) 1 0;
-  min-height: 104px;
+  flex: var(--ms-grow, 2.5) 1 0;
+  min-height: var(--ms-menu-group-min);
   position: relative;
   display: grid;
-  grid-template-columns: 76px 62px 1fr;
-  border-top: 1px solid var(--ms-accent-line-soft);
+  grid-template-columns: var(--ms-menu-left-col) var(--ms-menu-sub-col) 1fr;
   background: transparent;
+  border-top: 1px solid var(--ms-line-soft);
 }
 
 .ms-route-group.is-multi-child {
@@ -405,6 +405,7 @@ body.mobile-shell-lock {
 }
 
 .ms-route-group.is-single-child {
+  min-height: var(--ms-menu-group-single-min);
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
     "rail main main"
@@ -416,9 +417,9 @@ body.mobile-shell-lock {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 76px;
+  left: var(--ms-menu-left-col);
   width: 1px;
-  background: var(--ms-accent-line-soft);
+  background: var(--ms-line-soft);
   z-index: 2;
 }
 
@@ -432,20 +433,20 @@ body.mobile-shell-lock {
   align-items: center;
   justify-content: center;
   text-decoration: none !important;
-  color: #fff !important;
-  background: var(--ms-row-left-bg);
-  transition: background 150ms ease, transform 150ms ease;
+  color: var(--ms-text) !important;
+  background: transparent;
+  transition: background 160ms ease, opacity 160ms ease;
   z-index: 3;
 }
 
 .ms-route-group__rail:hover,
 .ms-route-group__rail:active {
-  transform: translateX(1px);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .ms-route-group__rail.is-active {
-  background:
-    linear-gradient(180deg, rgba(255, 106, 0, 0.98) 0%, rgba(255, 122, 28, 0.98) 100%);
+  background: var(--ms-accent);
+  color: rgb(255, 255, 255) !important;
 }
 
 .ms-route-group__rail-code {
@@ -453,10 +454,10 @@ body.mobile-shell-lock {
   align-items: center;
   justify-content: center;
   padding: 4px 8px;
-  font-size: clamp(17px, 2vw, 20px);
+  font-size: clamp(16px, 2vw, 19px);
   line-height: 1;
-  font-weight: 900;
-  letter-spacing: -0.04em;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   text-transform: lowercase;
   color: inherit;
 }
@@ -471,22 +472,22 @@ body.mobile-shell-lock {
   align-items: center;
   justify-content: center;
   text-decoration: none !important;
-  color: #fff !important;
-  border-left: 1px solid var(--ms-accent-line-soft);
-  border-bottom: 1px solid var(--ms-accent-line-soft);
-  background: var(--ms-row-main-bg);
-  transition: background 150ms ease, transform 150ms ease;
+  color: var(--ms-text) !important;
+  border-left: 1px solid var(--ms-line-soft);
+  border-bottom: 1px solid var(--ms-line-soft);
+  background: transparent;
+  transition: background 160ms ease, opacity 160ms ease;
   z-index: 3;
 }
 
 .ms-route-group__main:hover,
 .ms-route-group__main:active {
-  transform: translateX(1px);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .ms-route-group__main.is-active {
-  background:
-    linear-gradient(180deg, rgba(255, 106, 0, 0.98) 0%, rgba(255, 122, 28, 0.98) 100%);
+  background: var(--ms-accent);
+  color: rgb(255, 255, 255) !important;
 }
 
 .ms-route-group__label {
@@ -495,10 +496,10 @@ body.mobile-shell-lock {
   justify-content: center;
   padding: 4px 12px;
   text-align: center;
-  font-size: clamp(17px, 2vw, 20px);
+  font-size: clamp(16px, 2vw, 19px);
   line-height: 1;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   text-transform: lowercase;
   color: inherit;
 }
@@ -523,13 +524,13 @@ body.mobile-shell-lock {
 .ms-route-subcard:hover,
 .ms-route-subcard:active {
   display: grid;
-  grid-template-columns: 62px 1fr;
+  grid-template-columns: var(--ms-menu-sub-col) 1fr;
   text-decoration: none !important;
-  color: #fff !important;
-  border-left: 1px solid var(--ms-accent-line-soft);
-  border-bottom: 1px solid var(--ms-accent-line-soft);
-  background: var(--ms-row-sub-bg);
-  transition: background 150ms ease, transform 150ms ease;
+  color: var(--ms-text) !important;
+  border-left: 1px solid var(--ms-line-soft);
+  border-bottom: 1px solid var(--ms-line-soft);
+  background: transparent;
+  transition: background 160ms ease, opacity 160ms ease;
 }
 
 .ms-route-group.is-single-child .ms-route-subcard {
@@ -538,7 +539,7 @@ body.mobile-shell-lock {
 
 .ms-route-subcard:hover,
 .ms-route-subcard:active {
-  transform: translateX(1px);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .ms-route-subcard.is-active,
@@ -546,8 +547,8 @@ body.mobile-shell-lock {
 .ms-route-subcard.is-active:visited,
 .ms-route-subcard.is-active:hover,
 .ms-route-subcard.is-active:active {
-  background:
-    linear-gradient(180deg, rgba(255, 106, 0, 0.95) 0%, rgba(255, 122, 28, 0.95) 100%);
+  background: rgba(255, 105, 0, 0.16);
+  color: rgb(255, 255, 255) !important;
 }
 
 .ms-route-subcard__code {
@@ -555,17 +556,12 @@ body.mobile-shell-lock {
   align-items: center;
   justify-content: center;
   padding: 4px 4px;
-  font-size: clamp(13px, 1.7vw, 16px);
+  font-size: clamp(13px, 1.7vw, 15px);
   line-height: 1;
-  font-weight: 900;
-  letter-spacing: -0.04em;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   text-transform: lowercase;
-  background: rgba(255, 255, 255, 0.01);
-  border-right: 1px solid var(--ms-accent-line-soft);
-}
-
-.ms-route-subcard.is-active .ms-route-subcard__code {
-  background: rgba(0, 0, 0, 0.12);
+  border-right: 1px solid var(--ms-line-soft);
 }
 
 .ms-route-subcard__label {
@@ -574,7 +570,7 @@ body.mobile-shell-lock {
   justify-content: center;
   padding: 4px 8px;
   text-align: center;
-  font-size: clamp(13px, 1.7vw, 16px);
+  font-size: clamp(13px, 1.7vw, 15px);
   line-height: 1;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -586,9 +582,9 @@ body.mobile-shell-lock {
 .ms-menu-contacts-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-left: 1px solid var(--ms-accent-line);
-  border-right: 1px solid var(--ms-accent-line);
-  border-bottom: 1px solid var(--ms-accent-line);
+  border-left: 1px solid var(--ms-line-strong);
+  border-right: 1px solid var(--ms-line-strong);
+  border-bottom: 1px solid var(--ms-line-strong);
   overflow: hidden;
 }
 
@@ -597,31 +593,30 @@ body.mobile-shell-lock {
 .ms-menu-contact-card:visited,
 .ms-menu-contact-card:hover,
 .ms-menu-contact-card:active {
-  min-height: 44px;
+  min-height: var(--ms-menu-contact-min);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 4px 8px;
   text-align: center;
   text-decoration: none !important;
-  color: #fff !important;
+  color: var(--ms-text) !important;
   font-size: clamp(12px, 1.6vw, 14px);
   line-height: 1.05;
   font-weight: 700;
   letter-spacing: -0.02em;
   text-transform: lowercase;
-  background:
-    linear-gradient(180deg, rgba(7, 7, 10, 0.99) 0%, rgba(2, 2, 4, 0.995) 100%);
-  transition: opacity 150ms ease;
+  background: transparent;
+  transition: background 160ms ease, opacity 160ms ease;
 }
 
 .ms-menu-contact-card + .ms-menu-contact-card {
-  border-left: 1px solid var(--ms-accent-line-soft);
+  border-left: 1px solid var(--ms-line-soft);
 }
 
 .ms-menu-contact-card:hover,
 .ms-menu-contact-card:active {
-  opacity: 0.92;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .ms-menu-contact-card__text {
@@ -647,7 +642,7 @@ body.mobile-shell-lock {
   min-height: 46px;
   padding: 8px 0;
   text-decoration: none !important;
-  color: #ffffff !important;
+  color: var(--ms-text) !important;
   transition:
     transform 160ms ease,
     opacity 160ms ease;
@@ -668,7 +663,7 @@ body.mobile-shell-lock {
 }
 
 .ms-social-menu-link-label {
-  color: #ffffff !important;
+  color: var(--ms-text) !important;
   font-size: 17px;
   line-height: 1;
   font-weight: 700;
@@ -766,7 +761,7 @@ body.mobile-shell-lock {
   padding: 4px 2px 2px;
   border-radius: 16px;
   text-decoration: none !important;
-  color: #ffffff !important;
+  color: var(--ms-text) !important;
   background: transparent;
   transition:
     transform 160ms ease,
@@ -779,7 +774,7 @@ body.mobile-shell-lock {
 .ms-bottom-link:active {
   transform: translateY(-1px);
   opacity: 0.84;
-  color: #ffffff !important;
+  color: var(--ms-text) !important;
 }
 
 .ms-bottom-link.is-active,
@@ -831,6 +826,8 @@ body.mobile-shell-lock {
     --ms-top-h: 70px;
     --ms-bottom-h: 108px;
     --ms-center-size: 92px;
+    --ms-menu-left-col: 66px;
+    --ms-menu-sub-col: 58px;
   }
 
   .ms-social-toggle {
@@ -872,22 +869,6 @@ body.mobile-shell-lock {
     font-size: 9px;
   }
 
-  .ms-route-card {
-    grid-template-columns: 66px 1fr;
-  }
-
-  .ms-route-card::after {
-    left: 66px;
-  }
-
-  .ms-route-group {
-    grid-template-columns: 66px 56px 1fr;
-  }
-
-  .ms-route-group::before {
-    left: 66px;
-  }
-
   .ms-route-card__code,
   .ms-route-group__rail-code {
     font-size: 16px;
@@ -896,10 +877,6 @@ body.mobile-shell-lock {
   .ms-route-card__label,
   .ms-route-group__label {
     font-size: 16px;
-  }
-
-  .ms-route-subcard {
-    grid-template-columns: 56px 1fr;
   }
 
   .ms-route-subcard__code {
