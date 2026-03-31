@@ -55,9 +55,7 @@ body.mobile-shell-lock {
 .ms-overlay {
   position: fixed;
   inset: 0;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(255, 105, 0, 0.05), transparent 30%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.48) 0%, rgba(0, 0, 0, 0.72) 100%);
+  background: rgba(0, 0, 0, 0.99);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -303,8 +301,8 @@ body.mobile-shell-lock {
   flex-direction: column;
   min-height: 0;
   border: 1px solid var(--ms-line-strong);
-  background:
-    linear-gradient(180deg, rgba(17, 17, 17, 0.92) 0%, rgba(10, 10, 10, 0.94) 100%);
+  overflow: hidden;
+  background: #0a0a0a;
 }
 
 .ms-route-card,
