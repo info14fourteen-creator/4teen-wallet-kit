@@ -288,8 +288,11 @@ function createGroupCard(item = {}, grow = 2.4) {
   wrap.style.setProperty('--ms-grow', String(grow));
 
   const children = Array.isArray(item.children) ? item.children : [];
+  const childCount = children.length;
   const parentActive = isActiveHref(item.href || '');
   const childActive = children.some((child) => isExactActiveHref(child.href || ''));
+
+  wrap.classList.add(childCount === 1 ? 'is-single-child' : 'is-multi-child');
 
   if (childActive) {
     wrap.classList.add('has-active-child');
@@ -343,7 +346,7 @@ function createGroupCard(item = {}, grow = 2.4) {
 
   const childList = createElement(
     'div',
-    `ms-route-group__children ms-route-group__children--${children.length === 1 ? 'single' : 'stack'}`
+    `ms-route-group__children ms-route-group__children--${childCount === 1 ? 'single' : 'stack'}`
   );
 
   children.forEach((child) => {
@@ -405,8 +408,7 @@ function buildMatrixContacts(items = []) {
 function getEntryGrow(entry, item) {
   if (entry.type === 'group') {
     const count = Array.isArray(item.children) ? item.children.length : 0;
-    if (count >= 2) return 3.2;
-    return 2.35;
+    return count >= 2 ? 3.1 : 2.25;
   }
 
   return 1;
