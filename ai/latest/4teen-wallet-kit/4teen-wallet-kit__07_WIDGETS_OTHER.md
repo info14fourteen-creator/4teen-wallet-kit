@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-31T11:45:45.316Z
+Generated: 2026-03-31T20:34:05.321Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -892,7 +892,7 @@ function safeSun(value, fallback = '0') {
 }
 
 function sunToTrxString(value) {
-  const raw = safeString(value, '0');
+  const raw = safeString(value, '0').trim();
 
   if (!raw || raw === '0') {
     return '0';
@@ -1525,7 +1525,7 @@ function createStatusCard(label, trxValue, sunValue, count, modifier, hint = '')
       <div class="fourteen-ambassador-cabinet-card__value">${escapeHtml(trxValue)} TRX</div>
       <div class="fourteen-ambassador-cabinet-card__hint">${escapeHtml(sunValue)} SUN</div>
       <div class="fourteen-ambassador-cabinet-card__hint">
-        ${escapeHtml(String(count))} ${count === 1 ? 'reward entry' : 'reward entries'}
+        ${escapeHtml(String(count))} ${count === 1 ? 'purchase' : 'purchases'}
       </div>
       ${hint ? `<div class="fourteen-ambassador-cabinet-card__hint">${escapeHtml(hint)}</div>` : ''}
     </div>
@@ -1699,6 +1699,11 @@ function createPerformanceContent(state, walletAddress) {
   const withdrawalQueue = dashboard.withdrawalQueue ?? {};
   const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
 
+  const claimableRewardsSun =
+    withdrawalQueue.availableOnChainSun ?? stats.claimableRewardsSun ?? '0';
+  const claimableRewardsTrx =
+    withdrawalQueue.availableOnChainTrx ?? stats.claimableRewardsTrx ?? sunToTrxString(claimableRewardsSun);
+
   return `
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
       ${createValueCard('Total buyers', String(stats.totalBuyers ?? 0))}
@@ -1709,8 +1714,8 @@ function createPerformanceContent(state, walletAddress) {
       )}
       ${createValueCard(
         'Claimable rewards now',
-        `${stats.claimableRewardsTrx ?? '0'} TRX`,
-        `${stats.claimableRewardsSun ?? '0'} SUN • Source: on-chain`
+        `${claimableRewardsTrx} TRX`,
+        `${claimableRewardsSun} SUN • Source: on-chain`
       )}
     </div>
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
