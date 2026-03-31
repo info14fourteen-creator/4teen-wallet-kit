@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-31T10:37:25.383Z
+Generated: 2026-03-31T11:45:45.316Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -791,7 +791,7 @@ const DEFAULT_CONFIG = {
     'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, continue to registration.',
   infoTitle: 'What this cabinet shows and lets you do',
   infoContent:
-    'This cabinet is the ambassador control panel for the connected wallet. It checks whether the wallet already has an ambassador profile and then shows the actual cabinet state for that address.\n\nInside the cabinet you can view ambassador identity data, referral link state, level and reward percent, buyer and volume stats, reward balances, and withdrawal queue state.\n\nImportant: this cabinet separates real on-chain withdrawable rewards from backend accounting. “Available on-chain now” is the real amount that can be withdrawn right now. “Allocated in DB” is backend accounting only and does not guarantee immediate withdrawal. “Pending backend sync” means rewards still need backend/on-chain processing. “Requested for processing” means a withdrawal preparation flow is already running.\n\nIf rewards are already available on-chain, you can request withdrawal from here. If some rewards are still waiting for backend processing, you can also trigger pending reward processing from this cabinet and then refresh the data.\n\nThe cabinet also lets you copy or open the referral link, open the connected wallet in Tronscan, and open the latest withdrawal transaction when one exists.\n\nIf the connected wallet is not registered as an ambassador yet, the cabinet will show that no ambassador profile was found and will direct you to the ambassador registration page instead.'
+    'This cabinet is the ambassador control panel for the connected wallet. It checks whether the wallet already has an ambassador profile and then shows the actual cabinet state for that address.\n\nInside the cabinet you can view ambassador identity data, referral link state, level and reward percent, buyer and volume stats, reward balances, and withdrawal queue state.\n\nImportant: this cabinet separates real on-chain withdrawable rewards from backend accounting. “Available on-chain now” is the real amount that can be withdrawn right now. “Allocated in DB” is backend accounting only and does not guarantee immediate withdrawal. “Pending backend sync” means rewards still need backend/on-chain processing. “Requested for processing” means a withdrawal preparation flow is already running.\n\nIf rewards are already available on-chain, you can request withdrawal from here. If some rewards are still waiting for backend processing, you can trigger pending reward processing separately and then refresh the cabinet.\n\nThe cabinet also lets you copy or open the referral link, open the connected wallet in Tronscan, and open the latest withdrawal transaction when one exists.\n\nIf the connected wallet is not registered as an ambassador yet, the cabinet will show that no ambassador profile was found and will direct you to the ambassador registration page instead.'
 };
 
 const DEFAULT_SECTION_STATE = {
@@ -999,8 +999,9 @@ function normalizeError(error) {
 
   if (
     lower.includes('resource insufficient') ||
-    lower.includes('bandwidth') ||
-    lower.includes('energy')
+    lower.includes('insufficient energy') ||
+    lower.includes('insufficient bandwidth') ||
+    lower.includes('account resource insufficient')
   ) {
     return 'Resources are not available yet. Please try again later.';
   }
@@ -1296,15 +1297,18 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
   const pendingBackendSyncSun = safeSun(withdrawalQueue.pendingBackendSyncSun, '0');
   const requestedForProcessingSun = safeSun(withdrawalQueue.requestedForProcessingSun, '0');
 
+  const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
+  const currentLevel = safeNumber(identity.currentLevel, effectiveLevel);
+
   return {
     identity: {
       ...empty.identity,
       wallet: walletAddress,
       exists: true,
       active: profile?.status ? profile.status === 'active' : safeBoolean(identity.active),
-      level: safeNumber(identity.level, 0),
-      effectiveLevel: safeNumber(identity.level, safeNumber(identity.effectiveLevel, 0)),
-      currentLevel: safeNumber(identity.currentLevel, safeNumber(identity.level, 0)),
+      level: safeNumber(identity.level, effectiveLevel),
+      effectiveLevel,
+      currentLevel,
       overrideLevel: safeNumber(identity.overrideLevel, 0),
       rewardPercent: safeNumber(identity.rewardPercent, 0),
       createdAt: safeNumber(identity.createdAt, 0),
@@ -1317,22 +1321,22 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
     stats: {
       ...empty.stats,
       totalBuyers: safeNumber(stats.totalBuyers, 0),
-      trackedVolumeSun: safeString(stats.trackedVolumeSun, '0'),
+      trackedVolumeSun: safeSun(stats.trackedVolumeSun, '0'),
       trackedVolumeTrx: safeString(
         stats.trackedVolumeTrx,
         sunToTrxString(stats.trackedVolumeSun)
       ),
-      claimableRewardsSun: safeString(stats.claimableRewardsSun, '0'),
+      claimableRewardsSun: safeSun(stats.claimableRewardsSun, '0'),
       claimableRewardsTrx: safeString(
         stats.claimableRewardsTrx,
         sunToTrxString(stats.claimableRewardsSun)
       ),
-      lifetimeRewardsSun: safeString(stats.lifetimeRewardsSun, '0'),
+      lifetimeRewardsSun: safeSun(stats.lifetimeRewardsSun, '0'),
       lifetimeRewardsTrx: safeString(
         stats.lifetimeRewardsTrx,
         sunToTrxString(stats.lifetimeRewardsSun)
       ),
-      withdrawnRewardsSun: safeString(stats.withdrawnRewardsSun, '0'),
+      withdrawnRewardsSun: safeSun(stats.withdrawnRewardsSun, '0'),
       withdrawnRewardsTrx: safeString(
         stats.withdrawnRewardsTrx,
         sunToTrxString(stats.withdrawnRewardsSun)
@@ -1340,7 +1344,7 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
     },
     progress: {
       ...empty.progress,
-      currentLevel: safeNumber(progress.currentLevel, safeNumber(identity.level, 0)),
+      currentLevel: safeNumber(progress.currentLevel, currentLevel),
       buyersCount: safeNumber(progress.buyersCount, safeNumber(stats.totalBuyers, 0)),
       nextThreshold: safeNumber(progress.nextThreshold, 0),
       remainingToNextLevel: safeNumber(progress.remainingToNextLevel, 0)
@@ -1441,15 +1445,11 @@ function buildWithdrawButtonLabel(state, config) {
     return 'Requested for processing';
   }
 
-  if (state.statusCards.hasPendingBackendSync && !state.statusCards.hasAvailableOnChain) {
-    return 'Prepare withdrawal request';
-  }
-
   if (state.statusCards.hasAvailableOnChain) {
     return config.withdrawText || 'Withdraw rewards';
   }
 
-  return 'No rewards available';
+  return 'No on-chain rewards available';
 }
 
 function buildReplayButtonLabel(config, state) {
@@ -1628,7 +1628,7 @@ function createIdentityContent(config, state, walletAddress) {
     profile?.publicSlug ||
     '—';
   const referralLink = buildReferralLink(config, profile, identity);
-  const effectiveLevel = safeNumber(identity?.effectiveLevel, safeNumber(identity?.level, 0));
+  const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
 
   return `
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
@@ -1677,7 +1677,7 @@ function createRewardStatusContent(state) {
         state.statusCards.pendingBackendSyncSun,
         state.statusCards.pendingBackendSyncCount,
         'amber',
-        'Verified rewards that still need backend/on-chain sync.'
+        'Verified rewards that still need backend and on-chain sync.'
       )}
       ${createStatusCard(
         'Requested for processing',
@@ -1697,37 +1697,37 @@ function createPerformanceContent(state, walletAddress) {
   const identity = dashboard.identity ?? {};
   const progress = dashboard.progress ?? {};
   const withdrawalQueue = dashboard.withdrawalQueue ?? {};
-  const effectiveLevel = safeNumber(identity?.effectiveLevel, safeNumber(identity?.level, 0));
+  const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
 
   return `
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-      ${createValueCard('Total buyers', String(stats?.totalBuyers ?? 0))}
+      ${createValueCard('Total buyers', String(stats.totalBuyers ?? 0))}
       ${createValueCard(
         'Tracked volume',
-        `${stats?.trackedVolumeTrx ?? '0'} TRX`,
-        `${stats?.trackedVolumeSun ?? '0'} SUN`
+        `${stats.trackedVolumeTrx ?? '0'} TRX`,
+        `${stats.trackedVolumeSun ?? '0'} SUN`
       )}
       ${createValueCard(
         'Claimable rewards now',
-        `${stats?.claimableRewardsTrx ?? '0'} TRX`,
-        `${stats?.claimableRewardsSun ?? '0'} SUN • Source: on-chain`
+        `${stats.claimableRewardsTrx ?? '0'} TRX`,
+        `${stats.claimableRewardsSun ?? '0'} SUN • Source: on-chain`
       )}
     </div>
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
       ${createValueCard(
         'Reward percent',
-        `${identity?.rewardPercent ?? 0}%`,
+        `${identity.rewardPercent ?? 0}%`,
         `Effective level: ${levelToLabel(effectiveLevel)}`
       )}
       ${createValueCard(
         'Current level',
-        levelToLabel(progress?.currentLevel ?? effectiveLevel),
-        `Current buyers: ${progress?.buyersCount ?? stats?.totalBuyers ?? 0}`
+        levelToLabel(progress.currentLevel ?? effectiveLevel),
+        `Current buyers: ${progress.buyersCount ?? stats.totalBuyers ?? 0}`
       )}
       ${createValueCard(
         'Allocated in DB',
-        `${withdrawalQueue?.allocatedInDbTrx ?? '0'} TRX`,
-        `${withdrawalQueue?.allocatedInDbSun ?? '0'} SUN • Backend accounting only`
+        `${withdrawalQueue.allocatedInDbTrx ?? '0'} TRX`,
+        `${withdrawalQueue.allocatedInDbSun ?? '0'} SUN • Backend accounting only`
       )}
     </div>
   `;
@@ -1746,6 +1746,13 @@ function createActionsContent(state, walletAddress, config) {
     : '';
   const withdrawButtonLabel = buildWithdrawButtonLabel(state, config);
   const replayButtonLabel = buildReplayButtonLabel(config, state);
+
+  const canWithdraw =
+    state.statusCards.hasAvailableOnChain &&
+    !state.isWithdrawing &&
+    !state.hasProcessingWithdrawal &&
+    !state.statusCards.hasRequestedForProcessing;
+
   const canReplayPending =
     state.statusCards.hasPendingBackendSync &&
     !state.isReplayingPending &&
@@ -1775,14 +1782,7 @@ function createActionsContent(state, walletAddress, config) {
         type="button"
         class="fourteen-ambassador-cabinet-action"
         data-role="withdraw-button"
-        ${
-          state.isWithdrawing ||
-          state.hasProcessingWithdrawal ||
-          state.statusCards.hasRequestedForProcessing ||
-          (!state.statusCards.hasAvailableOnChain && !state.statusCards.hasPendingBackendSync)
-            ? 'disabled aria-disabled="true"'
-            : ''
-        }
+        ${canWithdraw ? '' : 'disabled aria-disabled="true"'}
       >
         ${escapeHtml(withdrawButtonLabel)}
       </button>
@@ -1862,17 +1862,17 @@ function createAdvancedContent(state, walletAddress) {
   const identity = dashboard.identity ?? {};
   const progress = dashboard.progress ?? {};
   const stats = dashboard.stats ?? {};
-  const effectiveLevel = safeNumber(identity?.effectiveLevel, safeNumber(identity?.level, 0));
+  const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
 
   return `
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
-      ${createValueCard('Slug hash', identity?.slugHash || '—')}
-      ${createValueCard('Meta hash', identity?.metaHash || '—')}
+      ${createValueCard('Slug hash', identity.slugHash || '—')}
+      ${createValueCard('Meta hash', identity.metaHash || '—')}
       ${createValueCard(
         'Registration mode',
-        identity?.selfRegistered
+        identity.selfRegistered
           ? 'Self-registered'
-          : identity?.manualAssigned
+          : identity.manualAssigned
             ? 'Manually assigned'
             : state.isRegistered
               ? 'Registered'
@@ -1880,32 +1880,32 @@ function createAdvancedContent(state, walletAddress) {
       )}
       ${createValueCard(
         'Override',
-        identity?.overrideEnabled ? 'Enabled' : 'Disabled',
-        `Current: ${levelToLabel(identity?.currentLevel ?? effectiveLevel)} • Override: ${levelToLabel(
-          identity?.overrideLevel ?? 0
+        identity.overrideEnabled ? 'Enabled' : 'Disabled',
+        `Current: ${levelToLabel(identity.currentLevel ?? effectiveLevel)} • Override: ${levelToLabel(
+          identity.overrideLevel ?? 0
         )}`
       )}
       ${createValueCard(
         'Next threshold',
-        String(progress?.nextThreshold ?? 0),
+        String(progress.nextThreshold ?? 0),
         'Buyers needed for next milestone'
       )}
       ${createValueCard(
         'Remaining',
-        String(progress?.remainingToNextLevel ?? 0),
+        String(progress.remainingToNextLevel ?? 0),
         'Buyers left to next level'
       )}
       ${createValueCard(
         'Lifetime rewards',
-        `${stats?.lifetimeRewardsTrx ?? '0'} TRX`,
-        `${stats?.lifetimeRewardsSun ?? '0'} SUN`
+        `${stats.lifetimeRewardsTrx ?? '0'} TRX`,
+        `${stats.lifetimeRewardsSun ?? '0'} SUN`
       )}
       ${createValueCard(
         'Withdrawn rewards',
-        `${stats?.withdrawnRewardsTrx ?? '0'} TRX`,
-        `${stats?.withdrawnRewardsSun ?? '0'} SUN`
+        `${stats.withdrawnRewardsTrx ?? '0'} TRX`,
+        `${stats.withdrawnRewardsSun ?? '0'} SUN`
       )}
-      ${createValueCard('Created at', formatDate(identity?.createdAt ?? 0))}
+      ${createValueCard('Created at', formatDate(identity.createdAt ?? 0))}
       ${createValueCard('Tracked wallet', walletAddress || '—')}
     </div>
   `;
@@ -2386,6 +2386,11 @@ export function mountAmbassadorCabinet(target, config = {}) {
       return;
     }
 
+    if (!state.statusCards.hasAvailableOnChain) {
+      showNeutralNotice('No on-chain rewards are available for withdrawal yet.', 7000);
+      return;
+    }
+
     state.isWithdrawing = true;
     state.error = '';
     render();
@@ -2420,6 +2425,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
     }
 
     if (!state.statusCards.hasPendingBackendSync) {
+      showNeutralNotice('No pending rewards require backend processing right now.', 7000);
       return;
     }
 
@@ -2433,6 +2439,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
       const attempted = safeNumber(result.attempted, totalFound);
       const succeeded = safeNumber(result.succeeded, 0);
       const failed = safeNumber(result.failed, 0);
+      const skipped = safeNumber(result.skipped, 0);
 
       if (succeeded > 0 && failed === 0) {
         showSuccessNotice(`Processed ${succeeded} pending reward item(s).`, 8000);
@@ -2443,6 +2450,8 @@ export function mountAmbassadorCabinet(target, config = {}) {
         );
       } else if (attempted > 0 && failed > 0) {
         showErrorNotice(`No pending items were processed. Failed: ${failed}.`, 10000);
+      } else if (skipped > 0 && succeeded === 0 && failed === 0) {
+        showNeutralNotice('Pending rewards are cooling down or waiting for the next retry window.', 8000);
       } else if (totalFound === 0) {
         showNeutralNotice('No pending rewards were found for processing.', 7000);
       } else {
