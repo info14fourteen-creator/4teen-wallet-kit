@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-31T20:34:05.321Z
+Generated: 2026-03-31T20:36:33.353Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -43,6 +43,8 @@ Branch: main
   --fourteen-cabinet-accent-strong: rgba(255, 105, 0, 0.2);
   --fourteen-cabinet-green: rgb(26, 224, 58);
   --fourteen-cabinet-green-soft: rgba(26, 224, 58, 0.12);
+  --fourteen-cabinet-purple: rgb(172, 111, 255);
+  --fourteen-cabinet-purple-soft: rgba(172, 111, 255, 0.12);
   --fourteen-cabinet-amber: rgb(255, 184, 0);
   --fourteen-cabinet-amber-soft: rgba(255, 184, 0, 0.12);
   --fourteen-cabinet-blue: rgb(84, 170, 255);
@@ -78,7 +80,7 @@ Branch: main
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .fourteen-ambassador-cabinet-heading__text {
@@ -119,7 +121,7 @@ Branch: main
 }
 
 .fourteen-ambassador-cabinet-hero__title span {
-  color: #ff6900;
+  color: var(--fourteen-cabinet-accent);
   text-shadow: 0 0 14px rgba(255, 105, 0, 0.28);
 }
 
@@ -432,6 +434,7 @@ Branch: main
   );
   padding: 15px 16px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  min-width: 0;
 }
 
 .fourteen-ambassador-cabinet-card--green {
@@ -439,6 +442,13 @@ Branch: main
   box-shadow:
     inset 0 0 0 1px rgba(26, 224, 58, 0.18),
     0 0 0 1px rgba(26, 224, 58, 0.06);
+}
+
+.fourteen-ambassador-cabinet-card--purple {
+  border-color: rgba(172, 111, 255, 0.22);
+  box-shadow:
+    inset 0 0 0 1px rgba(172, 111, 255, 0.16),
+    0 0 0 1px rgba(172, 111, 255, 0.05);
 }
 
 .fourteen-ambassador-cabinet-card--amber {
