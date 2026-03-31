@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-31T01:30:01.155Z
+Generated: 2026-03-31T01:34:24.435Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -789,9 +789,9 @@ const DEFAULT_CONFIG = {
   registerTitle: 'Not an ambassador yet',
   registerText:
     'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, continue to registration.',
-  infoTitle: 'What you can do inside this cabinet',
-  infoContent:
-    'This cabinet is your ambassador control panel. After connecting your wallet, it shows whether this wallet is already registered as an ambassador, your profile, tracked referral stats, reward state and withdrawal availability.\n\nIf rewards are already available, you can request withdrawal here. If part of rewards is still pending processing, the cabinet will show that state separately.\n\nIf this wallet is not registered yet, you can continue to the ambassador registration page.'
+  infoTitle: 'What this cabinet shows and lets you do',
+infoContent:
+  'This cabinet is the ambassador control panel for the connected wallet. It checks whether the wallet already has an ambassador profile and then shows the actual cabinet state for that address.\n\nInside the cabinet you can view ambassador identity data, referral link state, level and reward percent, buyer and volume stats, reward balances, withdrawal status, and processing state across available rewards, pending backend sync, and requested-for-processing rewards.\n\nIf rewards are already available on-chain, you can request withdrawal from here. If some rewards are still waiting for backend processing, you can also trigger pending reward processing from this cabinet and then refresh the data.\n\nThe cabinet also lets you copy or open the referral link, open the connected wallet in Tronscan, and open the latest withdrawal transaction when one exists.\n\nIf the connected wallet is not registered as an ambassador yet, the cabinet will show that no ambassador profile was found and will direct you to the ambassador registration page instead.'
 };
 
 const DEFAULT_SECTION_STATE = {
