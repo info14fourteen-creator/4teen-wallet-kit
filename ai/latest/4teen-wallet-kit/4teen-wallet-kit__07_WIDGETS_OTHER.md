@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-31T01:28:13.984Z
+Generated: 2026-03-31T01:30:01.155Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -207,7 +207,7 @@ Branch: main
   background: rgba(15, 15, 15, 0.98);
   border: 1px solid var(--fourteen-cabinet-border);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
-  z-index: 999;
+  z-index: 2147483001;
   backdrop-filter: blur(14px);
 }
 
