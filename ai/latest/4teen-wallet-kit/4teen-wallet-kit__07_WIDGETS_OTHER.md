@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-03-31T20:36:33.353Z
+Generated: 2026-03-31T21:24:44.854Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -792,6 +792,7 @@ const DEFAULT_CONFIG = {
   profileEndpoint: '/cabinet/profile',
   walletLookupEndpoint: '/ambassador/by-wallet',
   replayPendingEndpoint: '/cabinet/replay-pending',
+  confirmWithdrawalEndpoint: '/cabinet/confirm-withdrawal',
   profileQueryParam: 'wallet',
   referralBaseUrl: 'https://4teen.me/?r=',
   registrationPageUrl: 'https://4teen.me/a/reg',
@@ -1116,6 +1117,43 @@ async function replayPendingRewards(config, walletAddress) {
   return payload?.result || payload || {};
 }
 
+async function confirmWithdrawal(config, input) {
+  const baseUrl = normalizeBaseUrl(config.backendBaseUrl);
+
+  if (!baseUrl) {
+    return null;
+  }
+
+  const endpoint = String(
+    config.confirmWithdrawalEndpoint || '/cabinet/confirm-withdrawal'
+  ).trim();
+
+  const body = {
+    wallet: input.wallet,
+    txid: input.txid
+  };
+
+  if (input.withdrawSessionId) {
+    body.withdrawSessionId = input.withdrawSessionId;
+  }
+
+  const response = await fetch(`${baseUrl}${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  const payload = await readJson(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || payload?.message || 'Failed to confirm withdrawal');
+  }
+
+  return payload?.result || payload || {};
+}
+
 async function copyText(value) {
   const text = String(value || '').trim();
 
@@ -1188,7 +1226,8 @@ function createEmptyDashboard(walletAddress = '') {
       requestedForProcessingSun: '0',
       requestedForProcessingTrx: '0',
       requestedForProcessingCount: 0,
-      hasProcessingWithdrawal: false
+      hasProcessingWithdrawal: false,
+      withdrawSessionId: null
     }
   };
 }
@@ -1385,7 +1424,11 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
         sunToTrxString(requestedForProcessingSun)
       ),
       requestedForProcessingCount: safeNumber(withdrawalQueue.requestedForProcessingCount, 0),
-      hasProcessingWithdrawal: safeBoolean(withdrawalQueue.hasProcessingWithdrawal)
+      hasProcessingWithdrawal: safeBoolean(withdrawalQueue.hasProcessingWithdrawal),
+      withdrawSessionId:
+        withdrawalQueue.withdrawSessionId != null
+          ? String(withdrawalQueue.withdrawSessionId).trim() || null
+          : null
     }
   };
 }
@@ -1712,7 +1755,9 @@ function createPerformanceContent(state, walletAddress) {
   const claimableRewardsSun =
     withdrawalQueue.availableOnChainSun ?? stats.claimableRewardsSun ?? '0';
   const claimableRewardsTrx =
-    withdrawalQueue.availableOnChainTrx ?? stats.claimableRewardsTrx ?? sunToTrxString(claimableRewardsSun);
+    withdrawalQueue.availableOnChainTrx ??
+    stats.claimableRewardsTrx ??
+    sunToTrxString(claimableRewardsSun);
 
   return `
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
@@ -2411,8 +2456,30 @@ export function mountAmbassadorCabinet(target, config = {}) {
     render();
 
     try {
+      const walletAddress = getWalletAddressSafe(wallet);
+
+      if (!walletAddress) {
+        throw new Error('Wallet is not connected.');
+      }
+
+      const withdrawSessionId =
+        state.dashboard?.withdrawalQueue?.withdrawSessionId ||
+        state.profile?.withdrawalQueue?.withdrawSessionId ||
+        null;
+
       const result = await withdrawRewards(wallet, resolvedConfig.controllerContractAddress);
       state.lastWithdrawTxid = result.txid;
+
+      try {
+        await confirmWithdrawal(resolvedConfig, {
+          wallet: walletAddress,
+          txid: result.txid,
+          withdrawSessionId
+        });
+      } catch (confirmError) {
+        console.error('Ambassador cabinet confirm withdrawal failed:', confirmError);
+      }
+
       showSuccessNotice('Withdrawal request submitted.', 8000);
       await refresh('refresh', { force: true });
     } catch (error) {
@@ -2466,7 +2533,10 @@ export function mountAmbassadorCabinet(target, config = {}) {
       } else if (attempted > 0 && failed > 0) {
         showErrorNotice(`No pending items were processed. Failed: ${failed}.`, 10000);
       } else if (skipped > 0 && succeeded === 0 && failed === 0) {
-        showNeutralNotice('Pending rewards are cooling down or waiting for the next retry window.', 8000);
+        showNeutralNotice(
+          'Pending rewards are cooling down or waiting for the next retry window.',
+          8000
+        );
       } else if (totalFound === 0) {
         showNeutralNotice('No pending rewards were found for processing.', 7000);
       } else {
