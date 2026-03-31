@@ -35,13 +35,8 @@ function ensureTarget(target) {
 function createElement(tag, className, html = '') {
   const node = document.createElement(tag);
 
-  if (className) {
-    node.className = className;
-  }
-
-  if (html) {
-    node.innerHTML = html;
-  }
+  if (className) node.className = className;
+  if (html) node.innerHTML = html;
 
   return node;
 }
@@ -245,13 +240,8 @@ function buildBottomGroups(items = []) {
   const leftItems = safeItems.slice(0, 2);
   const rightItems = safeItems.slice(2, 4);
 
-  leftItems.forEach((item) => {
-    leftWrap.appendChild(buildBottomLink(item));
-  });
-
-  rightItems.forEach((item) => {
-    rightWrap.appendChild(buildBottomLink(item));
-  });
+  leftItems.forEach((item) => leftWrap.appendChild(buildBottomLink(item)));
+  rightItems.forEach((item) => rightWrap.appendChild(buildBottomLink(item)));
 
   return { leftWrap, rightWrap };
 }
@@ -294,13 +284,8 @@ function createGroupCard(item = {}, grow = 2.4) {
 
   wrap.classList.add(childCount === 1 ? 'is-single-child' : 'is-multi-child');
 
-  if (childActive) {
-    wrap.classList.add('has-active-child');
-  }
-
-  if (parentActive && !childActive) {
-    wrap.classList.add('is-active');
-  }
+  if (childActive) wrap.classList.add('has-active-child');
+  if (parentActive && !childActive) wrap.classList.add('is-active');
 
   const rail = createElement('a', 'ms-route-group__rail');
   rail.href = item.href || '#';
@@ -438,10 +423,7 @@ function buildMatrixMenu({ items = [], contacts = [], matrix = [] } = {}) {
   wrap.appendChild(body);
 
   const contactsRow = buildMatrixContacts(contacts);
-
-  if (contactsRow) {
-    wrap.appendChild(contactsRow);
-  }
+  if (contactsRow) wrap.appendChild(contactsRow);
 
   return wrap;
 }
