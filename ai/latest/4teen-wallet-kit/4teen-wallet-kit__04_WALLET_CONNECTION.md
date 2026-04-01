@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WALLET CONNECTION
 
-Generated: 2026-04-01T09:17:23.042Z
+Generated: 2026-04-01T09:50:18.297Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -55,7 +55,11 @@ Branch: main
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/createAdapters.js
+## FILE PATH
+
+`src/adapters/createAdapters.js`
+
+## FILE CONTENT
 
 ```js
 import {
@@ -282,7 +286,11 @@ export function createWalletAdapters({ projectId }) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/drivers/binance/index.js
+## FILE PATH
+
+`src/adapters/drivers/binance/index.js`
+
+## FILE CONTENT
 
 ```js
 import { TronWeb } from 'tronweb';
@@ -790,7 +798,11 @@ export function createBinanceDriver() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/drivers/bitget/index.js
+## FILE PATH
+
+`src/adapters/drivers/bitget/index.js`
+
+## FILE CONTENT
 
 ```js
 import { isBitgetBrowser } from '../../shared/browserDetection.js';
@@ -1185,7 +1197,11 @@ export function createBitgetDriver() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/drivers/foxwallet/index.js
+## FILE PATH
+
+`src/adapters/drivers/foxwallet/index.js`
+
+## FILE CONTENT
 
 ```js
 import { isUsableAddress } from '../../shared/addressResolver.js';
@@ -1775,7 +1791,11 @@ export function createFoxWalletDriver() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/drivers/imtoken/index.js
+## FILE PATH
+
+`src/adapters/drivers/imtoken/index.js`
+
+## FILE CONTENT
 
 ```js
 import { isUsableAddress } from '../../shared/addressResolver.js';
@@ -2193,7 +2213,11 @@ export function createImTokenDriver() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/drivers/metamask/index.js
+## FILE PATH
+
+`src/adapters/drivers/metamask/index.js`
+
+## FILE CONTENT
 
 ```js
 import { TronWeb } from 'tronweb';
@@ -2787,7 +2811,11 @@ export function createMetaMaskDriver() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/drivers/okx/index.js
+## FILE PATH
+
+`src/adapters/drivers/okx/index.js`
+
+## FILE CONTENT
 
 ```js
 import { isOkxBrowser } from '../../shared/browserDetection.js';
@@ -3200,7 +3228,11 @@ export function createOkxDriver() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/drivers/tokenpocket/index.js
+## FILE PATH
+
+`src/adapters/drivers/tokenpocket/index.js`
+
+## FILE CONTENT
 
 ```js
 import { isTokenPocketBrowser } from '../../shared/browserDetection.js';
@@ -3637,7 +3669,11 @@ export function createTokenPocketDriver() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/drivers/tronlink/index.js
+## FILE PATH
+
+`src/adapters/drivers/tronlink/index.js`
+
+## FILE CONTENT
 
 ```js
 import { isTronLinkBrowser } from '../../shared/browserDetection.js';
@@ -4039,7 +4075,11 @@ export function createTronLinkDriver() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/drivers/trust/index.js
+## FILE PATH
+
+`src/adapters/drivers/trust/index.js`
+
+## FILE CONTENT
 
 ```js
 import { resolveAddress, isUsableAddress } from '../../shared/addressResolver.js';
@@ -4562,7 +4602,11 @@ export function createTrustDriver() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/drivers/walletconnect/index.js
+## FILE PATH
+
+`src/adapters/drivers/walletconnect/index.js`
+
+## FILE CONTENT
 
 ```js
 import { TronWeb } from 'tronweb';
@@ -5037,7 +5081,11 @@ export function createWalletConnectDriver() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/priority.js
+## FILE PATH
+
+`src/adapters/priority.js`
+
+## FILE CONTENT
 
 ```js
 export const WALLET_PRIORITY = [
@@ -5056,7 +5104,11 @@ export const WALLET_PRIORITY = [
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/registry/getAvailableDrivers.js
+## FILE PATH
+
+`src/adapters/registry/getAvailableDrivers.js`
+
+## FILE CONTENT
 
 ```js
 import { WALLET_REGISTRY } from './walletRegistry.js';
@@ -5156,7 +5208,11 @@ export function listAvailableDriverIds(appkit) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/registry/getDriverById.js
+## FILE PATH
+
+`src/adapters/registry/getDriverById.js`
+
+## FILE CONTENT
 
 ```js
 import { WALLET_REGISTRY } from './walletRegistry.js';
@@ -5202,7 +5258,11 @@ export function getDriverById(walletId) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/registry/getDriverMap.js
+## FILE PATH
+
+`src/adapters/registry/getDriverMap.js`
+
+## FILE CONTENT
 
 ```js
 import { createTronLinkDriver } from '../drivers/tronlink/index.js';
@@ -5242,7 +5302,11 @@ export function getDriverMap() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/registry/pickWalletAdapter.js
+## FILE PATH
+
+`src/adapters/registry/pickWalletAdapter.js`
+
+## FILE CONTENT
 
 ```js
 import { detectBrowserWalletName } from '../shared/browserDetection.js';
@@ -5404,7 +5468,11 @@ export function listWalletAdapters(appkit) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/registry/walletRegistry.js
+## FILE PATH
+
+`src/adapters/registry/walletRegistry.js`
+
+## FILE CONTENT
 
 ```js
 export const WALLET_REGISTRY = [
@@ -5497,7 +5565,11 @@ export function getWalletRegistry() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/shared/accountRequests.js
+## FILE PATH
+
+`src/adapters/shared/accountRequests.js`
+
+## FILE CONTENT
 
 ```js
 import { extractAddressFromPayload, resolveAddress } from './addressResolver.js';
@@ -5764,7 +5836,11 @@ export async function waitForAddress(adapter, provider, options = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/shared/addressResolver.js
+## FILE PATH
+
+`src/adapters/shared/addressResolver.js`
+
+## FILE CONTENT
 
 ```js
 function isString(value) {
@@ -5878,7 +5954,11 @@ export function readAddressFromAdapter(adapter = null) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/shared/browserDetection.js
+## FILE PATH
+
+`src/adapters/shared/browserDetection.js`
+
+## FILE CONTENT
 
 ```js
 function getWindowSafe() {
@@ -6067,7 +6147,11 @@ export function getBrowserDetectionSnapshot() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/shared/createReadonlyTronWeb.js
+## FILE PATH
+
+`src/adapters/shared/createReadonlyTronWeb.js`
+
+## FILE CONTENT
 
 ```js
 import { TronWeb } from 'tronweb';
@@ -6105,7 +6189,11 @@ export function getDefaultReadonlyTronWeb(address = null) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/shared/providerResolver.js
+## FILE PATH
+
+`src/adapters/shared/providerResolver.js`
+
+## FILE CONTENT
 
 ```js
 import { detectBrowserWalletName } from './browserDetection.js';
@@ -6367,7 +6455,11 @@ export function pickBestProvider(appkit, adapter, walletId = null) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/shared/signingReadiness.js
+## FILE PATH
+
+`src/adapters/shared/signingReadiness.js`
+
+## FILE CONTENT
 
 ```js
 import { getWalletState } from '../../core/store/walletStore.js';
@@ -6631,7 +6723,11 @@ export function assertSigningCapability(input = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/shared/tokenBalanceReader.js
+## FILE PATH
+
+`src/adapters/shared/tokenBalanceReader.js`
+
+## FILE CONTENT
 
 ```js
 import { createReadonlyTronWeb } from './createReadonlyTronWeb.js';
@@ -6779,7 +6875,11 @@ export async function safeReadTokenBalance(address, tokenAddress, options = {}) 
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/adapters/shared/trxBalanceReader.js
+## FILE PATH
+
+`src/adapters/shared/trxBalanceReader.js`
+
+## FILE CONTENT
 
 ```js
 import { createReadonlyTronWeb } from './createReadonlyTronWeb.js';
@@ -6839,7 +6939,11 @@ export async function safeReadTrxBalance(address, options = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/actions/connectWallet.js
+## FILE PATH
+
+`src/wallet/actions/connectWallet.js`
+
+## FILE CONTENT
 
 ```js
 import { getDriverById } from '../../adapters/registry/getDriverById.js';
@@ -7040,7 +7144,11 @@ export async function connectWallet(appkit, walletId = null) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/actions/disconnectWallet.js
+## FILE PATH
+
+`src/wallet/actions/disconnectWallet.js`
+
+## FILE CONTENT
 
 ```js
 import { resetWalletState, setWalletState } from '../../core/store/walletStore.js';
@@ -7360,7 +7468,11 @@ export async function disconnectWallet(appkit) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/actions/refreshWalletBalances.js
+## FILE PATH
+
+`src/wallet/actions/refreshWalletBalances.js`
+
+## FILE CONTENT
 
 ```js
 import { getWalletState, setWalletState } from '../../core/store/walletStore.js';
@@ -7493,7 +7605,11 @@ export async function refreshWalletBalances(appkit = null, options = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/actions/restoreWalletSession.js
+## FILE PATH
+
+`src/wallet/actions/restoreWalletSession.js`
+
+## FILE CONTENT
 
 ```js
 import { getWalletState, setWalletState } from '../../core/store/walletStore.js';
@@ -7841,7 +7957,11 @@ export async function restoreWalletSession(appkit) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/core/walletManager.js
+## FILE PATH
+
+`src/wallet/core/walletManager.js`
+
+## FILE CONTENT
 
 ```js
 import { bindAdapterEvents } from '../runtime/bindAdapterEvents.js';
@@ -8094,7 +8214,11 @@ export function createWalletManager({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/runtime/bindAdapterEvents.js
+## FILE PATH
+
+`src/wallet/runtime/bindAdapterEvents.js`
+
+## FILE CONTENT
 
 ```js
 import { getWalletState, setWalletState } from '../../core/store/walletStore.js';
@@ -8329,7 +8453,11 @@ export function bindAdapterEvents(kit, adapter, options = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/runtime/buildWalletKitRuntime.js
+## FILE PATH
+
+`src/wallet/runtime/buildWalletKitRuntime.js`
+
+## FILE CONTENT
 
 ```js
 import { getWalletState, setWalletState } from '../../core/store/walletStore.js';
@@ -8583,7 +8711,11 @@ export function buildWalletKitRuntime({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/runtime/refreshAvailableWallets.js
+## FILE PATH
+
+`src/wallet/runtime/refreshAvailableWallets.js`
+
+## FILE CONTENT
 
 ```js
 import { getWalletState, setWalletState } from '../../core/store/walletStore.js';
@@ -8707,7 +8839,11 @@ export function refreshAvailableWallets(appkit) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/runtime/resolveAutoWallet.js
+## FILE PATH
+
+`src/wallet/runtime/resolveAutoWallet.js`
+
+## FILE CONTENT
 
 ```js
 import {
@@ -8881,7 +9017,11 @@ export function resolveAutoWallet() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/runtime/waitAdaptersReady.js
+## FILE PATH
+
+`src/wallet/runtime/waitAdaptersReady.js`
+
+## FILE CONTENT
 
 ```js
 function sleep(ms) {
@@ -8940,7 +9080,11 @@ export async function waitAdaptersReady(adapters = [], options = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/runtime/walletScheduler.js
+## FILE PATH
+
+`src/wallet/runtime/walletScheduler.js`
+
+## FILE CONTENT
 
 ```js
 import { getWalletState } from '../../core/store/walletStore.js';
@@ -9172,7 +9316,11 @@ export function createWalletScheduler() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/services/initWalletKit.js
+## FILE PATH
+
+`src/wallet/services/initWalletKit.js`
+
+## FILE CONTENT
 
 ```js
 import { createWalletAdapters } from '../../adapters/createAdapters.js';
@@ -9264,7 +9412,11 @@ export async function initWalletKit({ projectId }) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/services/restoreSession.js
+## FILE PATH
+
+`src/wallet/services/restoreSession.js`
+
+## FILE CONTENT
 
 ```js
 import { getWalletState, setWalletState } from '../../core/store/walletStore.js';
@@ -9510,7 +9662,11 @@ export async function restoreSession(manager) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/session/failWalletConnection.js
+## FILE PATH
+
+`src/wallet/session/failWalletConnection.js`
+
+## FILE CONTENT
 
 ```js
 import { setWalletState } from '../../core/store/walletStore.js';
@@ -9552,7 +9708,11 @@ export function failWalletConnection(error) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/wallet/session/finalizeWalletConnection.js
+## FILE PATH
+
+`src/wallet/session/finalizeWalletConnection.js`
+
+## FILE CONTENT
 
 ```js
 import { getWalletState, setWalletState } from '../../core/store/walletStore.js';

@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — REMAINING CRITICAL FILES
 
-Generated: 2026-04-01T09:17:23.046Z
+Generated: 2026-04-01T09:50:18.301Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -70,7 +70,11 @@ Branch: main
 
 ---
 
-## FILE: 4teen-wallet-kit :: examples/vanilla/index.html
+## FILE PATH
+
+`examples/vanilla/index.html`
+
+## FILE CONTENT
 
 ```html
 <!doctype html>
@@ -89,7 +93,11 @@ Branch: main
 
 ---
 
-## FILE: 4teen-wallet-kit :: examples/vanilla/main.js
+## FILE PATH
+
+`examples/vanilla/main.js`
+
+## FILE CONTENT
 
 ```js
 import { initFourteenConnect } from '../../src/index.js';
@@ -104,7 +112,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/4teen_swap.svg
+## FILE PATH
+
+`src/assets/4teen_swap.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -116,7 +128,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/4teen.svg
+## FILE PATH
+
+`src/assets/4teen.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -128,7 +144,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/binance.svg
+## FILE PATH
+
+`src/assets/binance.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg version="1.1" id="Layer_1" xmlns:x="ns_extend;" xmlns:i="ns_ai;" xmlns:graph="ns_graphs;" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 50 50" style="enable-background:new 0 0 50 50;" xml:space="preserve">
@@ -154,7 +174,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/bitget.svg
+## FILE PATH
+
+`src/assets/bitget.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg
@@ -187,7 +211,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/foxwallet.svg
+## FILE PATH
+
+`src/assets/foxwallet.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg width="900" height="900" viewBox="0 0 900 900" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -198,7 +226,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/imtoken.svg
+## FILE PATH
+
+`src/assets/imtoken.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" class="web3icons">
@@ -214,7 +246,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/justmoney_swap.svg
+## FILE PATH
+
+`src/assets/justmoney_swap.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -243,7 +279,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/menu/buy_menu.svg
+## FILE PATH
+
+`src/assets/menu/buy_menu.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg width="256" height="256" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="#FF6A00">
@@ -273,7 +313,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/menu/liquidity_menu.svg
+## FILE PATH
+
+`src/assets/menu/liquidity_menu.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg width="256" height="256" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg" fill="#FF6A00">
@@ -320,7 +364,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/menu/swap_menu.svg
+## FILE PATH
+
+`src/assets/menu/swap_menu.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg width="256" height="256" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="#FF6A00">
@@ -354,7 +402,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/menu/unlock_menu.svg
+## FILE PATH
+
+`src/assets/menu/unlock_menu.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg width="256" height="256" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="#FF6A00">
@@ -373,7 +425,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/metamask.svg
+## FILE PATH
+
+`src/assets/metamask.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" class="web3icons">
@@ -389,7 +445,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/okx.svg
+## FILE PATH
+
+`src/assets/okx.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" class="web3icons">
@@ -399,7 +459,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/socials/discord_social.svg
+## FILE PATH
+
+`src/assets/socials/discord_social.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -414,7 +478,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/socials/facebook_social.svg
+## FILE PATH
+
+`src/assets/socials/facebook_social.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -429,7 +497,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/socials/github_social.svg
+## FILE PATH
+
+`src/assets/socials/github_social.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -442,7 +514,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/socials/instagram_social.svg
+## FILE PATH
+
+`src/assets/socials/instagram_social.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -455,7 +531,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/socials/telegram_social.svg
+## FILE PATH
+
+`src/assets/socials/telegram_social.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -468,7 +548,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/socials/threads_social.svg
+## FILE PATH
+
+`src/assets/socials/threads_social.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -481,7 +565,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/socials/tiktok_social.svg
+## FILE PATH
+
+`src/assets/socials/tiktok_social.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -494,7 +582,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/socials/whatsapp_social.svg
+## FILE PATH
+
+`src/assets/socials/whatsapp_social.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -507,7 +599,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/socials/x_social.svg
+## FILE PATH
+
+`src/assets/socials/x_social.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -520,7 +616,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/socials/youtube_social.svg
+## FILE PATH
+
+`src/assets/socials/youtube_social.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -535,7 +635,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/sunio_swap.svg
+## FILE PATH
+
+`src/assets/sunio_swap.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -612,7 +716,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/swap_arrows.svg
+## FILE PATH
+
+`src/assets/swap_arrows.svg`
+
+## FILE CONTENT
 
 ```svg
 
@@ -620,7 +728,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/text_bg.svg
+## FILE PATH
+
+`src/assets/text_bg.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -633,7 +745,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/tokenpocket.svg
+## FILE PATH
+
+`src/assets/tokenpocket.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg width="96" height="97" viewBox="0 0 96 97" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -652,7 +768,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/tronlink.svg
+## FILE PATH
+
+`src/assets/tronlink.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -685,7 +805,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/trust.svg
+## FILE PATH
+
+`src/assets/trust.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" class="web3icons">
@@ -706,7 +830,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/trx_swap.svg
+## FILE PATH
+
+`src/assets/trx_swap.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -721,7 +849,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/trx.svg
+## FILE PATH
+
+`src/assets/trx.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg id="Calque_1" data-name="Calque 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><style>.cls-1{fill:#ff060a;}</style></defs><title>tron</title><g id="tron"><path class="cls-1" d="M61.55,19.28c-3-2.77-7.15-7-10.53-10l-.2-.14a3.82,3.82,0,0,0-1.11-.62l0,0C41.56,7,3.63-.09,2.89,0a1.4,1.4,0,0,0-.58.22L2.12.37a2.23,2.23,0,0,0-.52.84l-.05.13v.71l0,.11C5.82,14.05,22.68,53,26,62.14c.2.62.58,1.8,1.29,1.86h.16c.38,0,2-2.14,2-2.14S58.41,26.74,61.34,23a9.46,9.46,0,0,0,1-1.48A2.41,2.41,0,0,0,61.55,19.28ZM36.88,23.37,49.24,13.12l7.25,6.68Zm-4.8-.67L10.8,5.26l34.43,6.35ZM34,27.27l21.78-3.51-24.9,30ZM7.91,7,30.3,26,27.06,53.78Z"/></g></svg>
@@ -729,7 +861,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/usdt_swap.svg
+## FILE PATH
+
+`src/assets/usdt_swap.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -744,7 +880,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/wallet.svg
+## FILE PATH
+
+`src/assets/wallet.svg`
+
+## FILE CONTENT
 
 ```svg
 <?xml version="1.0" encoding="UTF-8"?>
@@ -768,7 +908,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/assets/walletconnect.svg
+## FILE PATH
+
+`src/assets/walletconnect.svg`
+
+## FILE CONTENT
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" class="web3icons">
@@ -786,7 +930,11 @@ initFourteenConnect({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/core/config/appkit.js
+## FILE PATH
+
+`src/core/config/appkit.js`
+
+## FILE CONTENT
 
 ```js
 import { createAppKit } from '@reown/appkit';
@@ -837,7 +985,11 @@ export function createWalletModal({ projectId }) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/core/config/constants.js
+## FILE PATH
+
+`src/core/config/constants.js`
+
+## FILE CONTENT
 
 ```js
 export const TRON_MAINNET_CHAIN_ID = 'tron:0x2b6653dc';
@@ -854,7 +1006,11 @@ export const DEFAULT_BALANCE_DECIMALS = 2;
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/core/config/token.js
+## FILE PATH
+
+`src/core/config/token.js`
+
+## FILE CONTENT
 
 ```js
 export const FOURTEEN_TOKEN = {
@@ -868,7 +1024,11 @@ export const FOURTEEN_TOKEN = {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/core/config/wallets.js
+## FILE PATH
+
+`src/core/config/wallets.js`
+
+## FILE CONTENT
 
 ```js
 export const SUPPORTED_WALLETS = [
@@ -884,7 +1044,11 @@ export const SUPPORTED_WALLETS = [
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/core/store/walletStore.js
+## FILE PATH
+
+`src/core/store/walletStore.js`
+
+## FILE CONTENT
 
 ```js
 const DEFAULT_STATE = {
@@ -1246,7 +1410,11 @@ export function clearWalletError() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/core/utils/address.js
+## FILE PATH
+
+`src/core/utils/address.js`
+
+## FILE CONTENT
 
 ```js
 function isString(value) {
@@ -1324,7 +1492,11 @@ export function shortenAddress(address) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/core/utils/format.js
+## FILE PATH
+
+`src/core/utils/format.js`
+
+## FILE CONTENT
 
 ```js
 export function formatTokenAmount(value, digits = 2) {
@@ -1336,7 +1508,11 @@ export function formatTokenAmount(value, digits = 2) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/core/utils/tron.js
+## FILE PATH
+
+`src/core/utils/tron.js`
+
+## FILE CONTENT
 
 ```js
 export function fromSun(value) {
@@ -1350,7 +1526,11 @@ export function normalizeTronBalance(value) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/debug/debugOverlay.js
+## FILE PATH
+
+`src/debug/debugOverlay.js`
+
+## FILE CONTENT
 
 ```js
 import { getWalletState } from '../core/store/walletStore.js';
@@ -1919,7 +2099,11 @@ export function hideDebugOverlay() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/diagnostics/assertWalletSigning.js
+## FILE PATH
+
+`src/diagnostics/assertWalletSigning.js`
+
+## FILE CONTENT
 
 ```js
 import { getWalletState } from '../core/store/walletStore.js';
@@ -2161,7 +2345,11 @@ export async function printWalletSigningDiagnostics(options = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/diagnostics/walletDiagnostics.js
+## FILE PATH
+
+`src/diagnostics/walletDiagnostics.js`
+
+## FILE CONTENT
 
 ```js
 import { getWalletState } from '../core/store/walletStore.js';
@@ -2388,7 +2576,11 @@ export async function printAndRunWalletDiagnostics() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/polyfills/node.js
+## FILE PATH
+
+`src/polyfills/node.js`
+
+## FILE CONTENT
 
 ```js
 import { Buffer } from 'buffer/';
@@ -2406,7 +2598,11 @@ if (typeof globalThis !== 'undefined') {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/services/balances/getFourteenBalance.js
+## FILE PATH
+
+`src/services/balances/getFourteenBalance.js`
+
+## FILE CONTENT
 
 ```js
 import { FOURTEEN_TOKEN } from '../../core/config/token.js';
@@ -2423,7 +2619,11 @@ export async function getFourteenBalance(addressOverride = null) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/services/balances/getTokenBalance.js
+## FILE PATH
+
+`src/services/balances/getTokenBalance.js`
+
+## FILE CONTENT
 
 ```js
 import { TronWeb } from 'tronweb';
@@ -2453,7 +2653,11 @@ export async function getTokenBalance(tokenAddress, decimals, addressOverride = 
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/services/balances/getTrxBalance.js
+## FILE PATH
+
+`src/services/balances/getTrxBalance.js`
+
+## FILE CONTENT
 
 ```js
 import { TronWeb } from 'tronweb';
@@ -2725,7 +2929,11 @@ export async function getTrxBalance(addressOverride = null) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/services/balances/refreshAllBalances.js
+## FILE PATH
+
+`src/services/balances/refreshAllBalances.js`
+
+## FILE CONTENT
 
 ```js
 import { TronWeb } from 'tronweb';
@@ -3159,7 +3367,11 @@ export async function refreshAllBalances({ address, walletId, provider, force = 
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/services/contracts/trc20.js
+## FILE PATH
+
+`src/services/contracts/trc20.js`
+
+## FILE CONTENT
 
 ```js
 export const TRC20_ABI = [
@@ -3200,7 +3412,11 @@ export const TRC20_ABI = [
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/services/readonly/getTokenContractData.js
+## FILE PATH
+
+`src/services/readonly/getTokenContractData.js`
+
+## FILE CONTENT
 
 ```js
 import { FOURTEEN_TOKEN } from '../../core/config/token.js';
@@ -3227,7 +3443,11 @@ export async function getTokenContractData(tokenAddress = FOURTEEN_TOKEN.address
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/services/readonly/getTokenDecimals.js
+## FILE PATH
+
+`src/services/readonly/getTokenDecimals.js`
+
+## FILE CONTENT
 
 ```js
 import TronWeb from 'tronweb';

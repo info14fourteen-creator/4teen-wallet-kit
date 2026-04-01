@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-04-01T09:17:23.044Z
+Generated: 2026-04-01T09:50:18.300Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -26,7 +26,11 @@ Branch: main
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/ambassadorCabinet/ambassadorCabinet.css
+## FILE PATH
+
+`src/widgets/ambassadorCabinet/ambassadorCabinet.css`
+
+## FILE CONTENT
 
 ```css
 :root {
@@ -758,7 +762,11 @@ Branch: main
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/ambassadorCabinet/index.js
+## FILE PATH
+
+`src/widgets/ambassadorCabinet/index.js`
+
+## FILE CONTENT
 
 ```js
 import './ambassadorCabinet.css';
@@ -2757,7 +2765,11 @@ export function mountAmbassadorCabinet(target, config = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/ambassadorRegister/ambassadorRegister.css
+## FILE PATH
+
+`src/widgets/ambassadorRegister/ambassadorRegister.css`
+
+## FILE CONTENT
 
 ```css
 :root {
@@ -3320,7 +3332,11 @@ export function mountAmbassadorCabinet(target, config = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/ambassadorRegister/index.js
+## FILE PATH
+
+`src/widgets/ambassadorRegister/index.js`
+
+## FILE CONTENT
 
 ```js
 import './ambassadorRegister.css';
@@ -4483,7 +4499,11 @@ export function mountAmbassadorRegister(target, config = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/directBuy/directBuy.css
+## FILE PATH
+
+`src/widgets/directBuy/directBuy.css`
+
+## FILE CONTENT
 
 ```css
 :root {
@@ -5015,7 +5035,11 @@ export function mountAmbassadorRegister(target, config = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/directBuy/index.js
+## FILE PATH
+
+`src/widgets/directBuy/index.js`
+
+## FILE CONTENT
 
 ```js
 import './directBuy.css';
@@ -5839,7 +5863,11 @@ export function mountDirectBuy(target, config = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/liquidityController/index.js
+## FILE PATH
+
+`src/widgets/liquidityController/index.js`
+
+## FILE CONTENT
 
 ```js
 import './liquidityController.css';
@@ -6632,7 +6660,11 @@ export function mountLiquidityController(target, config = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/liquidityController/liquidityController.css
+## FILE PATH
+
+`src/widgets/liquidityController/liquidityController.css`
+
+## FILE CONTENT
 
 ```css
 :root {
@@ -7290,7 +7322,11 @@ export function mountLiquidityController(target, config = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/mobileShell/index.js
+## FILE PATH
+
+`src/widgets/mobileShell/index.js`
+
+## FILE CONTENT
 
 ```js
 // src/widgets/mobileShell/index.js
@@ -7304,7 +7340,11 @@ export function mountMobileShell(options = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/unlockTimeline/index.js
+## FILE PATH
+
+`src/widgets/unlockTimeline/index.js`
+
+## FILE CONTENT
 
 ```js
 import './unlockTimeline.css';
@@ -8305,7 +8345,11 @@ export function mountUnlockTimeline(target, config = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/unlockTimeline/unlockTimeline.css
+## FILE PATH
+
+`src/widgets/unlockTimeline/unlockTimeline.css`
+
+## FILE CONTENT
 
 ```css
 :root {

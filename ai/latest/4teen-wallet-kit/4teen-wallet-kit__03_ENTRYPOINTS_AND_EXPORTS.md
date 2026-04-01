@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — ENTRYPOINTS AND EXPORTS
 
-Generated: 2026-04-01T09:17:23.042Z
+Generated: 2026-04-01T09:50:18.297Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -16,7 +16,11 @@ Branch: main
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/index.js
+## FILE PATH
+
+`src/index.js`
+
+## FILE CONTENT
 
 ```js
 // ==========================

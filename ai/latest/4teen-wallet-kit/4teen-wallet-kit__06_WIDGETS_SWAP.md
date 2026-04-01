@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS SWAP
 
-Generated: 2026-04-01T09:17:23.044Z
+Generated: 2026-04-01T09:50:18.300Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -22,7 +22,11 @@ Branch: main
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/swap/constants.js
+## FILE PATH
+
+`src/widgets/swap/constants.js`
+
+## FILE CONTENT
 
 ```js
 
@@ -30,7 +34,11 @@ Branch: main
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/swap/index.js
+## FILE PATH
+
+`src/widgets/swap/index.js`
+
+## FILE CONTENT
 
 ```js
 import { getSwapQuotes } from './services/quotes.js';
@@ -1028,7 +1036,11 @@ export function mountSwap(target, config = {}) {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/swap/providers/justmoney.js
+## FILE PATH
+
+`src/widgets/swap/providers/justmoney.js`
+
+## FILE CONTENT
 
 ```js
 export async function getJustmoneyQuotes() {
@@ -1038,7 +1050,11 @@ export async function getJustmoneyQuotes() {
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/swap/providers/sunio.js
+## FILE PATH
+
+`src/widgets/swap/providers/sunio.js`
+
+## FILE CONTENT
 
 ```js
 import sunioLogo from '../../../assets/sunio_swap.svg';
@@ -2121,7 +2137,11 @@ export async function executeSunioSwap({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/swap/services/quotes.js
+## FILE PATH
+
+`src/widgets/swap/services/quotes.js`
+
+## FILE CONTENT
 
 ```js
 import { getSunioQuotes } from '../providers/sunio.js';
@@ -2188,7 +2208,11 @@ export async function getSwapQuotes({
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/swap/services/swapExecution.js
+## FILE PATH
+
+`src/widgets/swap/services/swapExecution.js`
+
+## FILE CONTENT
 
 ```js
 import {
@@ -2594,7 +2618,11 @@ export const executeSwapRoute = executeSwapFlow;
 
 ---
 
-## FILE: 4teen-wallet-kit :: src/widgets/swap/swap.css
+## FILE PATH
+
+`src/widgets/swap/swap.css`
+
+## FILE CONTENT
 
 ```css
 :root {

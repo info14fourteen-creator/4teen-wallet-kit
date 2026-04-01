@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — PROJECT OVERVIEW
 
-Generated: 2026-04-01T09:17:23.040Z
+Generated: 2026-04-01T09:50:18.295Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -194,7 +194,11 @@ Branch: main
 
 ---
 
-## FILE: 4teen-wallet-kit :: ai/WORKING_RULES.md
+## FILE PATH
+
+`ai/WORKING_RULES.md`
+
+## FILE CONTENT
 
 ```md
 # 4TEEN WALLET REBUILD — WORKING RULES (GOLD STANDARD)
@@ -400,7 +404,11 @@ Everything must work step-by-step.
 
 ---
 
-## FILE: 4teen-wallet-kit :: package.json
+## FILE PATH
+
+`package.json`
+
+## FILE CONTENT
 
 ```json
 {
@@ -440,7 +448,11 @@ Everything must work step-by-step.
 
 ---
 
-## FILE: 4teen-wallet-kit :: README.md
+## FILE PATH
+
+`README.md`
+
+## FILE CONTENT
 
 ```md
 # 4TEEN Wallet Kit

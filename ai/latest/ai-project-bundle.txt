@@ -1,6 +1,0 @@
-Use folder snapshots instead of a single mega-bundle.
-Primary folder: ai/latest/4teen-wallet-kit
-Zip archive: ai/latest/4teen-wallet-kit.zip
-
-Map file: ai/latest/4teen-wallet-kit/00_AI_MAP.md
-Info file: ai/latest/4teen-wallet-kit/99_SNAPSHOT_INFO.md

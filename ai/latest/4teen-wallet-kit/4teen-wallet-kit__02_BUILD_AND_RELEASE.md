@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — BUILD AND RELEASE
 
-Generated: 2026-04-01T09:17:23.042Z
+Generated: 2026-04-01T09:50:18.297Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -18,7 +18,11 @@ Branch: main
 
 ---
 
-## FILE: 4teen-wallet-kit :: .github/workflows/build-and-publish-ai-bundle.yml
+## FILE PATH
+
+`.github/workflows/build-and-publish-ai-bundle.yml`
+
+## FILE CONTENT
 
 ```yml
 name: Build and Publish AI Bundle
@@ -63,7 +67,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add ai/latest
+          git add -A ai/latest
 
           if git diff --cached --quiet; then
             echo "No AI bundle changes to commit."
@@ -74,11 +78,20 @@ jobs:
 
       - name: Print links
         run: |
-          echo "AI bundle:"
-          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/ai-project-bundle.txt"
+          echo "AI snapshot directory:"
+          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/"
           echo
-          echo "AI map:"
-          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/ai-project-map.txt"
+          echo "AI project map:"
+          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/4teen-wallet-kit__ai-project-map.txt"
+          echo
+          echo "AI links:"
+          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/4teen-wallet-kit__links.txt"
+          echo
+          echo "AI manifest:"
+          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/4teen-wallet-kit__manifest.json"
+          echo
+          echo "AI zip archive:"
+          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit.zip"
           echo
           echo "Working rules:"
           echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/WORKING_RULES.md"
@@ -88,15 +101,22 @@ jobs:
           {
             echo "## AI bundle links"
             echo
-            echo "- AI bundle: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/ai-project-bundle.txt"
-            echo "- AI map: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/ai-project-map.txt"
+            echo "- Snapshot directory: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/"
+            echo "- Project map: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/4teen-wallet-kit__ai-project-map.txt"
+            echo "- Links: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/4teen-wallet-kit__links.txt"
+            echo "- Manifest: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/4teen-wallet-kit__manifest.json"
+            echo "- Zip archive: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit.zip"
             echo "- Working rules: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/WORKING_RULES.md"
           } >> "$GITHUB_STEP_SUMMARY"
 ```
 
 ---
 
-## FILE: 4teen-wallet-kit :: .github/workflows/build-and-publish.yml
+## FILE PATH
+
+`.github/workflows/build-and-publish.yml`
+
+## FILE CONTENT
 
 ```yml
 name: Build and publish library
@@ -153,7 +173,11 @@ jobs:
 
 ---
 
-## FILE: 4teen-wallet-kit :: scripts/build-ai-bundle.js
+## FILE PATH
+
+`scripts/build-ai-bundle.js`
+
+## FILE CONTENT
 
 ```js
 import fs from "fs";
@@ -165,15 +189,9 @@ const REPO_NAME = "4teen-wallet-kit";
 
 const AI_DIR = path.join(ROOT, "ai");
 const LATEST_DIR = path.join(AI_DIR, "latest");
-const REPO_DIR = path.join(LATEST_DIR, REPO_NAME);
+const TMP_DIR = path.join(AI_DIR, ".latest_build_tmp");
 
-const MAP_FILE = path.join(REPO_DIR, `${REPO_NAME}__ai-project-map.txt`);
-const MANIFEST_FILE = path.join(REPO_DIR, `${REPO_NAME}__manifest.json`);
-const LINKS_FILE = path.join(REPO_DIR, `${REPO_NAME}__links.txt`);
-const ZIP_FILE = path.join(LATEST_DIR, `${REPO_NAME}.zip`);
-const RULES_FILE = path.join(ROOT, "ai", "WORKING_RULES.md");
-
-const IGNORE_DIRS = new Set([
+const IGNORE_DIR_NAMES = new Set([
   ".git",
   ".github-cache",
   ".idea",
@@ -182,10 +200,6 @@ const IGNORE_DIRS = new Set([
   "dist",
   "node_modules"
 ]);
-
-const IGNORE_PREFIXES = [
-  "ai/latest/"
-];
 
 const IGNORE_FILES = new Set([
   ".env",
@@ -214,7 +228,6 @@ const ALLOWED_EXTENSIONS = new Set([
   ".yaml"
 ]);
 
-const MAX_OUTPUT_FILES = 10;
 const MAX_SOURCE_FILE_BYTES = 220 * 1024;
 const MAX_SECTION_BYTES = 1_400_000;
 const MAX_TOTAL_SELECTED_FILES = 120;
@@ -272,6 +285,12 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
+function removeDirIfExists(dirPath) {
+  if (fs.existsSync(dirPath)) {
+    fs.rmSync(dirPath, { recursive: true, force: true });
+  }
+}
+
 function toPosix(value) {
   return value.replace(/\\/g, "/");
 }
@@ -283,13 +302,9 @@ function rel(absPath) {
 function shouldIgnore(relativePath) {
   const posix = toPosix(relativePath);
 
-  if (IGNORE_PREFIXES.some((prefix) => posix.startsWith(prefix))) {
-    return true;
-  }
-
-  if (IGNORE_FILES.has(path.basename(posix))) {
-    return true;
-  }
+  if (posix === "ai/latest" || posix.startsWith("ai/latest/")) return true;
+  if (posix === "ai/.latest_build_tmp" || posix.startsWith("ai/.latest_build_tmp/")) return true;
+  if (IGNORE_FILES.has(path.basename(posix))) return true;
 
   return false;
 }
@@ -298,7 +313,7 @@ function walk(dirPath, out = []) {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
   for (const entry of entries) {
-    if (entry.name.startsWith(".") && ![".github"].includes(entry.name)) {
+    if (entry.name.startsWith(".") && entry.name !== ".github") {
       continue;
     }
 
@@ -310,7 +325,7 @@ function walk(dirPath, out = []) {
     }
 
     if (entry.isDirectory()) {
-      if (IGNORE_DIRS.has(entry.name)) {
+      if (IGNORE_DIR_NAMES.has(entry.name)) {
         continue;
       }
 
@@ -465,7 +480,7 @@ function groupFiles(files) {
     files: remaining
   });
 
-  return groups.slice(0, MAX_OUTPUT_FILES - 1);
+  return groups;
 }
 
 function buildTree(files) {
@@ -571,9 +586,13 @@ function buildSectionDoc(section, allFiles, info) {
     const lang = detectLang(file);
     const content = readText(file);
 
-    lines.push(`---`);
+    lines.push("---");
     lines.push("");
-    lines.push(`## FILE: ${REPO_NAME} :: ${file}`);
+    lines.push("## FILE PATH");
+    lines.push("");
+    lines.push(`\`${file}\``);
+    lines.push("");
+    lines.push("## FILE CONTENT");
     lines.push("");
     lines.push("```" + lang);
     lines.push(content.trimEnd());
@@ -584,7 +603,13 @@ function buildSectionDoc(section, allFiles, info) {
   return lines.join("\n");
 }
 
-function writeMap(allFiles, info, groups) {
+function writeTextFile(filePath, content) {
+  ensureDir(path.dirname(filePath));
+  fs.writeFileSync(filePath, content, "utf8");
+}
+
+function writeMap(baseRepoDir, allFiles, info, groups) {
+  const mapFile = path.join(baseRepoDir, `${REPO_NAME}__ai-project-map.txt`);
   const lines = [];
 
   lines.push(`# ${REPO_NAME} — AI PROJECT MAP`);
@@ -616,11 +641,13 @@ function writeMap(allFiles, info, groups) {
   lines.push("```");
   lines.push("");
 
-  fs.writeFileSync(MAP_FILE, lines.join("\n"), "utf8");
+  writeTextFile(mapFile, lines.join("\n"));
 }
 
-function writeLinks(info, groups) {
+function writeLinks(baseRepoDir, info, groups) {
+  const linksFile = path.join(baseRepoDir, `${REPO_NAME}__links.txt`);
   const lines = [];
+
   lines.push(`${REPO_NAME} AI LINKS`);
   lines.push("");
   lines.push(`Snapshot dir: ${info.repoPrefixUrl}/`);
@@ -629,15 +656,18 @@ function writeLinks(info, groups) {
   lines.push("");
   lines.push("Files:");
   lines.push("");
+
   for (const group of groups) {
     lines.push(`- ${info.repoPrefixUrl}/${REPO_NAME}__${group.key}.md`);
   }
-  lines.push("");
 
-  fs.writeFileSync(LINKS_FILE, lines.join("\n"), "utf8");
+  lines.push("");
+  writeTextFile(linksFile, lines.join("\n"));
 }
 
-function writeManifest(allFiles, groups, info) {
+function writeManifest(baseRepoDir, allFiles, groups, info) {
+  const manifestFile = path.join(baseRepoDir, `${REPO_NAME}__manifest.json`);
+
   const manifest = {
     generatedAt: new Date().toISOString(),
     repository: info.repository,
@@ -653,33 +683,34 @@ function writeManifest(allFiles, groups, info) {
     }))
   };
 
-  fs.writeFileSync(MANIFEST_FILE, JSON.stringify(manifest, null, 2), "utf8");
+  writeTextFile(manifestFile, JSON.stringify(manifest, null, 2));
 }
 
-function writeSections(allFiles, groups, info) {
+function writeSections(baseRepoDir, allFiles, groups, info) {
   for (const group of groups) {
-    const outFile = path.join(REPO_DIR, `${REPO_NAME}__${group.key}.md`);
+    const outFile = path.join(baseRepoDir, `${REPO_NAME}__${group.key}.md`);
     const content = buildSectionDoc(group, allFiles, info);
-    fs.writeFileSync(outFile, content, "utf8");
+    writeTextFile(outFile, content);
   }
 }
 
-function createZip() {
-  if (fs.existsSync(ZIP_FILE)) {
-    fs.rmSync(ZIP_FILE, { force: true });
+function createZip(baseOutputDir, baseRepoDir) {
+  const zipFile = path.join(baseOutputDir, `${REPO_NAME}.zip`);
+  if (fs.existsSync(zipFile)) {
+    fs.rmSync(zipFile, { force: true });
   }
-
-  const zipBinary =
-    process.platform === "win32" ? "powershell" : "zip";
 
   if (process.platform === "win32") {
-    const command = [
-      "-NoProfile",
-      "-Command",
-      `Compress-Archive -Path "${REPO_DIR}\\*" -DestinationPath "${ZIP_FILE}" -Force`
-    ];
+    const result = spawnSync(
+      "powershell",
+      [
+        "-NoProfile",
+        "-Command",
+        `Compress-Archive -Path "${baseRepoDir}\\*" -DestinationPath "${zipFile}" -Force`
+      ],
+      { stdio: "inherit" }
+    );
 
-    const result = spawnSync(zipBinary, command, { stdio: "inherit" });
     if (result.status !== 0) {
       throw new Error("Failed to create zip archive");
     }
@@ -687,10 +718,10 @@ function createZip() {
   }
 
   const result = spawnSync(
-    zipBinary,
-    ["-r", ZIP_FILE, REPO_NAME],
+    "zip",
+    ["-r", zipFile, REPO_NAME],
     {
-      cwd: LATEST_DIR,
+      cwd: baseOutputDir,
       stdio: "inherit"
     }
   );
@@ -700,22 +731,38 @@ function createZip() {
   }
 }
 
+function prepareFreshOutput() {
+  ensureDir(AI_DIR);
+  removeDirIfExists(TMP_DIR);
+  ensureDir(TMP_DIR);
+}
+
+function finalizeFreshOutput() {
+  removeDirIfExists(LATEST_DIR);
+  fs.renameSync(TMP_DIR, LATEST_DIR);
+}
+
 function main() {
-  ensureDir(REPO_DIR);
+  prepareFreshOutput();
 
   const info = repoInfo();
   const allFiles = buildSelectedFiles();
   const groups = groupFiles(allFiles);
 
-  writeSections(allFiles, groups, info);
-  writeMap(allFiles, info, groups);
-  writeLinks(info, groups);
-  writeManifest(allFiles, groups, info);
-  createZip();
+  const repoDir = path.join(TMP_DIR, REPO_NAME);
+  ensureDir(repoDir);
+
+  writeSections(repoDir, allFiles, groups, info);
+  writeMap(repoDir, allFiles, info, groups);
+  writeLinks(repoDir, info, groups);
+  writeManifest(repoDir, allFiles, groups, info);
+  createZip(TMP_DIR, repoDir);
+
+  finalizeFreshOutput();
 
   console.log(`Built AI snapshot for ${REPO_NAME}`);
-  console.log(`Output dir: ${REPO_DIR}`);
-  console.log(`Zip: ${ZIP_FILE}`);
+  console.log(`Output dir: ${path.join(LATEST_DIR, REPO_NAME)}`);
+  console.log(`Zip: ${path.join(LATEST_DIR, `${REPO_NAME}.zip`)}`);
 }
 
 main();
