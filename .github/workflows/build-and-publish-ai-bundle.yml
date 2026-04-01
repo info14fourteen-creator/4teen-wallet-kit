@@ -40,7 +40,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add ai/latest
+          git add -A ai/latest
 
           if git diff --cached --quiet; then
             echo "No AI bundle changes to commit."
@@ -51,11 +51,20 @@ jobs:
 
       - name: Print links
         run: |
-          echo "AI bundle:"
-          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/ai-project-bundle.txt"
+          echo "AI snapshot directory:"
+          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/"
           echo
-          echo "AI map:"
-          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/ai-project-map.txt"
+          echo "AI project map:"
+          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/4teen-wallet-kit__ai-project-map.txt"
+          echo
+          echo "AI links:"
+          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/4teen-wallet-kit__links.txt"
+          echo
+          echo "AI manifest:"
+          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/4teen-wallet-kit__manifest.json"
+          echo
+          echo "AI zip archive:"
+          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit.zip"
           echo
           echo "Working rules:"
           echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/WORKING_RULES.md"
@@ -65,7 +74,10 @@ jobs:
           {
             echo "## AI bundle links"
             echo
-            echo "- AI bundle: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/ai-project-bundle.txt"
-            echo "- AI map: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/ai-project-map.txt"
+            echo "- Snapshot directory: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/"
+            echo "- Project map: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/4teen-wallet-kit__ai-project-map.txt"
+            echo "- Links: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/4teen-wallet-kit__links.txt"
+            echo "- Manifest: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit/4teen-wallet-kit__manifest.json"
+            echo "- Zip archive: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/latest/4teen-wallet-kit.zip"
             echo "- Working rules: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/ai/WORKING_RULES.md"
           } >> "$GITHUB_STEP_SUMMARY"
