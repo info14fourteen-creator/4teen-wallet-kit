@@ -49,7 +49,10 @@ const DEFAULT_CONFIG = {
     }
   ],
   walletLookupEndpoint: '/ambassador/by-wallet',
+  slugCheckEndpoint: '/slug/check',
+  registerCompleteEndpoint: '/ambassador/register-complete',
   cabinetUrl: 'https://4teen.me/a/cab',
+  referralBaseUrl: 'https://4teen.me/?ref=',
   redirectIfRegistered: false,
   registeredTitle: 'Already registered',
   registeredText: 'This wallet is already registered as ambassador.',
@@ -188,9 +191,15 @@ async function readJson(response) {
   }
 }
 
-async function checkSlugAvailability(backendBaseUrl, slug) {
+function buildPath(path) {
+  const normalized = String(path || '').trim();
+  if (!normalized) return '';
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+}
+
+async function checkSlugAvailability(backendBaseUrl, endpoint, slug) {
   const response = await fetch(
-    `${normalizeBaseUrl(backendBaseUrl)}/slug/check?slug=${encodeURIComponent(slug)}`,
+    `${normalizeBaseUrl(backendBaseUrl)}${buildPath(endpoint)}?slug=${encodeURIComponent(slug)}`,
     {
       method: 'GET',
       headers: {
@@ -212,9 +221,9 @@ async function checkSlugAvailability(backendBaseUrl, slug) {
   return payload;
 }
 
-async function completeRegistration(backendBaseUrl, payload) {
+async function completeRegistration(backendBaseUrl, endpoint, payload) {
   const response = await fetch(
-    `${normalizeBaseUrl(backendBaseUrl)}/ambassador/register-complete`,
+    `${normalizeBaseUrl(backendBaseUrl)}${buildPath(endpoint)}`,
     {
       method: 'POST',
       headers: {
@@ -230,18 +239,70 @@ async function completeRegistration(backendBaseUrl, payload) {
     throw new Error((result && result.error) || 'Failed to complete registration');
   }
 
-  return result.result;
+  return result.result || result;
 }
 
 function buildWalletLookupUrl(backendBaseUrl, endpoint, walletAddress) {
   const baseUrl = normalizeBaseUrl(backendBaseUrl);
-  const normalizedEndpoint = String(endpoint || '/ambassador/by-wallet').trim() || '/ambassador/by-wallet';
-  const path = normalizedEndpoint.startsWith('/') ? normalizedEndpoint : `/${normalizedEndpoint}`;
-
+  const path = buildPath(endpoint || '/ambassador/by-wallet');
   return `${baseUrl}${path}?wallet=${encodeURIComponent(walletAddress)}`;
 }
 
-function normalizeRegisteredProfile(payload) {
+function buildReferralLinkFromSlug(baseUrl, slug) {
+  const normalizedSlug = normalizeSlug(slug);
+
+  if (!normalizedSlug) {
+    return '';
+  }
+
+  const base = String(baseUrl || '').trim();
+
+  if (!base) {
+    return normalizedSlug;
+  }
+
+  if (base.includes('{slug}')) {
+    return base.replaceAll('{slug}', normalizedSlug);
+  }
+
+  if (base.endsWith('=')) {
+    return `${base}${normalizedSlug}`;
+  }
+
+  if (base.endsWith('/')) {
+    return `${base}${normalizedSlug}`;
+  }
+
+  return `${base}/${normalizedSlug}`;
+}
+
+function buildReferralLink(value, config) {
+  const normalized = String(value || '').trim();
+
+  if (!normalized) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return normalized;
+  }
+
+  if (normalized.startsWith('?') && typeof window !== 'undefined') {
+    return `${window.location.origin}/${normalized}`;
+  }
+
+  if (normalized.startsWith('/') && typeof window !== 'undefined') {
+    return `${window.location.origin}${normalized}`;
+  }
+
+  if (/^[a-z0-9_-]{3,24}$/i.test(normalized)) {
+    return buildReferralLinkFromSlug(config.referralBaseUrl, normalized);
+  }
+
+  return normalized;
+}
+
+function normalizeRegisteredProfile(payload, config) {
   if (!payload || typeof payload !== 'object') {
     return null;
   }
@@ -260,7 +321,9 @@ function normalizeRegisteredProfile(payload) {
     slug,
     wallet,
     status,
-    referralLink: referralLinkRaw ? buildReferralLink(referralLinkRaw) : ''
+    referralLink: referralLinkRaw
+      ? buildReferralLink(referralLinkRaw, config)
+      : buildReferralLinkFromSlug(config.referralBaseUrl, slug)
   };
 }
 
@@ -287,16 +350,16 @@ function isRegisteredProfilePayload(payload) {
     return true;
   }
 
-  const profile = normalizeRegisteredProfile(payload);
+  const hasSlug = Boolean(
+    result &&
+      typeof result === 'object' &&
+      String(result.slug || result.referralSlug || result.handle || '').trim()
+  );
 
-  if (!profile) {
-    return false;
-  }
-
-  return Boolean(profile.slug || profile.wallet || profile.status);
+  return hasSlug;
 }
 
-async function lookupAmbassadorByWallet(backendBaseUrl, endpoint, walletAddress) {
+async function lookupAmbassadorByWallet(backendBaseUrl, endpoint, walletAddress, config) {
   const response = await fetch(buildWalletLookupUrl(backendBaseUrl, endpoint, walletAddress), {
     method: 'GET',
     headers: {
@@ -330,26 +393,8 @@ async function lookupAmbassadorByWallet(backendBaseUrl, endpoint, walletAddress)
 
   return {
     found: true,
-    profile: normalizeRegisteredProfile(payload)
+    profile: normalizeRegisteredProfile(payload, config)
   };
-}
-
-function buildReferralLink(value) {
-  const normalized = assertNonEmpty(value, 'referralLink');
-
-  if (/^https?:\/\//i.test(normalized)) {
-    return normalized;
-  }
-
-  if (normalized.startsWith('?')) {
-    return `${window.location.origin}/${normalized}`;
-  }
-
-  if (normalized.startsWith('/')) {
-    return `${window.location.origin}${normalized}`;
-  }
-
-  return `${window.location.origin}/${normalized}`;
 }
 
 function normalizeError(error) {
@@ -379,8 +424,16 @@ function normalizeError(error) {
     return 'Wallet is not connected.';
   }
 
-  if (text.includes('Slug is required')) {
+  if (text.includes('Slug is required') || text.includes('slug is required')) {
     return 'Slug is required.';
+  }
+
+  if (text.includes('Failed to check ambassador profile')) {
+    return 'Failed to check ambassador profile.';
+  }
+
+  if (text.includes('Failed to complete registration')) {
+    return 'Failed to complete registration.';
   }
 
   if (text.includes('contract validate error')) {
@@ -925,7 +978,8 @@ export function mountAmbassadorRegister(target, config = {}) {
       const lookup = await lookupAmbassadorByWallet(
         resolvedConfig.backendBaseUrl,
         resolvedConfig.walletLookupEndpoint,
-        walletAddress
+        walletAddress,
+        resolvedConfig
       );
 
       if (!isAlive() || checkId !== activeRegistrationCheckId) {
@@ -993,7 +1047,11 @@ export function mountAmbassadorRegister(target, config = {}) {
     render();
 
     try {
-      await checkSlugAvailability(resolvedConfig.backendBaseUrl, slug);
+      await checkSlugAvailability(
+        resolvedConfig.backendBaseUrl,
+        resolvedConfig.slugCheckEndpoint,
+        slug
+      );
 
       const slugHash = keccakUtf8ToHex(slug);
       const metaHash = ZERO_BYTES32;
@@ -1005,23 +1063,32 @@ export function mountAmbassadorRegister(target, config = {}) {
 
       const txid = await contract.registerAsAmbassador(slugHash, metaHash).send();
 
-      const completed = await completeRegistration(resolvedConfig.backendBaseUrl, {
-        slug,
-        slugHash,
-        wallet: walletAddress
-      });
+      const completed = await completeRegistration(
+        resolvedConfig.backendBaseUrl,
+        resolvedConfig.registerCompleteEndpoint,
+        {
+          slug,
+          slugHash,
+          wallet: walletAddress,
+          txid: assertNonEmpty(txid, 'txid')
+        }
+      );
+
+      const referralLink =
+        buildReferralLink(completed?.referralLink, resolvedConfig) ||
+        buildReferralLinkFromSlug(resolvedConfig.referralBaseUrl, slug);
 
       state.success = {
         slug,
         txid: assertNonEmpty(txid, 'txid'),
-        referralLink: buildReferralLink(completed.referralLink)
+        referralLink
       };
 
       state.registeredProfile = {
         slug,
         wallet: walletAddress,
-        status: 'active',
-        referralLink: state.success.referralLink
+        status: String(completed?.status || 'active').trim().toLowerCase(),
+        referralLink
       };
 
       lastCheckedWallet = walletAddress;
