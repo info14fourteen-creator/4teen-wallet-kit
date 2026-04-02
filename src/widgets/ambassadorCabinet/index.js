@@ -1376,9 +1376,7 @@ function createPendingContent(state) {
 function createAdvancedContent(state, walletAddress) {
   const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
   const identity = dashboard.identity ?? {};
-  const progress = dashboard.progress ?? {};
   const stats = dashboard.stats ?? {};
-  const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
 
   return `
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
@@ -1397,7 +1395,7 @@ function createAdvancedContent(state, walletAddress) {
       ${createValueCard(
         'Override',
         identity.overrideEnabled ? 'Enabled' : 'Disabled',
-        `Current: ${levelToLabel(identity.currentLevel ?? effectiveLevel)} • Override: ${levelToLabel(
+        `Current: ${levelToLabel(identity.currentLevel ?? identity.effectiveLevel ?? 0)} • Override: ${levelToLabel(
           identity.overrideLevel ?? 0
         )}`
       )}
@@ -1412,14 +1410,10 @@ function createAdvancedContent(state, walletAddress) {
         `${stats.withdrawnRewardsSun ?? '0'} SUN`
       )}
       ${createValueCard('Created at', formatDate(identity.createdAt ?? 0))}
-      ${createValueCard('Connected wallet', shortenAddress(walletAddress || '—'))}
-      ${createValueCard('Unattributed rows', String(stats.unattributedCount ?? 0))}
       ${createValueCard(
         'Rows loaded',
         `${safeArray(state.purchasesRows).length} purchases / ${safeArray(state.pendingRows).length} pending / ${safeArray(state.buyersRows).length} buyers`
       )}
-      ${createValueCard('Next threshold', String(progress.nextThreshold ?? 0))}
-      ${createValueCard('Remaining to next', String(progress.remainingToNextLevel ?? 0))}
     </div>
   `;
 }
