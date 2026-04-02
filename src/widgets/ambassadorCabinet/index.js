@@ -18,7 +18,6 @@ const DEFAULT_CONFIG = {
   subtitle: 'Profile, stats, rewards and withdrawals in one place',
   mobileConnectHint: 'Tap connect below to continue.',
   refreshText: 'Refresh',
-  refreshEndpoint: '/cabinet/refresh',
   withdrawText: 'Withdraw rewards',
   processingText: 'Processing...',
   replayText: 'Process pending rewards',
@@ -27,11 +26,13 @@ const DEFAULT_CONFIG = {
   openLinkText: 'Open referral link',
   walletExplorerText: 'Wallet on Tronscan',
   withdrawExplorerText: 'Last withdrawal tx',
-  profileEndpoint: '/cabinet/profile',
-  walletLookupEndpoint: '/ambassador/by-wallet',
+  summaryEndpointTemplate: '/cabinet/ambassador/{wallet}/summary',
+  buyersEndpointTemplate: '/cabinet/ambassador/{wallet}/buyers?limit=100&offset=0',
+  purchasesEndpointTemplate: '/cabinet/ambassador/{wallet}/purchases?limit=100&offset=0',
+  pendingEndpointTemplate: '/cabinet/ambassador/{wallet}/pending?limit=100&offset=0',
+  refreshEndpoint: '',
   replayPendingEndpoint: '/cabinet/replay-pending',
   confirmWithdrawalEndpoint: '/cabinet/confirm-withdrawal',
-  profileQueryParam: 'wallet',
   referralBaseUrl: 'https://4teen.me/?r=',
   registrationPageUrl: 'https://4teen.me/a/reg',
   registrationMode: 'redirect',
@@ -40,7 +41,7 @@ const DEFAULT_CONFIG = {
     'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, continue to registration.',
   infoTitle: 'What this cabinet shows and lets you do',
   infoContent:
-    'This cabinet is the ambassador control panel for the connected wallet. It checks whether the wallet already has an ambassador profile and then shows the actual cabinet state for that address.\n\nInside the cabinet you can view ambassador identity data, referral link state, level and reward percent, buyer and volume stats, reward balances, and withdrawal queue state.\n\nImportant: this cabinet separates real on-chain withdrawable rewards from backend accounting. “Available on-chain now” is the real amount that can be withdrawn right now. “Allocated in DB” is backend accounting only and does not guarantee immediate withdrawal. “Pending backend sync” means rewards still need backend/on-chain processing. “Requested for processing” means a withdrawal preparation flow is already running.\n\nIf rewards are already available on-chain, you can request withdrawal from here. If some rewards are still waiting for backend processing, you can trigger pending reward processing separately and then refresh the cabinet.\n\nThe cabinet also lets you copy or open the referral link, open the connected wallet in Tronscan, and open the latest withdrawal transaction when one exists.\n\nIf the connected wallet is not registered as an ambassador yet, the cabinet will show that no ambassador profile was found and will direct you to the ambassador registration page instead.'
+    'This cabinet is the ambassador control panel for the connected wallet. It reads the real backend state for that ambassador address.\n\nInside the cabinet you can view on-chain ambassador identity data, buyer and purchase statistics, processed and pending purchase rows, reward balances, and linked buyers.\n\nImportant: this cabinet separates real on-chain withdrawable rewards from backend accounting. “Available on-chain now” is the real amount that can be withdrawn right now. “Allocated in DB” is backend accounting only and does not guarantee immediate withdrawal. “Pending backend sync” means rewards still need backend/on-chain processing. “Requested for processing” means a withdrawal preparation flow is already running.\n\nThe Buyers section shows linked buyers and their totals. The Purchases section shows all purchases currently attributed or processed for this ambassador. The Pending section shows purchases that are already attributed in DB but are not yet processed through controller.\n\nIf the connected wallet is not registered as an ambassador yet, the cabinet will show that no ambassador profile was found and will direct you to the ambassador registration page instead.'
 };
 
 const DEFAULT_SECTION_STATE = {
@@ -48,6 +49,9 @@ const DEFAULT_SECTION_STATE = {
   identity: true,
   rewards: true,
   performance: false,
+  buyers: false,
+  purchases: false,
+  pending: false,
   advanced: false
 };
 
@@ -135,9 +139,27 @@ function safeObject(value, fallback = null) {
   return value && typeof value === 'object' ? value : fallback;
 }
 
+function safeArray(value, fallback = []) {
+  return Array.isArray(value) ? value : fallback;
+}
+
 function safeSun(value, fallback = '0') {
   const raw = String(value ?? fallback).trim();
-  return /^\d+$/.test(raw) ? raw : fallback;
+  return /^-?\d+$/.test(raw) ? raw : fallback;
+}
+
+function sumSun(values) {
+  try {
+    let total = 0n;
+
+    for (const value of values) {
+      total += BigInt(safeSun(value, '0'));
+    }
+
+    return total.toString();
+  } catch {
+    return '0';
+  }
 }
 
 function sunToTrxString(value) {
@@ -166,7 +188,13 @@ function formatDate(timestamp) {
   if (!timestamp) return '—';
 
   try {
-    const normalized = timestamp > 1_000_000_000_000 ? timestamp : timestamp * 1000;
+    const normalized =
+      typeof timestamp === 'string' && /\D/.test(timestamp)
+        ? Date.parse(timestamp)
+        : timestamp > 1_000_000_000_000
+          ? timestamp
+          : timestamp * 1000;
+
     const date = new Date(normalized);
 
     if (!Number.isFinite(date.getTime())) {
@@ -304,6 +332,32 @@ async function readJson(response) {
   }
 }
 
+function buildEndpoint(template, walletAddress) {
+  return String(template || '').replaceAll(
+    '{wallet}',
+    encodeURIComponent(String(walletAddress || '').trim())
+  );
+}
+
+async function fetchJsonOrThrow(url, options = {}) {
+  const response = await fetch(url, options);
+  const payload = await readJson(response);
+
+  if (!response.ok) {
+    const error = new Error(
+      payload?.error ||
+      payload?.message ||
+      `${options.method || 'GET'} ${url} failed with status ${response.status}`
+    );
+
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+
+  return payload;
+}
+
 async function getControllerContractInstance(wallet, controllerContractAddress) {
   const tronWeb = getActiveTronWeb(wallet);
 
@@ -336,7 +390,8 @@ async function replayPendingRewards(config, walletAddress) {
   }
 
   const endpoint = String(config.replayPendingEndpoint || '/cabinet/replay-pending').trim();
-  const response = await fetch(`${baseUrl}${endpoint}`, {
+
+  const payload = await fetchJsonOrThrow(`${baseUrl}${endpoint}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -345,39 +400,6 @@ async function replayPendingRewards(config, walletAddress) {
       wallet: walletAddress
     })
   });
-
-  const payload = await readJson(response);
-
-  if (!response.ok) {
-    throw new Error(payload?.error || payload?.message || 'Failed to process pending rewards');
-  }
-
-  return payload?.result || payload || {};
-}
-
-async function requestCabinetRefresh(config, walletAddress) {
-  const baseUrl = normalizeBaseUrl(config.backendBaseUrl);
-
-  if (!baseUrl) {
-    throw new Error('Backend base URL is not configured');
-  }
-
-  const endpoint = String(config.refreshEndpoint || '/cabinet/refresh').trim();
-  const response = await fetch(`${baseUrl}${endpoint}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      wallet: walletAddress
-    })
-  });
-
-  const payload = await readJson(response);
-
-  if (!response.ok) {
-    throw new Error(payload?.error || payload?.message || 'Failed to refresh cabinet');
-  }
 
   return payload?.result || payload || {};
 }
@@ -402,7 +424,7 @@ async function confirmWithdrawal(config, input) {
     body.withdrawSessionId = input.withdrawSessionId;
   }
 
-  const response = await fetch(`${baseUrl}${endpoint}`, {
+  const payload = await fetchJsonOrThrow(`${baseUrl}${endpoint}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -410,11 +432,26 @@ async function confirmWithdrawal(config, input) {
     body: JSON.stringify(body)
   });
 
-  const payload = await readJson(response);
+  return payload?.result || payload || {};
+}
 
-  if (!response.ok) {
-    throw new Error(payload?.error || payload?.message || 'Failed to confirm withdrawal');
+async function requestCabinetRefresh(config, walletAddress) {
+  const baseUrl = normalizeBaseUrl(config.backendBaseUrl);
+  const endpoint = String(config.refreshEndpoint || '').trim();
+
+  if (!baseUrl || !endpoint) {
+    return null;
   }
+
+  const payload = await fetchJsonOrThrow(`${baseUrl}${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      ambassadorWallet: walletAddress
+    })
+  });
 
   return payload?.result || payload || {};
 }
@@ -470,7 +507,15 @@ function createEmptyDashboard(walletAddress = '') {
       lifetimeRewardsSun: '0',
       lifetimeRewardsTrx: '0',
       withdrawnRewardsSun: '0',
-      withdrawnRewardsTrx: '0'
+      withdrawnRewardsTrx: '0',
+      processedCount: 0,
+      attributedCount: 0,
+      unattributedCount: 0,
+      buyersCount: 0,
+      buyersTotalPurchaseAmountSun: '0',
+      buyersTotalPurchaseAmountTrx: '0',
+      buyersProcessedPurchaseAmountSun: '0',
+      buyersProcessedPurchaseAmountTrx: '0'
     },
     progress: {
       currentLevel: 0,
@@ -501,247 +546,7 @@ function createEmptyDashboard(walletAddress = '') {
   };
 }
 
-function normalizeRegisteredProfile(payload) {
-  if (!payload || typeof payload !== 'object') {
-    return null;
-  }
-
-  const result = payload.result && typeof payload.result === 'object' ? payload.result : payload;
-  const slug = String(
-    result.slug ||
-      result.referralSlug ||
-      result.referral_slug ||
-      result.publicSlug ||
-      ''
-  ).trim();
-  const wallet = String(result.wallet || result.ambassadorWallet || '').trim();
-  const status = String(result.status || '').trim().toLowerCase();
-  const referralLink = String(
-    result.referralLink || result.referral_url || result.referralUrl || result.link || ''
-  ).trim();
-
-  const registered =
-    result.registered === true ||
-    result.exists === true ||
-    result.isRegistered === true ||
-    Boolean(slug || wallet || status);
-
-  if (!registered) {
-    return null;
-  }
-
-  return {
-    registered: true,
-    slug,
-    wallet,
-    status,
-    referralLink,
-    identity: safeObject(result.identity),
-    stats: safeObject(result.stats),
-    withdrawalQueue: safeObject(result.withdrawalQueue),
-    progress: safeObject(result.progress)
-  };
-}
-
-async function fetchProfileMaybe(config, walletAddress) {
-  const baseUrl = normalizeBaseUrl(config.backendBaseUrl);
-
-  if (!baseUrl) {
-    return null;
-  }
-
-  const queryParam = config.profileQueryParam || 'wallet';
-  const profileEndpoint = config.profileEndpoint || '/cabinet/profile';
-  const walletLookupEndpoint = config.walletLookupEndpoint || '/ambassador/by-wallet';
-
-  const profileUrl = `${baseUrl}${profileEndpoint}?${encodeURIComponent(queryParam)}=${encodeURIComponent(
-    walletAddress
-  )}`;
-
-  let normalizedProfile = null;
-
-  try {
-    const response = await fetch(profileUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const payload = await readJson(response);
-
-    if (response.ok && payload) {
-      normalizedProfile = normalizeRegisteredProfile(payload);
-
-      if (!normalizedProfile && payload.ok === true && payload.result?.registered === false) {
-        return {
-          registered: false
-        };
-      }
-    }
-  } catch (_) {}
-
-  const lookupUrl = `${baseUrl}${walletLookupEndpoint}?wallet=${encodeURIComponent(walletAddress)}`;
-
-  try {
-    const response = await fetch(lookupUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const payload = await readJson(response);
-
-    if (response.status === 404) {
-      if (normalizedProfile) {
-        return normalizedProfile;
-      }
-
-      return {
-        registered: false
-      };
-    }
-
-    if (response.ok && payload) {
-      const normalizedLookup = normalizeRegisteredProfile(payload);
-
-      if (normalizedProfile && normalizedLookup) {
-        return {
-          ...normalizedProfile,
-          slug: normalizedProfile.slug || normalizedLookup.slug,
-          referralLink: normalizedProfile.referralLink || normalizedLookup.referralLink,
-          wallet: normalizedProfile.wallet || normalizedLookup.wallet,
-          status: normalizedProfile.status || normalizedLookup.status,
-          identity: normalizedProfile.identity || normalizedLookup.identity,
-          stats: normalizedProfile.stats || normalizedLookup.stats,
-          withdrawalQueue: normalizedProfile.withdrawalQueue || normalizedLookup.withdrawalQueue,
-          progress: normalizedProfile.progress || normalizedLookup.progress
-        };
-      }
-
-      if (normalizedLookup) {
-        return normalizedLookup;
-      }
-
-      if (payload.ok === true && (payload.registered === false || payload.result == null)) {
-        return normalizedProfile || { registered: false };
-      }
-    }
-  } catch (_) {}
-
-  return normalizedProfile;
-}
-
-function buildDashboardFromBackendProfile(profile, walletAddress) {
-  const empty = createEmptyDashboard(walletAddress);
-
-  const identity = safeObject(profile?.identity, {});
-  const stats = safeObject(profile?.stats, {});
-  const withdrawalQueue = safeObject(profile?.withdrawalQueue, {});
-  const progress = safeObject(profile?.progress, {});
-
-  const availableOnChainSun = safeSun(withdrawalQueue.availableOnChainSun, '0');
-  const allocatedInDbSun = safeSun(withdrawalQueue.allocatedInDbSun, '0');
-  const pendingBackendSyncSun = safeSun(withdrawalQueue.pendingBackendSyncSun, '0');
-  const requestedForProcessingSun = safeSun(withdrawalQueue.requestedForProcessingSun, '0');
-  const missingRewardOwnerShareSun = safeSun(withdrawalQueue.missingRewardOwnerShareSun, '0');
-
-  const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
-  const currentLevel = safeNumber(identity.currentLevel, effectiveLevel);
-
-  return {
-    identity: {
-      ...empty.identity,
-      wallet: walletAddress,
-      exists: true,
-      active: profile?.status ? profile.status === 'active' : safeBoolean(identity.active),
-      level: safeNumber(identity.level, effectiveLevel),
-      effectiveLevel,
-      currentLevel,
-      overrideLevel: safeNumber(identity.overrideLevel, 0),
-      rewardPercent: safeNumber(identity.rewardPercent, 0),
-      createdAt: safeNumber(identity.createdAt, 0),
-      slugHash: safeString(identity.slugHash, '—'),
-      metaHash: safeString(identity.metaHash, '—'),
-      selfRegistered: safeBoolean(identity.selfRegistered),
-      manualAssigned: safeBoolean(identity.manualAssigned),
-      overrideEnabled: safeBoolean(identity.overrideEnabled)
-    },
-    stats: {
-      ...empty.stats,
-      totalBuyers: safeNumber(stats.totalBuyers, 0),
-      trackedVolumeSun: safeSun(stats.trackedVolumeSun, '0'),
-      trackedVolumeTrx: safeString(
-        stats.trackedVolumeTrx,
-        sunToTrxString(stats.trackedVolumeSun)
-      ),
-      claimableRewardsSun: safeSun(stats.claimableRewardsSun, '0'),
-      claimableRewardsTrx: safeString(
-        stats.claimableRewardsTrx,
-        sunToTrxString(stats.claimableRewardsSun)
-      ),
-      lifetimeRewardsSun: safeSun(stats.lifetimeRewardsSun, '0'),
-      lifetimeRewardsTrx: safeString(
-        stats.lifetimeRewardsTrx,
-        sunToTrxString(stats.lifetimeRewardsSun)
-      ),
-      withdrawnRewardsSun: safeSun(stats.withdrawnRewardsSun, '0'),
-      withdrawnRewardsTrx: safeString(
-        stats.withdrawnRewardsTrx,
-        sunToTrxString(stats.withdrawnRewardsSun)
-      )
-    },
-    progress: {
-      ...empty.progress,
-      currentLevel: safeNumber(progress.currentLevel, currentLevel),
-      buyersCount: safeNumber(progress.buyersCount, safeNumber(stats.totalBuyers, 0)),
-      nextThreshold: safeNumber(progress.nextThreshold, 0),
-      remainingToNextLevel: safeNumber(progress.remainingToNextLevel, 0)
-    },
-    withdrawalQueue: {
-      ...empty.withdrawalQueue,
-      availableOnChainSun,
-      availableOnChainTrx: safeString(
-        withdrawalQueue.availableOnChainTrx,
-        sunToTrxString(availableOnChainSun)
-      ),
-      availableOnChainCount: safeNumber(withdrawalQueue.availableOnChainCount, 0),
-      allocatedInDbSun,
-      allocatedInDbTrx: safeString(
-        withdrawalQueue.allocatedInDbTrx,
-        sunToTrxString(allocatedInDbSun)
-      ),
-      allocatedInDbCount: safeNumber(withdrawalQueue.allocatedInDbCount, 0),
-      pendingBackendSyncSun,
-      pendingBackendSyncTrx: safeString(
-        withdrawalQueue.pendingBackendSyncTrx,
-        sunToTrxString(pendingBackendSyncSun)
-      ),
-      pendingBackendSyncCount: safeNumber(withdrawalQueue.pendingBackendSyncCount, 0),
-      requestedForProcessingSun,
-      requestedForProcessingTrx: safeString(
-        withdrawalQueue.requestedForProcessingTrx,
-        sunToTrxString(requestedForProcessingSun)
-      ),
-      requestedForProcessingCount: safeNumber(withdrawalQueue.requestedForProcessingCount, 0),
-      hasProcessingWithdrawal: safeBoolean(withdrawalQueue.hasProcessingWithdrawal),
-      withdrawSessionId:
-        withdrawalQueue.withdrawSessionId != null
-          ? String(withdrawalQueue.withdrawSessionId).trim() || null
-          : null,
-      hasBrokenPendingRewards: safeBoolean(withdrawalQueue.hasBrokenPendingRewards),
-      missingRewardCount: safeNumber(withdrawalQueue.missingRewardCount, 0),
-      missingRewardOwnerShareSun,
-      missingRewardOwnerShareTrx: safeString(
-        withdrawalQueue.missingRewardOwnerShareTrx,
-        sunToTrxString(missingRewardOwnerShareSun)
-      )
-    }
-  };
-}
-
-function buildReferralLink(config, profile) {
+function buildReferralLink(config, profile, identity) {
   const direct =
     profile?.referralLink ||
     profile?.referral_url ||
@@ -790,7 +595,11 @@ function buildReferralLink(config, profile) {
     return `${base.replace(/\/+$/, '')}/${slug}`;
   }
 
-  return '—';
+  if (identity?.slugHash && identity.slugHash !== '—') {
+    return '';
+  }
+
+  return '';
 }
 
 function buildWithdrawButtonLabel(state, config) {
@@ -877,6 +686,174 @@ function buildStatusCards(withdrawalQueue) {
   };
 }
 
+function buildDashboardFromSummary(summary, walletAddress, buyersRows, purchasesRows, pendingRows) {
+  const empty = createEmptyDashboard(walletAddress);
+
+  const buyersTotalPurchaseAmountSun = safeSun(summary?.buyers_total_purchase_amount_sun, '0');
+  const buyersProcessedPurchaseAmountSun = safeSun(
+    summary?.buyers_processed_purchase_amount_sun,
+    '0'
+  );
+  const claimableRewardsSun = safeSun(summary?.claimable_rewards_sun, '0');
+  const totalRewardsAccruedSun = safeSun(summary?.total_rewards_accrued_sun, '0');
+  const totalRewardsClaimedSun = safeSun(summary?.total_rewards_claimed_sun, '0');
+
+  const pendingBackendSyncSun = sumSun(
+    pendingRows.map((row) => safeSun(row?.owner_share_sun, '0'))
+  );
+
+  const availableOnChainCount = isPositiveSun(claimableRewardsSun) ? 1 : 0;
+  const allocatedInDbCount = safeNumber(summary?.processed_count, 0);
+  const pendingBackendSyncCount = safeArray(pendingRows).length;
+
+  return {
+    identity: {
+      ...empty.identity,
+      wallet: walletAddress,
+      exists: safeBoolean(summary?.exists_on_chain),
+      active: safeBoolean(summary?.active),
+      selfRegistered: safeBoolean(summary?.self_registered),
+      manualAssigned: safeBoolean(summary?.manual_assigned),
+      overrideEnabled: safeBoolean(summary?.override_enabled),
+      level: safeNumber(summary?.effective_level, 0),
+      effectiveLevel: safeNumber(summary?.effective_level, 0),
+      currentLevel: safeNumber(summary?.current_level, safeNumber(summary?.effective_level, 0)),
+      overrideLevel: safeNumber(summary?.override_level, 0),
+      rewardPercent: safeNumber(summary?.reward_percent, 0),
+      createdAt: safeString(summary?.created_at_chain, '0'),
+      slugHash: safeString(summary?.slug_hash, '—'),
+      metaHash: safeString(summary?.meta_hash, '—')
+    },
+    stats: {
+      ...empty.stats,
+      totalBuyers: safeNumber(summary?.total_buyers, safeArray(buyersRows).length),
+      trackedVolumeSun: safeSun(summary?.total_volume_sun, '0'),
+      trackedVolumeTrx: sunToTrxString(summary?.total_volume_sun),
+      claimableRewardsSun,
+      claimableRewardsTrx: sunToTrxString(claimableRewardsSun),
+      lifetimeRewardsSun: totalRewardsAccruedSun,
+      lifetimeRewardsTrx: sunToTrxString(totalRewardsAccruedSun),
+      withdrawnRewardsSun: totalRewardsClaimedSun,
+      withdrawnRewardsTrx: sunToTrxString(totalRewardsClaimedSun),
+      processedCount: safeNumber(summary?.processed_count, 0),
+      attributedCount: safeNumber(summary?.attributed_count, 0),
+      unattributedCount: safeNumber(summary?.unattributed_count, 0),
+      buyersCount: safeNumber(summary?.buyers_count, safeArray(buyersRows).length),
+      buyersTotalPurchaseAmountSun,
+      buyersTotalPurchaseAmountTrx: sunToTrxString(buyersTotalPurchaseAmountSun),
+      buyersProcessedPurchaseAmountSun,
+      buyersProcessedPurchaseAmountTrx: sunToTrxString(buyersProcessedPurchaseAmountSun)
+    },
+    progress: {
+      ...empty.progress,
+      currentLevel: safeNumber(summary?.effective_level, 0),
+      buyersCount: safeNumber(summary?.total_buyers, safeArray(buyersRows).length),
+      nextThreshold: 0,
+      remainingToNextLevel: 0
+    },
+    withdrawalQueue: {
+      ...empty.withdrawalQueue,
+      availableOnChainSun: claimableRewardsSun,
+      availableOnChainTrx: sunToTrxString(claimableRewardsSun),
+      availableOnChainCount,
+      allocatedInDbSun: totalRewardsAccruedSun,
+      allocatedInDbTrx: sunToTrxString(totalRewardsAccruedSun),
+      allocatedInDbCount,
+      pendingBackendSyncSun,
+      pendingBackendSyncTrx: sunToTrxString(pendingBackendSyncSun),
+      pendingBackendSyncCount,
+      requestedForProcessingSun: '0',
+      requestedForProcessingTrx: '0',
+      requestedForProcessingCount: 0,
+      hasProcessingWithdrawal: false,
+      withdrawSessionId: null,
+      hasBrokenPendingRewards: false,
+      missingRewardCount: 0,
+      missingRewardOwnerShareSun: '0',
+      missingRewardOwnerShareTrx: '0'
+    }
+  };
+}
+
+async function fetchCabinetData(config, walletAddress) {
+  const baseUrl = normalizeBaseUrl(config.backendBaseUrl);
+
+  if (!baseUrl) {
+    return null;
+  }
+
+  const summaryUrl = `${baseUrl}${buildEndpoint(config.summaryEndpointTemplate, walletAddress)}`;
+
+  let summaryPayload;
+
+  try {
+    summaryPayload = await fetchJsonOrThrow(summaryUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    if (error?.status === 404) {
+      return {
+        registered: false
+      };
+    }
+
+    throw error;
+  }
+
+  const summary = safeObject(summaryPayload?.summary, null);
+
+  if (!summary) {
+    return {
+      registered: false
+    };
+  }
+
+  const buyersUrl = `${baseUrl}${buildEndpoint(config.buyersEndpointTemplate, walletAddress)}`;
+  const purchasesUrl = `${baseUrl}${buildEndpoint(config.purchasesEndpointTemplate, walletAddress)}`;
+  const pendingUrl = `${baseUrl}${buildEndpoint(config.pendingEndpointTemplate, walletAddress)}`;
+
+  const [buyersPayload, purchasesPayload, pendingPayload] = await Promise.all([
+    fetchJsonOrThrow(buyersUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }).catch(() => ({ ok: true, rows: [], total: 0 })),
+    fetchJsonOrThrow(purchasesUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }).catch(() => ({ ok: true, rows: [], total: 0 })),
+    fetchJsonOrThrow(pendingUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }).catch(() => ({ ok: true, rows: [], total: 0 }))
+  ]);
+
+  const buyersRows = safeArray(buyersPayload?.rows, []);
+  const purchasesRows = safeArray(purchasesPayload?.rows, []);
+  const pendingRows = safeArray(pendingPayload?.rows, []);
+
+  return {
+    registered: true,
+    wallet: walletAddress,
+    status: safeBoolean(summary?.active) ? 'active' : 'inactive',
+    summary,
+    buyersRows,
+    purchasesRows,
+    pendingRows,
+    buyersTotal: safeNumber(buyersPayload?.total, buyersRows.length),
+    purchasesTotal: safeNumber(purchasesPayload?.total, purchasesRows.length),
+    pendingTotal: safeNumber(pendingPayload?.total, pendingRows.length)
+  };
+}
+
 function createValueCard(label, value, hint = '') {
   return `
     <div class="fourteen-ambassador-cabinet-card">
@@ -896,7 +873,7 @@ function createStatusCard(label, trxValue, sunValue, count, modifier, hint = '')
       <div class="fourteen-ambassador-cabinet-card__value">${escapeHtml(trxValue)} TRX</div>
       <div class="fourteen-ambassador-cabinet-card__hint">${escapeHtml(sunValue)} SUN</div>
       <div class="fourteen-ambassador-cabinet-card__hint">
-        ${escapeHtml(String(count))} ${count === 1 ? 'purchase' : 'purchases'}
+        ${escapeHtml(String(count))} ${count === 1 ? 'row' : 'rows'}
       </div>
       ${hint ? `<div class="fourteen-ambassador-cabinet-card__hint">${escapeHtml(hint)}</div>` : ''}
     </div>
@@ -931,12 +908,34 @@ function createAccordionSection(id, title, isOpen, content) {
   `;
 }
 
+function createSimpleTable(headers, rows) {
+  return `
+    <div style="overflow:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:14px;">
+        <thead>
+          <tr>
+            ${headers
+              .map(
+                (header) =>
+                  `<th style="text-align:left; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.12); white-space:nowrap;">${escapeHtml(header)}</th>`
+              )
+              .join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function createConnectStateMarkup() {
   return `
     <div class="fourteen-ambassador-cabinet-empty">
       <div class="fourteen-ambassador-cabinet-empty__title">Connect wallet to continue</div>
       <div class="fourteen-ambassador-cabinet-empty__text">
-        Connect your wallet to access your ambassador cabinet, view rewards, check referral status and manage your account.
+        Connect your wallet to access your ambassador cabinet, view rewards, linked buyers, purchase rows and current backend state.
       </div>
     </div>
   `;
@@ -992,35 +991,31 @@ function createIdentityContent(config, state, walletAddress) {
   const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
   const identity = dashboard.identity ?? {};
   const profile = state.profile ?? null;
-  const slugValue =
-    profile?.slug ||
-    profile?.referralSlug ||
-    profile?.referral_slug ||
-    profile?.publicSlug ||
-    'Not available yet';
-  const referralLink = buildReferralLink(config, profile);
+  const referralLink = buildReferralLink(config, profile, identity);
   const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
 
   return `
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
       ${createValueCard(
         'Ambassador status',
-        profile?.status
-          ? profile.status.charAt(0).toUpperCase() + profile.status.slice(1)
-          : identity?.active
-            ? 'Active'
-            : 'Inactive',
+        identity?.active ? 'Active' : 'Inactive',
         `Level: ${levelToLabel(effectiveLevel)}`
       )}
-      ${createValueCard('Slug', slugValue, 'Public ambassador handle')}
+      ${createValueCard(
+        'Reward percent',
+        `${identity.rewardPercent ?? 0}%`,
+        'Current effective reward percent'
+      )}
       ${createValueCard(
         'Referral link',
-        referralLink && referralLink !== '—'
-          ? shortenMiddle(referralLink, 24, 16)
-          : 'Not available yet',
-        referralLink && referralLink !== '—' ? 'Use copy or open in Actions' : 'Referral link is not published by backend yet'
+        referralLink ? shortenMiddle(referralLink, 24, 16) : 'Not available yet',
+        referralLink ? 'Use copy or open in Actions' : 'Backend does not expose public referral slug here yet'
       )}
-      ${createValueCard('Created at', formatDate(identity.createdAt ?? 0))}
+      ${createValueCard(
+        'Registered',
+        identity.exists ? 'Yes' : 'No',
+        identity.selfRegistered ? 'Self-registered' : identity.manualAssigned ? 'Manual' : 'Standard'
+      )}
     </div>
   `;
 }
@@ -1047,7 +1042,7 @@ function createRewardStatusContent(state) {
         state.statusCards.allocatedInDbSun,
         state.statusCards.allocatedInDbCount,
         'purple',
-        'Backend accounting only. Not guaranteed withdrawable now.'
+        'Total backend-accounted reward volume.'
       )}
       ${createStatusCard(
         'Pending backend sync',
@@ -1055,7 +1050,7 @@ function createRewardStatusContent(state) {
         state.statusCards.pendingBackendSyncSun,
         state.statusCards.pendingBackendSyncCount,
         'amber',
-        `Verified rewards that still need backend and on-chain sync.${brokenHint}`
+        `Attributed purchases that are not processed yet.${brokenHint}`
       )}
       ${createStatusCard(
         'Requested for processing',
@@ -1077,59 +1072,52 @@ function createPerformanceContent(state, walletAddress) {
   const withdrawalQueue = dashboard.withdrawalQueue ?? {};
   const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
 
-  const claimableRewardsSun =
-    withdrawalQueue.availableOnChainSun ?? stats.claimableRewardsSun ?? '0';
-  const claimableRewardsTrx =
-    withdrawalQueue.availableOnChainTrx ??
-    stats.claimableRewardsTrx ??
-    sunToTrxString(claimableRewardsSun);
-
   return `
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-      ${createValueCard('Total buyers', String(stats.totalBuyers ?? 0))}
+      ${createValueCard('On-chain buyers', String(stats.totalBuyers ?? 0))}
       ${createValueCard(
-        'Tracked volume',
+        'On-chain volume',
         `${stats.trackedVolumeTrx ?? '0'} TRX`,
         `${stats.trackedVolumeSun ?? '0'} SUN`
       )}
       ${createValueCard(
-        'Claimable rewards now',
-        `${claimableRewardsTrx} TRX`,
-        `${claimableRewardsSun} SUN • Source: on-chain`
+        'Claimable now',
+        `${withdrawalQueue.availableOnChainTrx ?? '0'} TRX`,
+        `${withdrawalQueue.availableOnChainSun ?? '0'} SUN`
       )}
     </div>
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
       ${createValueCard(
-        'Reward percent',
-        `${identity.rewardPercent ?? 0}%`,
-        `Effective level: ${levelToLabel(effectiveLevel)}`
+        'DB buyers count',
+        String(stats.buyersCount ?? 0),
+        'Derived from linked buyers in backend'
+      )}
+      ${createValueCard(
+        'Buyers total purchases',
+        `${stats.buyersTotalPurchaseAmountTrx ?? '0'} TRX`,
+        `${stats.buyersTotalPurchaseAmountSun ?? '0'} SUN`
+      )}
+      ${createValueCard(
+        'Buyers processed purchases',
+        `${stats.buyersProcessedPurchaseAmountTrx ?? '0'} TRX`,
+        `${stats.buyersProcessedPurchaseAmountSun ?? '0'} SUN`
+      )}
+    </div>
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+      ${createValueCard(
+        'Processed rows',
+        String(stats.processedCount ?? 0),
+        'Purchases already passed through controller layer'
+      )}
+      ${createValueCard(
+        'Attributed rows',
+        String(stats.attributedCount ?? 0),
+        'Attributed in DB but not yet processed'
       )}
       ${createValueCard(
         'Current level',
         levelToLabel(progress.currentLevel ?? effectiveLevel),
-        `Current buyers: ${progress.buyersCount ?? stats.totalBuyers ?? 0}`
-      )}
-      ${createValueCard(
-        'Allocated in DB',
-        `${withdrawalQueue.allocatedInDbTrx ?? '0'} TRX`,
-        `${withdrawalQueue.allocatedInDbSun ?? '0'} SUN • Backend accounting only`
-      )}
-    </div>
-    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-      ${createValueCard(
-        'Broken pending rewards',
-        String(withdrawalQueue.missingRewardCount ?? 0),
-        'Rows with owner share present but ambassador reward missing'
-      )}
-      ${createValueCard(
-        'Broken owner share',
-        `${withdrawalQueue.missingRewardOwnerShareTrx ?? '0'} TRX`,
-        `${withdrawalQueue.missingRewardOwnerShareSun ?? '0'} SUN`
-      )}
-      ${createValueCard(
-        'Pending sync flag',
-        state.statusCards.hasPendingBackendSync ? 'Yes' : 'No',
-        state.statusCards.hasBrokenPendingRewards ? 'Includes broken pending reward rows' : 'Normal pending sync state'
+        `Effective level: ${levelToLabel(effectiveLevel)}`
       )}
     </div>
   `;
@@ -1138,7 +1126,8 @@ function createPerformanceContent(state, walletAddress) {
 function createActionsContent(state, walletAddress, config) {
   const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
   const profile = state.profile ?? null;
-  const referralLink = buildReferralLink(config, profile);
+  const identity = dashboard.identity ?? {};
+  const referralLink = buildReferralLink(config, profile, identity);
   const walletExplorerUrl = walletAddress
     ? `https://tronscan.org/#/address/${walletAddress}`
     : '';
@@ -1159,7 +1148,7 @@ function createActionsContent(state, walletAddress, config) {
     !state.isReplayingPending &&
     !state.isWithdrawing;
 
-  let helperText = 'No rewards are currently available.';
+  let helperText = 'Cabinet shows current backend and on-chain state.';
 
   if (state.statusCards.hasRequestedForProcessing || state.hasProcessingWithdrawal) {
     helperText = 'A withdrawal request is already in progress.';
@@ -1175,7 +1164,7 @@ function createActionsContent(state, walletAddress, config) {
     helperText = 'Some rewards still need backend processing before they become withdrawable.';
   } else if (state.statusCards.hasAllocatedInDb) {
     helperText =
-      'Some rewards are allocated in backend accounting, but that does not guarantee immediate withdrawal.';
+      'Rewards are already visible in backend accounting. Some may still require controller processing.';
   }
 
   return `
@@ -1204,17 +1193,13 @@ function createActionsContent(state, walletAddress, config) {
         type="button"
         class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
         data-role="copy-referral-link"
-        ${
-          referralLink && referralLink !== '—'
-            ? ''
-            : 'disabled aria-disabled="true"'
-        }
+        ${referralLink ? '' : 'disabled aria-disabled="true"'}
       >
         ${escapeHtml(config.copyLinkText)}
       </button>
 
       ${
-        referralLink && referralLink !== '—'
+        referralLink
           ? `
             <a
               class="fourteen-ambassador-cabinet-link"
@@ -1261,6 +1246,123 @@ function createActionsContent(state, walletAddress, config) {
   `;
 }
 
+function createBuyersContent(state) {
+  const rows = safeArray(state.buyersRows, []);
+
+  if (!rows.length) {
+    return `
+      <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
+        No linked buyers found yet.
+      </div>
+    `;
+  }
+
+  const tableRows = rows.map((row) => `
+    <tr>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);" title="${escapeHtml(row.buyer_wallet || '')}">
+        ${escapeHtml(shortenAddress(row.buyer_wallet || '—'))}
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
+        ${escapeHtml(formatDate(row.binding_at))}
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
+        ${escapeHtml(String(row.purchase_count ?? 0))}
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
+        ${escapeHtml(sunToTrxString(row.total_purchase_amount_sun || '0'))} TRX
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
+        ${escapeHtml(String(row.processed_purchase_count ?? 0))}
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
+        ${escapeHtml(sunToTrxString(row.processed_purchase_amount_sun || '0'))} TRX
+      </td>
+    </tr>
+  `);
+
+  return createSimpleTable(
+    ['Buyer', 'Binding at', 'Purchases', 'Total', 'Processed', 'Processed total'],
+    tableRows
+  );
+}
+
+function createPurchasesContent(state) {
+  const rows = safeArray(state.purchasesRows, []);
+
+  if (!rows.length) {
+    return `
+      <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
+        No attributed or processed purchases found yet.
+      </div>
+    `;
+  }
+
+  const tableRows = rows.map((row) => `
+    <tr>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
+        ${escapeHtml(formatDate(row.token_block_time))}
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);" title="${escapeHtml(row.buyer_wallet || '')}">
+        ${escapeHtml(shortenAddress(row.buyer_wallet || '—'))}
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
+        ${escapeHtml(sunToTrxString(row.purchase_amount_sun || '0'))} TRX
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
+        ${escapeHtml(sunToTrxString(row.owner_share_sun || '0'))} TRX
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
+        ${escapeHtml(String(row.status || '—'))}
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
+        ${row.controller_processed ? 'Yes' : 'No'}
+      </td>
+    </tr>
+  `);
+
+  return createSimpleTable(
+    ['Time', 'Buyer', 'Purchase', 'Owner share', 'Status', 'Processed'],
+    tableRows
+  );
+}
+
+function createPendingContent(state) {
+  const rows = safeArray(state.pendingRows, []);
+
+  if (!rows.length) {
+    return `
+      <div class="fourteen-ambassador-cabinet-banner fourteen-ambassador-cabinet-banner--neutral">
+        No pending purchases. Everything visible here is already synchronized for this ambassador.
+      </div>
+    `;
+  }
+
+  const tableRows = rows.map((row) => `
+    <tr>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
+        ${escapeHtml(formatDate(row.token_block_time))}
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);" title="${escapeHtml(row.buyer_wallet || '')}">
+        ${escapeHtml(shortenAddress(row.buyer_wallet || '—'))}
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
+        ${escapeHtml(sunToTrxString(row.purchase_amount_sun || '0'))} TRX
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
+        ${escapeHtml(sunToTrxString(row.owner_share_sun || '0'))} TRX
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
+        ${escapeHtml(String(row.status || '—'))}
+      </td>
+    </tr>
+  `);
+
+  return createSimpleTable(
+    ['Time', 'Buyer', 'Purchase', 'Owner share', 'Status'],
+    tableRows
+  );
+}
+
 function createAdvancedContent(state, walletAddress) {
   const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
   const identity = dashboard.identity ?? {};
@@ -1290,16 +1392,6 @@ function createAdvancedContent(state, walletAddress) {
         )}`
       )}
       ${createValueCard(
-        'Next threshold',
-        String(progress.nextThreshold ?? 0),
-        'Buyers needed for next milestone'
-      )}
-      ${createValueCard(
-        'Remaining',
-        String(progress.remainingToNextLevel ?? 0),
-        'Buyers left to next level'
-      )}
-      ${createValueCard(
         'Lifetime rewards',
         `${stats.lifetimeRewardsTrx ?? '0'} TRX`,
         `${stats.lifetimeRewardsSun ?? '0'} SUN`
@@ -1310,6 +1402,14 @@ function createAdvancedContent(state, walletAddress) {
         `${stats.withdrawnRewardsSun ?? '0'} SUN`
       )}
       ${createValueCard('Created at', formatDate(identity.createdAt ?? 0))}
+      ${createValueCard('Connected wallet', shortenAddress(walletAddress || '—'))}
+      ${createValueCard('Unattributed rows', String(stats.unattributedCount ?? 0))}
+      ${createValueCard(
+        'Rows loaded',
+        `${safeArray(state.purchasesRows).length} purchases / ${safeArray(state.pendingRows).length} pending / ${safeArray(state.buyersRows).length} buyers`
+      )}
+      ${createValueCard('Next threshold', String(progress.nextThreshold ?? 0))}
+      ${createValueCard('Remaining to next', String(progress.remainingToNextLevel ?? 0))}
     </div>
   `;
 }
@@ -1340,6 +1440,24 @@ function createDashboardStateMarkup(config, state, walletAddress) {
         'Performance',
         state.sections.performance,
         createPerformanceContent(state, walletAddress)
+      )}
+      ${createAccordionSection(
+        'buyers',
+        `Buyers (${safeArray(state.buyersRows).length})`,
+        state.sections.buyers,
+        createBuyersContent(state)
+      )}
+      ${createAccordionSection(
+        'purchases',
+        `Purchases (${safeArray(state.purchasesRows).length})`,
+        state.sections.purchases,
+        createPurchasesContent(state)
+      )}
+      ${createAccordionSection(
+        'pending',
+        `Pending (${safeArray(state.pendingRows).length})`,
+        state.sections.pending,
+        createPendingContent(state)
       )}
       ${createAccordionSection(
         'advanced',
@@ -1488,6 +1606,12 @@ export function mountAmbassadorCabinet(target, config = {}) {
     error: '',
     dashboard: createEmptyDashboard(''),
     profile: null,
+    buyersRows: [],
+    purchasesRows: [],
+    pendingRows: [],
+    buyersTotal: 0,
+    purchasesTotal: 0,
+    pendingTotal: 0,
     statusCards: buildStatusCards(null),
     lastWithdrawTxid: null,
     sections: {
@@ -1661,6 +1785,12 @@ export function mountAmbassadorCabinet(target, config = {}) {
       state.isRegistered = false;
       state.dashboard = createEmptyDashboard('');
       state.profile = null;
+      state.buyersRows = [];
+      state.purchasesRows = [];
+      state.pendingRows = [];
+      state.buyersTotal = 0;
+      state.purchasesTotal = 0;
+      state.pendingTotal = 0;
       state.hasProcessingWithdrawal = false;
       state.statusCards = buildStatusCards(null);
       state.isLoading = false;
@@ -1678,16 +1808,20 @@ export function mountAmbassadorCabinet(target, config = {}) {
       return;
     }
 
-    const backendProfile = await fetchProfileMaybe(resolvedConfig, walletAddress);
+    const backendProfile = await fetchCabinetData(resolvedConfig, walletAddress);
 
     state.profile = backendProfile;
     state.registrationKnown = backendProfile !== null;
-    state.isRegistered = Boolean(
-      backendProfile?.registered || backendProfile?.slug || backendProfile?.wallet
-    );
+    state.isRegistered = Boolean(backendProfile?.registered);
 
     if (state.registrationKnown && !state.isRegistered) {
       state.dashboard = createEmptyDashboard(walletAddress);
+      state.buyersRows = [];
+      state.purchasesRows = [];
+      state.pendingRows = [];
+      state.buyersTotal = 0;
+      state.purchasesTotal = 0;
+      state.pendingTotal = 0;
       state.statusCards = buildStatusCards(null);
       state.hasProcessingWithdrawal = false;
       state.isLoading = false;
@@ -1699,6 +1833,12 @@ export function mountAmbassadorCabinet(target, config = {}) {
 
     if (!state.registrationKnown) {
       state.dashboard = createEmptyDashboard(walletAddress);
+      state.buyersRows = [];
+      state.purchasesRows = [];
+      state.pendingRows = [];
+      state.buyersTotal = 0;
+      state.purchasesTotal = 0;
+      state.pendingTotal = 0;
       state.statusCards = buildStatusCards(null);
       state.hasProcessingWithdrawal = false;
       state.isLoading = false;
@@ -1708,32 +1848,27 @@ export function mountAmbassadorCabinet(target, config = {}) {
       return;
     }
 
-    const backendHasCabinetData = Boolean(
-      backendProfile?.identity || backendProfile?.stats || backendProfile?.withdrawalQueue
+    state.buyersRows = safeArray(backendProfile?.buyersRows, []);
+    state.purchasesRows = safeArray(backendProfile?.purchasesRows, []);
+    state.pendingRows = safeArray(backendProfile?.pendingRows, []);
+    state.buyersTotal = safeNumber(backendProfile?.buyersTotal, state.buyersRows.length);
+    state.purchasesTotal = safeNumber(backendProfile?.purchasesTotal, state.purchasesRows.length);
+    state.pendingTotal = safeNumber(backendProfile?.pendingTotal, state.pendingRows.length);
+
+    const dashboard = buildDashboardFromSummary(
+      backendProfile?.summary || {},
+      walletAddress,
+      state.buyersRows,
+      state.purchasesRows,
+      state.pendingRows
     );
 
-    if (state.registrationKnown && state.isRegistered && backendHasCabinetData) {
-      const dashboard = buildDashboardFromBackendProfile(backendProfile, walletAddress);
-
-      state.dashboard = dashboard;
-      state.statusCards = buildStatusCards(dashboard.withdrawalQueue);
-      state.hasProcessingWithdrawal = Boolean(dashboard.withdrawalQueue?.hasProcessingWithdrawal);
-      state.isLoading = false;
-      state.isRefreshing = false;
-      state.error = '';
-      lastLoadedWalletAddress = walletAddress;
-      return;
-    }
-
-    state.dashboard = createEmptyDashboard(walletAddress);
-    state.dashboard.identity.exists = state.isRegistered;
-    state.dashboard.identity.active =
-      backendProfile?.status ? backendProfile.status === 'active' : false;
+    state.dashboard = dashboard;
+    state.statusCards = buildStatusCards(dashboard.withdrawalQueue);
+    state.hasProcessingWithdrawal = Boolean(dashboard.withdrawalQueue?.hasProcessingWithdrawal);
     state.isLoading = false;
     state.isRefreshing = false;
     state.error = '';
-    state.statusCards = buildStatusCards(state.dashboard.withdrawalQueue);
-    state.hasProcessingWithdrawal = Boolean(state.dashboard.withdrawalQueue?.hasProcessingWithdrawal);
     lastLoadedWalletAddress = walletAddress;
   }
 
@@ -1760,6 +1895,15 @@ export function mountAmbassadorCabinet(target, config = {}) {
 
     refreshInFlight = (async () => {
       try {
+        if (!initial && options.backendRefresh === true) {
+          const walletAddress = getWalletAddressSafe(wallet);
+
+          if (walletAddress) {
+            await requestCabinetRefresh(resolvedConfig, walletAddress).catch(() => null);
+            await wait(350);
+          }
+        }
+
         await loadData(mode, options);
       } catch (error) {
         state.isLoading = false;
@@ -1772,6 +1916,12 @@ export function mountAmbassadorCabinet(target, config = {}) {
           state.hasProcessingWithdrawal = false;
           state.dashboard = createEmptyDashboard('');
           state.profile = null;
+          state.buyersRows = [];
+          state.purchasesRows = [];
+          state.pendingRows = [];
+          state.buyersTotal = 0;
+          state.purchasesTotal = 0;
+          state.pendingTotal = 0;
           state.statusCards = buildStatusCards(null);
           lastLoadedWalletAddress = '';
         }
@@ -1886,7 +2036,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
         showNeutralNotice('Pending rewards check completed.', 7000);
       }
 
-      await refresh('refresh', { force: true });
+      await refresh('refresh', { force: true, backendRefresh: true });
     } catch (error) {
       const message = normalizeError(error);
       state.error = message;
@@ -1901,10 +2051,10 @@ export function mountAmbassadorCabinet(target, config = {}) {
   async function handleCopyReferralLink() {
     const walletAddress = getWalletAddressSafe(wallet) || '';
     const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
-    const profile = state.profile ?? null;
-    const referralLink = buildReferralLink(resolvedConfig, profile);
+    const identity = dashboard.identity ?? {};
+    const referralLink = buildReferralLink(resolvedConfig, state.profile, identity);
 
-    if (!referralLink || referralLink === '—') {
+    if (!referralLink) {
       showNeutralNotice('Referral link is not available yet.', 5000);
       return;
     }
@@ -1935,21 +2085,10 @@ export function mountAmbassadorCabinet(target, config = {}) {
     const infoToggleEl = root.querySelector('[data-role="info-toggle"]');
     const sectionToggles = root.querySelectorAll('[data-role="section-toggle"]');
 
-    refreshButton?.addEventListener('click', async () => {
-      try {
-        const walletAddress = getWalletAddressSafe(wallet);
-
-        if (walletAddress && state.isRegistered) {
-          await requestCabinetRefresh(resolvedConfig, walletAddress);
-          await wait(450);
-        }
-
-        await refresh('refresh', { force: true });
-      } catch (error) {
+    refreshButton?.addEventListener('click', () => {
+      refresh('refresh', { force: true }).catch((error) => {
         console.error('Ambassador cabinet refresh failed:', error);
-        state.error = normalizeError(error);
-        render();
-      }
+      });
     });
 
     withdrawButton?.addEventListener('click', () => {
