@@ -11,6 +11,9 @@ const SUN = 1_000_000;
 const DEFAULT_CONTRACT_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
 const DEFAULT_TOKEN_PRICE_SUN = 1_147_500;
 
+const DEFAULT_REFERRAL_STORAGE_KEY = 'fourteen_referral_record';
+const DEFAULT_ATTRIBUTION_URL = 'https://fourteen-allocation-worker-6e0e920395d8.herokuapp.com/hooks/after-buy';
+
 const DEFAULT_CONFIG = {
   contractAddress: DEFAULT_CONTRACT_ADDRESS,
   inputLabel: 'Enter TRX amount',
@@ -19,7 +22,9 @@ const DEFAULT_CONFIG = {
   subtitle: 'Mint-on-Purchase Issuance',
   connectText: 'Connect Wallet',
   mobileConnectHint: 'Tap connect below to continue.',
-  afterBuy: null
+  afterBuy: null,
+  attributionUrl: DEFAULT_ATTRIBUTION_URL,
+  referralStorageKey: DEFAULT_REFERRAL_STORAGE_KEY
 };
 
 function sleep(ms) {
@@ -276,6 +281,106 @@ function isFunction(value) {
   return typeof value === 'function';
 }
 
+function isBrowser() {
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+}
+
+function normalizeSlug(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '')
+    .slice(0, 24);
+}
+
+function isValidSlug(value) {
+  return /^[a-z0-9_-]{3,24}$/.test(String(value || ''));
+}
+
+function safeParseJson(value) {
+  if (!value) return null;
+
+  try {
+    return JSON.parse(value);
+  } catch (_) {
+    return null;
+  }
+}
+
+function getStoredReferral(referralStorageKey, now = Date.now()) {
+  if (!isBrowser()) return null;
+
+  const raw = safeParseJson(window.localStorage.getItem(referralStorageKey));
+
+  if (!raw || typeof raw !== 'object') return null;
+  if (typeof raw.slug !== 'string') return null;
+
+  const slug = normalizeSlug(raw.slug);
+
+  if (!isValidSlug(slug)) {
+    return null;
+  }
+
+  if (typeof raw.expiresAt === 'number' && raw.expiresAt > 0 && raw.expiresAt <= now) {
+    return null;
+  }
+
+  return {
+    slug,
+    capturedAt: typeof raw.capturedAt === 'number' ? raw.capturedAt : null,
+    expiresAt: typeof raw.expiresAt === 'number' ? raw.expiresAt : null,
+    source: typeof raw.source === 'string' ? raw.source : 'unknown'
+  };
+}
+
+async function submitAttribution({
+  attributionUrl,
+  txHash,
+  buyerWallet,
+  slug
+}) {
+  const response = await fetch(attributionUrl, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      txHash,
+      buyerWallet,
+      slug: slug || null
+    })
+  });
+
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (_) {
+      data = null;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      data &&
+      typeof data === 'object' &&
+      typeof data.error === 'string' &&
+      data.error.trim()
+        ? data.error.trim()
+        : `Attribution request failed with status ${response.status}`;
+
+    throw new Error(message);
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    data
+  };
+}
+
 export function mountDirectBuy(target, config = {}) {
   const {
     contractAddress,
@@ -284,7 +389,9 @@ export function mountDirectBuy(target, config = {}) {
     subtitle,
     connectText,
     mobileConnectHint,
-    afterBuy
+    afterBuy,
+    attributionUrl,
+    referralStorageKey
   } = { ...DEFAULT_CONFIG, ...config };
 
   if (!target) {
@@ -627,15 +734,50 @@ export function mountDirectBuy(target, config = {}) {
     throw new Error('Wallet connect method is not available');
   }
 
-  async function runAfterBuyHook(txHash, buyerWallet) {
-    if (!isFunction(afterBuy)) {
-      return null;
+  async function submitInternalAfterBuy(txHash, buyerWallet) {
+    if (!attributionUrl) {
+      return {
+        status: 'skipped-no-attribution-url',
+        referralSlug: null,
+        response: null
+      };
     }
 
-    return afterBuy({
+    const referral = getStoredReferral(referralStorageKey, Date.now());
+    const slug = referral?.slug || null;
+
+    const response = await submitAttribution({
+      attributionUrl,
       txHash,
-      buyerWallet
+      buyerWallet,
+      slug
     });
+
+    return {
+      status: slug ? 'submitted-with-referral' : 'submitted-without-referral',
+      referralSlug: slug,
+      response
+    };
+  }
+
+  async function runAfterBuyHook(txHash, buyerWallet) {
+    const internalResult = await submitInternalAfterBuy(txHash, buyerWallet);
+
+    if (!isFunction(afterBuy)) {
+      return internalResult;
+    }
+
+    const externalResult = await afterBuy({
+      txHash,
+      buyerWallet,
+      referralSlug: internalResult?.referralSlug || null,
+      attributionResult: internalResult
+    });
+
+    return {
+      internalResult,
+      externalResult
+    };
   }
 
   async function buy() {
@@ -683,7 +825,7 @@ export function mountDirectBuy(target, config = {}) {
         await runAfterBuyHook(txid, address);
       } catch (afterBuyError) {
         console.error('Direct buy post-purchase hook failed:', afterBuyError);
-        showNeutralNotice('Purchase succeeded, but post-purchase attribution is pending.', 10000);
+        showNeutralNotice('Purchase succeeded, but post-purchase sync is pending.', 10000);
       }
 
       inputEl.value = '';
