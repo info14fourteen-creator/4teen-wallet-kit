@@ -18,6 +18,7 @@ const DEFAULT_CONFIG = {
   subtitle: 'Profile, stats, rewards and withdrawals in one place',
   mobileConnectHint: 'Tap connect below to continue.',
   refreshText: 'Refresh',
+  refreshEndpoint: '/cabinet/refresh',
   withdrawText: 'Withdraw rewards',
   processingText: 'Processing...',
   replayText: 'Process pending rewards',
@@ -354,6 +355,33 @@ async function replayPendingRewards(config, walletAddress) {
   return payload?.result || payload || {};
 }
 
+async function requestCabinetRefresh(config, walletAddress) {
+  const baseUrl = normalizeBaseUrl(config.backendBaseUrl);
+
+  if (!baseUrl) {
+    throw new Error('Backend base URL is not configured');
+  }
+
+  const endpoint = String(config.refreshEndpoint || '/cabinet/refresh').trim();
+  const response = await fetch(`${baseUrl}${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      wallet: walletAddress
+    })
+  });
+
+  const payload = await readJson(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || payload?.message || 'Failed to refresh cabinet');
+  }
+
+  return payload?.result || payload || {};
+}
+
 async function confirmWithdrawal(config, input) {
   const baseUrl = normalizeBaseUrl(config.backendBaseUrl);
 
@@ -526,52 +554,83 @@ async function fetchProfileMaybe(config, walletAddress) {
   const profileEndpoint = config.profileEndpoint || '/cabinet/profile';
   const walletLookupEndpoint = config.walletLookupEndpoint || '/ambassador/by-wallet';
 
-  const urls = [
-    `${baseUrl}${profileEndpoint}?${encodeURIComponent(queryParam)}=${encodeURIComponent(
-      walletAddress
-    )}`,
-    `${baseUrl}${walletLookupEndpoint}?wallet=${encodeURIComponent(walletAddress)}`
-  ];
+  const profileUrl = `${baseUrl}${profileEndpoint}?${encodeURIComponent(queryParam)}=${encodeURIComponent(
+    walletAddress
+  )}`;
 
-  for (const url of urls) {
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+  let normalizedProfile = null;
 
-      const payload = await readJson(response);
-
-      if (response.status === 404) {
-        if (url.includes(walletLookupEndpoint)) {
-          return {
-            registered: false
-          };
-        }
-        continue;
+  try {
+    const response = await fetch(profileUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
       }
+    });
 
-      if (!response.ok || !payload) {
-        continue;
-      }
+    const payload = await readJson(response);
 
-      const normalized = normalizeRegisteredProfile(payload);
+    if (response.ok && payload) {
+      normalizedProfile = normalizeRegisteredProfile(payload);
 
-      if (normalized) {
-        return normalized;
-      }
-
-      if (payload.ok === true && (payload.registered === false || payload.result == null)) {
+      if (!normalizedProfile && payload.ok === true && payload.result?.registered === false) {
         return {
           registered: false
         };
       }
-    } catch (_) {}
-  }
+    }
+  } catch (_) {}
 
-  return null;
+  const lookupUrl = `${baseUrl}${walletLookupEndpoint}?wallet=${encodeURIComponent(walletAddress)}`;
+
+  try {
+    const response = await fetch(lookupUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const payload = await readJson(response);
+
+    if (response.status === 404) {
+      if (normalizedProfile) {
+        return normalizedProfile;
+      }
+
+      return {
+        registered: false
+      };
+    }
+
+    if (response.ok && payload) {
+      const normalizedLookup = normalizeRegisteredProfile(payload);
+
+      if (normalizedProfile && normalizedLookup) {
+        return {
+          ...normalizedProfile,
+          slug: normalizedProfile.slug || normalizedLookup.slug,
+          referralLink: normalizedProfile.referralLink || normalizedLookup.referralLink,
+          wallet: normalizedProfile.wallet || normalizedLookup.wallet,
+          status: normalizedProfile.status || normalizedLookup.status,
+          identity: normalizedProfile.identity || normalizedLookup.identity,
+          stats: normalizedProfile.stats || normalizedLookup.stats,
+          withdrawalQueue: normalizedProfile.withdrawalQueue || normalizedLookup.withdrawalQueue,
+          progress: normalizedProfile.progress || normalizedLookup.progress
+        };
+      }
+
+      if (normalizedLookup) {
+        return normalizedLookup;
+      }
+
+      if (payload.ok === true && (payload.registered === false || payload.result == null)) {
+        return normalizedProfile || { registered: false };
+      }
+    }
+  } catch (_) {}
+
+  return normalizedProfile;
 }
 
 function buildDashboardFromBackendProfile(profile, walletAddress) {
@@ -682,7 +741,7 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
   };
 }
 
-function buildReferralLink(config, profile, identity) {
+function buildReferralLink(config, profile) {
   const direct =
     profile?.referralLink ||
     profile?.referral_url ||
@@ -729,10 +788,6 @@ function buildReferralLink(config, profile, identity) {
     }
 
     return `${base.replace(/\/+$/, '')}/${slug}`;
-  }
-
-  if (identity?.slugHash && identity.slugHash !== '—') {
-    return identity.slugHash;
   }
 
   return '—';
@@ -942,13 +997,12 @@ function createIdentityContent(config, state, walletAddress) {
     profile?.referralSlug ||
     profile?.referral_slug ||
     profile?.publicSlug ||
-    '—';
-  const referralLink = buildReferralLink(config, profile, identity);
+    'Not available yet';
+  const referralLink = buildReferralLink(config, profile);
   const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
 
   return `
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
-      ${createValueCard('Wallet', shortenAddress(walletAddress || '—'), walletAddress || '—')}
       ${createValueCard(
         'Ambassador status',
         profile?.status
@@ -961,9 +1015,12 @@ function createIdentityContent(config, state, walletAddress) {
       ${createValueCard('Slug', slugValue, 'Public ambassador handle')}
       ${createValueCard(
         'Referral link',
-        shortenMiddle(referralLink || '—', 24, 16),
-        referralLink && referralLink !== '—' ? 'Use copy or open in Actions' : 'Unavailable yet'
+        referralLink && referralLink !== '—'
+          ? shortenMiddle(referralLink, 24, 16)
+          : 'Not available yet',
+        referralLink && referralLink !== '—' ? 'Use copy or open in Actions' : 'Referral link is not published by backend yet'
       )}
+      ${createValueCard('Created at', formatDate(identity.createdAt ?? 0))}
     </div>
   `;
 }
@@ -1081,8 +1138,7 @@ function createPerformanceContent(state, walletAddress) {
 function createActionsContent(state, walletAddress, config) {
   const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
   const profile = state.profile ?? null;
-  const identity = dashboard.identity ?? {};
-  const referralLink = buildReferralLink(config, profile, identity);
+  const referralLink = buildReferralLink(config, profile);
   const walletExplorerUrl = walletAddress
     ? `https://tronscan.org/#/address/${walletAddress}`
     : '';
@@ -1254,7 +1310,6 @@ function createAdvancedContent(state, walletAddress) {
         `${stats.withdrawnRewardsSun ?? '0'} SUN`
       )}
       ${createValueCard('Created at', formatDate(identity.createdAt ?? 0))}
-      ${createValueCard('Tracked wallet', walletAddress || '—')}
     </div>
   `;
 }
@@ -1846,8 +1901,8 @@ export function mountAmbassadorCabinet(target, config = {}) {
   async function handleCopyReferralLink() {
     const walletAddress = getWalletAddressSafe(wallet) || '';
     const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
-    const identity = dashboard.identity ?? {};
-    const referralLink = buildReferralLink(resolvedConfig, state.profile, identity);
+    const profile = state.profile ?? null;
+    const referralLink = buildReferralLink(resolvedConfig, profile);
 
     if (!referralLink || referralLink === '—') {
       showNeutralNotice('Referral link is not available yet.', 5000);
@@ -1880,10 +1935,21 @@ export function mountAmbassadorCabinet(target, config = {}) {
     const infoToggleEl = root.querySelector('[data-role="info-toggle"]');
     const sectionToggles = root.querySelectorAll('[data-role="section-toggle"]');
 
-    refreshButton?.addEventListener('click', () => {
-      refresh('refresh', { force: true }).catch((error) => {
+    refreshButton?.addEventListener('click', async () => {
+      try {
+        const walletAddress = getWalletAddressSafe(wallet);
+
+        if (walletAddress && state.isRegistered) {
+          await requestCabinetRefresh(resolvedConfig, walletAddress);
+          await wait(450);
+        }
+
+        await refresh('refresh', { force: true });
+      } catch (error) {
         console.error('Ambassador cabinet refresh failed:', error);
-      });
+        state.error = normalizeError(error);
+        render();
+      }
     });
 
     withdrawButton?.addEventListener('click', () => {
