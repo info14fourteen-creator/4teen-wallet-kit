@@ -464,7 +464,11 @@ function createEmptyDashboard(walletAddress = '') {
       requestedForProcessingTrx: '0',
       requestedForProcessingCount: 0,
       hasProcessingWithdrawal: false,
-      withdrawSessionId: null
+      withdrawSessionId: null,
+      hasBrokenPendingRewards: false,
+      missingRewardCount: 0,
+      missingRewardOwnerShareSun: '0',
+      missingRewardOwnerShareTrx: '0'
     }
   };
 }
@@ -582,6 +586,7 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
   const allocatedInDbSun = safeSun(withdrawalQueue.allocatedInDbSun, '0');
   const pendingBackendSyncSun = safeSun(withdrawalQueue.pendingBackendSyncSun, '0');
   const requestedForProcessingSun = safeSun(withdrawalQueue.requestedForProcessingSun, '0');
+  const missingRewardOwnerShareSun = safeSun(withdrawalQueue.missingRewardOwnerShareSun, '0');
 
   const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
   const currentLevel = safeNumber(identity.currentLevel, effectiveLevel);
@@ -665,7 +670,14 @@ function buildDashboardFromBackendProfile(profile, walletAddress) {
       withdrawSessionId:
         withdrawalQueue.withdrawSessionId != null
           ? String(withdrawalQueue.withdrawSessionId).trim() || null
-          : null
+          : null,
+      hasBrokenPendingRewards: safeBoolean(withdrawalQueue.hasBrokenPendingRewards),
+      missingRewardCount: safeNumber(withdrawalQueue.missingRewardCount, 0),
+      missingRewardOwnerShareSun,
+      missingRewardOwnerShareTrx: safeString(
+        withdrawalQueue.missingRewardOwnerShareTrx,
+        sunToTrxString(missingRewardOwnerShareSun)
+      )
     }
   };
 }
@@ -764,7 +776,11 @@ function buildStatusCards(withdrawalQueue) {
       hasAvailableOnChain: false,
       hasAllocatedInDb: false,
       hasPendingBackendSync: false,
-      hasRequestedForProcessing: false
+      hasRequestedForProcessing: false,
+      hasBrokenPendingRewards: false,
+      missingRewardCount: 0,
+      missingRewardOwnerShareSun: '0',
+      missingRewardOwnerShareTrx: '0'
     };
   }
 
@@ -772,11 +788,14 @@ function buildStatusCards(withdrawalQueue) {
   const allocatedInDbSun = safeSun(withdrawalQueue.allocatedInDbSun, '0');
   const pendingBackendSyncSun = safeSun(withdrawalQueue.pendingBackendSyncSun, '0');
   const requestedForProcessingSun = safeSun(withdrawalQueue.requestedForProcessingSun, '0');
+  const missingRewardOwnerShareSun = safeSun(withdrawalQueue.missingRewardOwnerShareSun, '0');
 
   const availableOnChainCount = safeNumber(withdrawalQueue.availableOnChainCount, 0);
   const allocatedInDbCount = safeNumber(withdrawalQueue.allocatedInDbCount, 0);
   const pendingBackendSyncCount = safeNumber(withdrawalQueue.pendingBackendSyncCount, 0);
   const requestedForProcessingCount = safeNumber(withdrawalQueue.requestedForProcessingCount, 0);
+  const missingRewardCount = safeNumber(withdrawalQueue.missingRewardCount, 0);
+  const hasBrokenPendingRewards = safeBoolean(withdrawalQueue.hasBrokenPendingRewards);
 
   return {
     availableOnChainSun,
@@ -790,9 +809,16 @@ function buildStatusCards(withdrawalQueue) {
     hasAvailableOnChain: isPositiveSun(availableOnChainSun) || availableOnChainCount > 0,
     hasAllocatedInDb: isPositiveSun(allocatedInDbSun) || allocatedInDbCount > 0,
     hasPendingBackendSync:
-      isPositiveSun(pendingBackendSyncSun) || pendingBackendSyncCount > 0,
+      isPositiveSun(pendingBackendSyncSun) ||
+      pendingBackendSyncCount > 0 ||
+      hasBrokenPendingRewards ||
+      missingRewardCount > 0,
     hasRequestedForProcessing:
-      isPositiveSun(requestedForProcessingSun) || requestedForProcessingCount > 0
+      isPositiveSun(requestedForProcessingSun) || requestedForProcessingCount > 0,
+    hasBrokenPendingRewards,
+    missingRewardCount,
+    missingRewardOwnerShareSun,
+    missingRewardOwnerShareTrx: sunToTrxString(missingRewardOwnerShareSun)
   };
 }
 
@@ -943,6 +969,11 @@ function createIdentityContent(config, state, walletAddress) {
 }
 
 function createRewardStatusContent(state) {
+  const brokenHint =
+    state.statusCards.hasBrokenPendingRewards || state.statusCards.missingRewardCount > 0
+      ? ` Broken pending rewards detected: ${state.statusCards.missingRewardCount} item(s), owner share ${state.statusCards.missingRewardOwnerShareTrx} TRX / ${state.statusCards.missingRewardOwnerShareSun} SUN.`
+      : '';
+
   return `
     <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--four">
       ${createStatusCard(
@@ -967,7 +998,7 @@ function createRewardStatusContent(state) {
         state.statusCards.pendingBackendSyncSun,
         state.statusCards.pendingBackendSyncCount,
         'amber',
-        'Verified rewards that still need backend and on-chain sync.'
+        `Verified rewards that still need backend and on-chain sync.${brokenHint}`
       )}
       ${createStatusCard(
         'Requested for processing',
@@ -1027,6 +1058,23 @@ function createPerformanceContent(state, walletAddress) {
         `${withdrawalQueue.allocatedInDbSun ?? '0'} SUN • Backend accounting only`
       )}
     </div>
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+      ${createValueCard(
+        'Broken pending rewards',
+        String(withdrawalQueue.missingRewardCount ?? 0),
+        'Rows with owner share present but ambassador reward missing'
+      )}
+      ${createValueCard(
+        'Broken owner share',
+        `${withdrawalQueue.missingRewardOwnerShareTrx ?? '0'} TRX`,
+        `${withdrawalQueue.missingRewardOwnerShareSun ?? '0'} SUN`
+      )}
+      ${createValueCard(
+        'Pending sync flag',
+        state.statusCards.hasPendingBackendSync ? 'Yes' : 'No',
+        state.statusCards.hasBrokenPendingRewards ? 'Includes broken pending reward rows' : 'Normal pending sync state'
+      )}
+    </div>
   `;
 }
 
@@ -1059,6 +1107,9 @@ function createActionsContent(state, walletAddress, config) {
 
   if (state.statusCards.hasRequestedForProcessing || state.hasProcessingWithdrawal) {
     helperText = 'A withdrawal request is already in progress.';
+  } else if (state.statusCards.hasBrokenPendingRewards) {
+    helperText =
+      'Broken pending rewards were detected. Backend rows exist, but reward split was not saved correctly for some purchases.';
   } else if (state.statusCards.hasAvailableOnChain && state.statusCards.hasPendingBackendSync) {
     helperText =
       'Part of rewards is withdrawable now on-chain, and another part is still waiting for backend sync.';
