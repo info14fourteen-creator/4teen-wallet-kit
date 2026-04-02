@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-04-02T17:28:02.470Z
+Generated: 2026-04-02T20:11:08.141Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -794,6 +794,7 @@ const DEFAULT_CONFIG = {
   replayText: 'Process pending rewards',
   replayProcessingText: 'Processing pending rewards...',
   copyLinkText: 'Copy referral link',
+  copySlugText: 'Copy slug',
   openLinkText: 'Open referral link',
   walletExplorerText: 'Wallet on Tronscan',
   withdrawExplorerText: 'Last withdrawal tx',
@@ -804,7 +805,7 @@ const DEFAULT_CONFIG = {
   refreshEndpoint: '',
   replayPendingEndpoint: '/cabinet/replay-pending',
   confirmWithdrawalEndpoint: '/cabinet/confirm-withdrawal',
-  referralBaseUrl: 'https://4teen.me/?r=',
+  referralBaseUrl: 'https://4teen.me/?ref=',
   registrationPageUrl: 'https://4teen.me/a/reg',
   registrationMode: 'redirect',
   registerTitle: 'Not an ambassador yet',
@@ -812,14 +813,14 @@ const DEFAULT_CONFIG = {
     'This wallet is connected, but no ambassador profile was found. If you want to join the 4TEEN Ambassador Program, continue to registration.',
   infoTitle: 'What this cabinet shows and lets you do',
   infoContent:
-    'This cabinet is the ambassador control panel for the connected wallet. It reads the real backend state for that ambassador address.\n\nInside the cabinet you can view on-chain ambassador identity data, buyer and purchase statistics, processed and pending purchase rows, reward balances, and linked buyers.\n\nImportant: this cabinet separates real on-chain withdrawable rewards from backend accounting. “Available on-chain now” is the real amount that can be withdrawn right now. “Allocated in DB” is backend accounting only and does not guarantee immediate withdrawal. “Pending backend sync” means rewards still need backend/on-chain processing. “Requested for processing” means a withdrawal preparation flow is already running.\n\nThe Buyers section shows linked buyers and their totals. The Purchases section shows all purchases currently attributed or processed for this ambassador. The Pending section shows purchases that are already attributed in DB but are not yet processed through controller.\n\nIf the connected wallet is not registered as an ambassador yet, the cabinet will show that no ambassador profile was found and will direct you to the ambassador registration page instead.'
+    'This cabinet reads the real backend state for the connected ambassador wallet.\n\nTop cards show the most important numbers first: slug, level, reward percent, linked buyers, attributed volume, earned reward, pending reward and claimable reward.\n\nImportant: “Claimable now” is the real on-chain amount available for withdrawal right now. “Processed reward” means purchases already passed through the controller flow. “Pending reward” means purchases are already attributed in backend but are not yet processed by controller.\n\nThe Buyers section shows linked buyers and their totals. The Purchases section shows all attributed and processed purchases. The Pending section isolates purchases that are already attributed but still waiting for controller processing.\n\nIf the connected wallet is not registered as an ambassador yet, the cabinet will show that no ambassador profile was found and direct you to the ambassador registration page.'
 };
 
 const DEFAULT_SECTION_STATE = {
   actions: true,
   identity: true,
+  overview: true,
   rewards: true,
-  performance: false,
   buyers: false,
   purchases: false,
   pending: false,
@@ -855,7 +856,7 @@ function shortenAddress(address) {
   return `${address.slice(0, 6)}...${address.slice(-6)}`;
 }
 
-function shortenMiddle(value, start = 20, end = 12) {
+function shortenMiddle(value, start = 18, end = 10) {
   const text = String(value || '').trim();
 
   if (!text) return '';
@@ -1266,6 +1267,7 @@ function createEmptyDashboard(walletAddress = '') {
       overrideLevel: 0,
       rewardPercent: 0,
       createdAt: 0,
+      slug: '',
       slugHash: '—',
       metaHash: '—'
     },
@@ -1286,7 +1288,15 @@ function createEmptyDashboard(walletAddress = '') {
       buyersTotalPurchaseAmountSun: '0',
       buyersTotalPurchaseAmountTrx: '0',
       buyersProcessedPurchaseAmountSun: '0',
-      buyersProcessedPurchaseAmountTrx: '0'
+      buyersProcessedPurchaseAmountTrx: '0',
+      buyersPendingPurchaseAmountSun: '0',
+      buyersPendingPurchaseAmountTrx: '0',
+      buyersTotalRewardSun: '0',
+      buyersTotalRewardTrx: '0',
+      buyersProcessedRewardSun: '0',
+      buyersProcessedRewardTrx: '0',
+      buyersPendingRewardSun: '0',
+      buyersPendingRewardTrx: '0'
     },
     progress: {
       currentLevel: 0,
@@ -1343,9 +1353,8 @@ function buildReferralLink(config, profile, identity) {
 
   const slug =
     profile?.slug ||
-    profile?.referralSlug ||
-    profile?.referral_slug ||
-    profile?.publicSlug ||
+    profile?.summary?.slug ||
+    identity?.slug ||
     '';
 
   if (slug) {
@@ -1364,10 +1373,6 @@ function buildReferralLink(config, profile, identity) {
     }
 
     return `${base.replace(/\/+$/, '')}/${slug}`;
-  }
-
-  if (identity?.slugHash && identity.slugHash !== '—') {
-    return '';
   }
 
   return '';
@@ -1460,21 +1465,25 @@ function buildStatusCards(withdrawalQueue) {
 function buildDashboardFromSummary(summary, walletAddress, buyersRows, purchasesRows, pendingRows) {
   const empty = createEmptyDashboard(walletAddress);
 
+  const claimableRewardsSun = safeSun(summary?.claimable_rewards_sun, '0');
+  const totalRewardsAccruedSun = safeSun(summary?.total_rewards_accrued_sun, '0');
+  const totalRewardsClaimedSun = safeSun(summary?.total_rewards_claimed_sun, '0');
+
   const buyersTotalPurchaseAmountSun = safeSun(summary?.buyers_total_purchase_amount_sun, '0');
   const buyersProcessedPurchaseAmountSun = safeSun(
     summary?.buyers_processed_purchase_amount_sun,
     '0'
   );
-  const claimableRewardsSun = safeSun(summary?.claimable_rewards_sun, '0');
-  const totalRewardsAccruedSun = safeSun(summary?.total_rewards_accrued_sun, '0');
-  const totalRewardsClaimedSun = safeSun(summary?.total_rewards_claimed_sun, '0');
-
-  const pendingBackendSyncSun = sumSun(
-    pendingRows.map((row) => safeSun(row?.owner_share_sun, '0'))
+  const buyersPendingPurchaseAmountSun = safeSun(
+    summary?.buyers_pending_purchase_amount_sun,
+    '0'
   );
+  const buyersTotalRewardSun = safeSun(summary?.buyers_total_reward_sun, '0');
+  const buyersProcessedRewardSun = safeSun(summary?.buyers_processed_reward_sun, '0');
+  const buyersPendingRewardSun = safeSun(summary?.buyers_pending_reward_sun, '0');
 
   const availableOnChainCount = isPositiveSun(claimableRewardsSun) ? 1 : 0;
-  const allocatedInDbCount = safeNumber(summary?.processed_count, 0);
+  const allocatedInDbCount = safeArray(purchasesRows).length;
   const pendingBackendSyncCount = safeArray(pendingRows).length;
 
   return {
@@ -1492,6 +1501,7 @@ function buildDashboardFromSummary(summary, walletAddress, buyersRows, purchases
       overrideLevel: safeNumber(summary?.override_level, 0),
       rewardPercent: safeNumber(summary?.reward_percent, 0),
       createdAt: safeString(summary?.created_at_chain, '0'),
+      slug: String(summary?.slug || '').trim(),
       slugHash: safeString(summary?.slug_hash, '—'),
       metaHash: safeString(summary?.meta_hash, '—')
     },
@@ -1513,7 +1523,15 @@ function buildDashboardFromSummary(summary, walletAddress, buyersRows, purchases
       buyersTotalPurchaseAmountSun,
       buyersTotalPurchaseAmountTrx: sunToTrxString(buyersTotalPurchaseAmountSun),
       buyersProcessedPurchaseAmountSun,
-      buyersProcessedPurchaseAmountTrx: sunToTrxString(buyersProcessedPurchaseAmountSun)
+      buyersProcessedPurchaseAmountTrx: sunToTrxString(buyersProcessedPurchaseAmountSun),
+      buyersPendingPurchaseAmountSun,
+      buyersPendingPurchaseAmountTrx: sunToTrxString(buyersPendingPurchaseAmountSun),
+      buyersTotalRewardSun,
+      buyersTotalRewardTrx: sunToTrxString(buyersTotalRewardSun),
+      buyersProcessedRewardSun,
+      buyersProcessedRewardTrx: sunToTrxString(buyersProcessedRewardSun),
+      buyersPendingRewardSun,
+      buyersPendingRewardTrx: sunToTrxString(buyersPendingRewardSun)
     },
     progress: {
       ...empty.progress,
@@ -1527,11 +1545,11 @@ function buildDashboardFromSummary(summary, walletAddress, buyersRows, purchases
       availableOnChainSun: claimableRewardsSun,
       availableOnChainTrx: sunToTrxString(claimableRewardsSun),
       availableOnChainCount,
-      allocatedInDbSun: totalRewardsAccruedSun,
-      allocatedInDbTrx: sunToTrxString(totalRewardsAccruedSun),
+      allocatedInDbSun: buyersTotalRewardSun,
+      allocatedInDbTrx: sunToTrxString(buyersTotalRewardSun),
       allocatedInDbCount,
-      pendingBackendSyncSun,
-      pendingBackendSyncTrx: sunToTrxString(pendingBackendSyncSun),
+      pendingBackendSyncSun: buyersPendingRewardSun,
+      pendingBackendSyncTrx: sunToTrxString(buyersPendingRewardSun),
       pendingBackendSyncCount,
       requestedForProcessingSun: '0',
       requestedForProcessingTrx: '0',
@@ -1625,9 +1643,9 @@ async function fetchCabinetData(config, walletAddress) {
   };
 }
 
-function createValueCard(label, value, hint = '') {
+function createValueCard(label, value, hint = '', modifier = '') {
   return `
-    <div class="fourteen-ambassador-cabinet-card">
+    <div class="fourteen-ambassador-cabinet-card ${modifier ? `fourteen-ambassador-cabinet-card--${escapeHtml(modifier)}` : ''}">
       <div class="fourteen-ambassador-cabinet-card__label">${escapeHtml(label)}</div>
       <div class="fourteen-ambassador-cabinet-card__value">${escapeHtml(value)}</div>
       ${hint ? `<div class="fourteen-ambassador-cabinet-card__hint">${escapeHtml(hint)}</div>` : ''}
@@ -1679,18 +1697,13 @@ function createAccordionSection(id, title, isOpen, content) {
   `;
 }
 
-function createSimpleTable(headers, rows) {
+function createDataTable(headers, rows) {
   return `
-    <div style="overflow:auto;">
-      <table style="width:100%; border-collapse:collapse; font-size:14px;">
+    <div class="fourteen-ambassador-cabinet-table-wrap">
+      <table class="fourteen-ambassador-cabinet-table">
         <thead>
           <tr>
-            ${headers
-              .map(
-                (header) =>
-                  `<th style="text-align:left; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.12); white-space:nowrap;">${escapeHtml(header)}</th>`
-              )
-              .join('')}
+            ${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
@@ -1761,14 +1774,20 @@ function createRegistrationStateMarkup(config, walletAddress) {
 function createIdentityContent(config, state, walletAddress) {
   const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
   const identity = dashboard.identity ?? {};
-  const profile = state.profile ?? null;
-  const referralLink = buildReferralLink(config, profile, identity);
+  const referralLink = buildReferralLink(config, state.profile, identity);
   const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
+  const slug = String(identity.slug || '').trim();
 
   return `
-    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
       ${createValueCard(
-        'Ambassador status',
+        'Slug',
+        slug || 'Not assigned yet',
+        slug ? 'Main public ambassador handle' : 'Plain slug is not available yet',
+        slug ? 'accent' : ''
+      )}
+      ${createValueCard(
+        'Status',
         identity?.active ? 'Active' : 'Inactive',
         `Level: ${levelToLabel(effectiveLevel)}`
       )}
@@ -1777,15 +1796,81 @@ function createIdentityContent(config, state, walletAddress) {
         `${identity.rewardPercent ?? 0}%`,
         'Current effective reward percent'
       )}
+    </div>
+
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--two">
       ${createValueCard(
         'Referral link',
-        referralLink ? shortenMiddle(referralLink, 24, 16) : 'Not available yet',
-        referralLink ? 'Use copy or open in Actions' : 'Backend does not expose public referral slug here yet'
+        referralLink ? shortenMiddle(referralLink, 26, 14) : 'Not available yet',
+        referralLink ? 'Use copy or open in Actions' : 'Referral URL will appear when plain slug is available'
       )}
       ${createValueCard(
-        'Registered',
-        identity.exists ? 'Yes' : 'No',
-        identity.selfRegistered ? 'Self-registered' : identity.manualAssigned ? 'Manual' : 'Standard'
+        'Created on chain',
+        formatDate(identity.createdAt ?? 0),
+        'Controller registration timestamp'
+      )}
+    </div>
+  `;
+}
+
+function createOverviewContent(state, walletAddress) {
+  const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
+  const stats = dashboard.stats ?? {};
+  const identity = dashboard.identity ?? {};
+  const withdrawalQueue = dashboard.withdrawalQueue ?? {};
+
+  return `
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+      ${createValueCard(
+        'Linked buyers',
+        String(stats.buyersCount ?? stats.totalBuyers ?? 0),
+        'Backend linked buyers'
+      )}
+      ${createValueCard(
+        'Attributed volume',
+        `${stats.buyersTotalPurchaseAmountTrx ?? '0'} TRX`,
+        `${stats.buyersTotalPurchaseAmountSun ?? '0'} SUN`
+      )}
+      ${createValueCard(
+        'Total reward',
+        `${stats.buyersTotalRewardTrx ?? '0'} TRX`,
+        `${stats.buyersTotalRewardSun ?? '0'} SUN`
+      )}
+    </div>
+
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+      ${createValueCard(
+        'Processed reward',
+        `${stats.buyersProcessedRewardTrx ?? '0'} TRX`,
+        `${stats.buyersProcessedRewardSun ?? '0'} SUN`
+      )}
+      ${createValueCard(
+        'Pending reward',
+        `${stats.buyersPendingRewardTrx ?? '0'} TRX`,
+        `${stats.buyersPendingRewardSun ?? '0'} SUN`
+      )}
+      ${createValueCard(
+        'Claimable now',
+        `${withdrawalQueue.availableOnChainTrx ?? '0'} TRX`,
+        `${withdrawalQueue.availableOnChainSun ?? '0'} SUN`
+      )}
+    </div>
+
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
+      ${createValueCard(
+        'Processed rows',
+        String(stats.processedCount ?? 0),
+        'Already passed through controller'
+      )}
+      ${createValueCard(
+        'Pending rows',
+        String(stats.attributedCount ?? 0),
+        'Already attributed in DB, not processed yet'
+      )}
+      ${createValueCard(
+        'Level',
+        levelToLabel(identity.effectiveLevel ?? 0),
+        `Current reward: ${identity.rewardPercent ?? 0}%`
       )}
     </div>
   `;
@@ -1798,9 +1883,9 @@ function createRewardStatusContent(state) {
       : '';
 
   return `
-    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--four">
+    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
       ${createStatusCard(
-        'Available on-chain now',
+        'Claimable now',
         sunToTrxString(state.statusCards.availableOnChainSun),
         state.statusCards.availableOnChainSun,
         state.statusCards.availableOnChainCount,
@@ -1808,12 +1893,16 @@ function createRewardStatusContent(state) {
         'Real withdrawable amount from contract state.'
       )}
       ${createStatusCard(
-        'Allocated in DB',
-        sunToTrxString(state.statusCards.allocatedInDbSun),
-        state.statusCards.allocatedInDbSun,
-        state.statusCards.allocatedInDbCount,
-        'purple',
-        'Total backend-accounted reward volume.'
+        'Processed reward in DB',
+        sunToTrxString(
+          sumSun([
+            safeString(state.dashboard?.stats?.buyersProcessedRewardSun, '0')
+          ])
+        ),
+        safeString(state.dashboard?.stats?.buyersProcessedRewardSun, '0'),
+        safeNumber(state.dashboard?.stats?.processedCount, 0),
+        'graphite',
+        'Rows already settled through controller.'
       )}
       ${createStatusCard(
         'Pending backend sync',
@@ -1823,82 +1912,15 @@ function createRewardStatusContent(state) {
         'amber',
         `Attributed purchases that are not processed yet.${brokenHint}`
       )}
-      ${createStatusCard(
-        'Requested for processing',
-        sunToTrxString(state.statusCards.requestedForProcessingSun),
-        state.statusCards.requestedForProcessingSun,
-        state.statusCards.requestedForProcessingCount,
-        'blue',
-        'Queue already included in withdrawal preparation.'
-      )}
-    </div>
-  `;
-}
-
-function createPerformanceContent(state, walletAddress) {
-  const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
-  const stats = dashboard.stats ?? {};
-  const identity = dashboard.identity ?? {};
-  const progress = dashboard.progress ?? {};
-  const withdrawalQueue = dashboard.withdrawalQueue ?? {};
-  const effectiveLevel = safeNumber(identity.effectiveLevel, safeNumber(identity.level, 0));
-
-  return `
-    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-      ${createValueCard('On-chain buyers', String(stats.totalBuyers ?? 0))}
-      ${createValueCard(
-        'On-chain volume',
-        `${stats.trackedVolumeTrx ?? '0'} TRX`,
-        `${stats.trackedVolumeSun ?? '0'} SUN`
-      )}
-      ${createValueCard(
-        'Claimable now',
-        `${withdrawalQueue.availableOnChainTrx ?? '0'} TRX`,
-        `${withdrawalQueue.availableOnChainSun ?? '0'} SUN`
-      )}
-    </div>
-    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-      ${createValueCard(
-        'DB buyers count',
-        String(stats.buyersCount ?? 0),
-        'Derived from linked buyers in backend'
-      )}
-      ${createValueCard(
-        'Buyers total purchases',
-        `${stats.buyersTotalPurchaseAmountTrx ?? '0'} TRX`,
-        `${stats.buyersTotalPurchaseAmountSun ?? '0'} SUN`
-      )}
-      ${createValueCard(
-        'Buyers processed purchases',
-        `${stats.buyersProcessedPurchaseAmountTrx ?? '0'} TRX`,
-        `${stats.buyersProcessedPurchaseAmountSun ?? '0'} SUN`
-      )}
-    </div>
-    <div class="fourteen-ambassador-cabinet-grid fourteen-ambassador-cabinet-grid--three">
-      ${createValueCard(
-        'Processed rows',
-        String(stats.processedCount ?? 0),
-        'Purchases already passed through controller layer'
-      )}
-      ${createValueCard(
-        'Attributed rows',
-        String(stats.attributedCount ?? 0),
-        'Attributed in DB but not yet processed'
-      )}
-      ${createValueCard(
-        'Current level',
-        levelToLabel(progress.currentLevel ?? effectiveLevel),
-        `Effective level: ${levelToLabel(effectiveLevel)}`
-      )}
     </div>
   `;
 }
 
 function createActionsContent(state, walletAddress, config) {
   const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
-  const profile = state.profile ?? null;
   const identity = dashboard.identity ?? {};
-  const referralLink = buildReferralLink(config, profile, identity);
+  const referralLink = buildReferralLink(config, state.profile, identity);
+  const slug = String(identity.slug || '').trim();
   const walletExplorerUrl = walletAddress
     ? `https://tronscan.org/#/address/${walletAddress}`
     : '';
@@ -1958,6 +1980,15 @@ function createActionsContent(state, walletAddress, config) {
         ${canReplayPending ? '' : 'disabled aria-disabled="true"'}
       >
         ${escapeHtml(replayButtonLabel)}
+      </button>
+
+      <button
+        type="button"
+        class="fourteen-ambassador-cabinet-action fourteen-ambassador-cabinet-action--secondary"
+        data-role="copy-slug"
+        ${slug ? '' : 'disabled aria-disabled="true"'}
+      >
+        ${escapeHtml(config.copySlugText)}
       </button>
 
       <button
@@ -2030,29 +2061,20 @@ function createBuyersContent(state) {
 
   const tableRows = rows.map((row) => `
     <tr>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);" title="${escapeHtml(row.buyer_wallet || '')}">
+      <td title="${escapeHtml(row.buyer_wallet || '')}">
         ${escapeHtml(shortenAddress(row.buyer_wallet || '—'))}
       </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
-        ${escapeHtml(formatDate(row.binding_at))}
-      </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
-        ${escapeHtml(String(row.purchase_count ?? 0))}
-      </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
-        ${escapeHtml(sunToTrxString(row.total_purchase_amount_sun || '0'))} TRX
-      </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
-        ${escapeHtml(String(row.processed_purchase_count ?? 0))}
-      </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
-        ${escapeHtml(sunToTrxString(row.processed_purchase_amount_sun || '0'))} TRX
-      </td>
+      <td>${escapeHtml(formatDate(row.binding_at))}</td>
+      <td>${escapeHtml(String(row.purchase_count ?? 0))}</td>
+      <td>${escapeHtml(sunToTrxString(row.total_purchase_amount_sun || '0'))} TRX</td>
+      <td>${escapeHtml(sunToTrxString(row.total_reward_amount_sun || '0'))} TRX</td>
+      <td>${escapeHtml(String(row.processed_purchase_count ?? 0))}</td>
+      <td>${escapeHtml(String(row.pending_purchase_count ?? 0))}</td>
     </tr>
   `);
 
-  return createSimpleTable(
-    ['Buyer', 'Binding at', 'Purchases', 'Total', 'Processed', 'Processed total'],
+  return createDataTable(
+    ['Buyer', 'Bound at', 'Purchases', 'Total volume', 'Total reward', 'Processed', 'Pending'],
     tableRows
   );
 }
@@ -2070,29 +2092,22 @@ function createPurchasesContent(state) {
 
   const tableRows = rows.map((row) => `
     <tr>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
-        ${escapeHtml(formatDate(row.token_block_time))}
-      </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);" title="${escapeHtml(row.buyer_wallet || '')}">
+      <td>${escapeHtml(formatDate(row.token_block_time))}</td>
+      <td title="${escapeHtml(row.buyer_wallet || '')}">
         ${escapeHtml(shortenAddress(row.buyer_wallet || '—'))}
       </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
-        ${escapeHtml(sunToTrxString(row.purchase_amount_sun || '0'))} TRX
-      </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
-        ${escapeHtml(sunToTrxString(row.owner_share_sun || '0'))} TRX
-      </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
-        ${escapeHtml(String(row.status || '—'))}
-      </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
-        ${row.controller_processed ? 'Yes' : 'No'}
+      <td>${escapeHtml(sunToTrxString(row.purchase_amount_sun || '0'))} TRX</td>
+      <td>${escapeHtml(sunToTrxString(row.ambassador_reward_sun || '0'))} TRX</td>
+      <td>${escapeHtml(String(row.status || '—'))}</td>
+      <td>${row.controller_processed ? 'Yes' : 'No'}</td>
+      <td title="${escapeHtml(row.tx_hash || '')}">
+        ${escapeHtml(shortenMiddle(row.tx_hash || '—', 10, 8))}
       </td>
     </tr>
   `);
 
-  return createSimpleTable(
-    ['Time', 'Buyer', 'Purchase', 'Owner share', 'Status', 'Processed'],
+  return createDataTable(
+    ['Time', 'Buyer', 'Purchase', 'Reward', 'Status', 'Processed', 'TX'],
     tableRows
   );
 }
@@ -2110,26 +2125,21 @@ function createPendingContent(state) {
 
   const tableRows = rows.map((row) => `
     <tr>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
-        ${escapeHtml(formatDate(row.token_block_time))}
-      </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);" title="${escapeHtml(row.buyer_wallet || '')}">
+      <td>${escapeHtml(formatDate(row.token_block_time))}</td>
+      <td title="${escapeHtml(row.buyer_wallet || '')}">
         ${escapeHtml(shortenAddress(row.buyer_wallet || '—'))}
       </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
-        ${escapeHtml(sunToTrxString(row.purchase_amount_sun || '0'))} TRX
-      </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap;">
-        ${escapeHtml(sunToTrxString(row.owner_share_sun || '0'))} TRX
-      </td>
-      <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
-        ${escapeHtml(String(row.status || '—'))}
+      <td>${escapeHtml(sunToTrxString(row.purchase_amount_sun || '0'))} TRX</td>
+      <td>${escapeHtml(sunToTrxString(row.ambassador_reward_sun || '0'))} TRX</td>
+      <td>${escapeHtml(String(row.status || '—'))}</td>
+      <td title="${escapeHtml(row.tx_hash || '')}">
+        ${escapeHtml(shortenMiddle(row.tx_hash || '—', 10, 8))}
       </td>
     </tr>
   `);
 
-  return createSimpleTable(
-    ['Time', 'Buyer', 'Purchase', 'Owner share', 'Status'],
+  return createDataTable(
+    ['Time', 'Buyer', 'Purchase', 'Reward', 'Status', 'TX'],
     tableRows
   );
 }
@@ -2201,16 +2211,16 @@ function createDashboardStateMarkup(config, state, walletAddress) {
         createIdentityContent(config, state, walletAddress)
       )}
       ${createAccordionSection(
+        'overview',
+        'Overview',
+        state.sections.overview,
+        createOverviewContent(state, walletAddress)
+      )}
+      ${createAccordionSection(
         'rewards',
         'Reward status',
         state.sections.rewards,
         createRewardStatusContent(state)
-      )}
-      ${createAccordionSection(
-        'performance',
-        'Performance',
-        state.sections.performance,
-        createPerformanceContent(state, walletAddress)
       )}
       ${createAccordionSection(
         'buyers',
@@ -2241,6 +2251,11 @@ function createDashboardStateMarkup(config, state, walletAddress) {
 }
 
 function createMarkup(config, state, walletAddress) {
+  const slug = String(state.dashboard?.identity?.slug || '').trim();
+  const rewardPercent = safeNumber(state.dashboard?.identity?.rewardPercent, 0);
+  const levelLabel = levelToLabel(safeNumber(state.dashboard?.identity?.effectiveLevel, 0));
+  const claimableTrx = state.dashboard?.withdrawalQueue?.availableOnChainTrx || '0';
+
   let stateMarkup = '';
 
   if (state.isLoading) {
@@ -2278,6 +2293,39 @@ function createMarkup(config, state, walletAddress) {
               <div class="fourteen-ambassador-cabinet-hero__subtitle">
                 ${escapeHtml(config.subtitle)}
               </div>
+
+              ${
+                state.isConnected && state.registrationKnown && state.isRegistered
+                  ? `
+                    <div class="fourteen-ambassador-cabinet-hero-stats">
+                      <div class="fourteen-ambassador-cabinet-hero-stat">
+                        <span class="fourteen-ambassador-cabinet-hero-stat__label">Slug</span>
+                        <span class="fourteen-ambassador-cabinet-hero-stat__value">${escapeHtml(
+                          slug || 'Not assigned yet'
+                        )}</span>
+                      </div>
+                      <div class="fourteen-ambassador-cabinet-hero-stat">
+                        <span class="fourteen-ambassador-cabinet-hero-stat__label">Level</span>
+                        <span class="fourteen-ambassador-cabinet-hero-stat__value">${escapeHtml(
+                          levelLabel
+                        )}</span>
+                      </div>
+                      <div class="fourteen-ambassador-cabinet-hero-stat">
+                        <span class="fourteen-ambassador-cabinet-hero-stat__label">Reward</span>
+                        <span class="fourteen-ambassador-cabinet-hero-stat__value">${escapeHtml(
+                          `${rewardPercent}%`
+                        )}</span>
+                      </div>
+                      <div class="fourteen-ambassador-cabinet-hero-stat">
+                        <span class="fourteen-ambassador-cabinet-hero-stat__label">Claimable</span>
+                        <span class="fourteen-ambassador-cabinet-hero-stat__value">${escapeHtml(
+                          `${claimableTrx} TRX`
+                        )}</span>
+                      </div>
+                    </div>
+                  `
+                  : ''
+              }
             </div>
           </div>
 
@@ -2839,6 +2887,25 @@ export function mountAmbassadorCabinet(target, config = {}) {
     }
   }
 
+  async function handleCopySlug() {
+    const walletAddress = getWalletAddressSafe(wallet) || '';
+    const dashboard = state.dashboard || createEmptyDashboard(walletAddress);
+    const slug = String(dashboard.identity?.slug || '').trim();
+
+    if (!slug) {
+      showNeutralNotice('Slug is not available yet.', 5000);
+      return;
+    }
+
+    try {
+      await copyText(slug);
+      showSuccessNotice('Slug copied.', 5000);
+    } catch (error) {
+      const message = normalizeError(error);
+      showErrorNotice(message, 7000);
+    }
+  }
+
   function toggleSection(sectionId) {
     if (!sectionId || !(sectionId in state.sections)) {
       return;
@@ -2852,6 +2919,7 @@ export function mountAmbassadorCabinet(target, config = {}) {
     const refreshButton = root.querySelector('[data-role="refresh-button"]');
     const withdrawButton = root.querySelector('[data-role="withdraw-button"]');
     const replayButton = root.querySelector('[data-role="replay-button"]');
+    const copySlugButton = root.querySelector('[data-role="copy-slug"]');
     const copyReferralLinkButton = root.querySelector('[data-role="copy-referral-link"]');
     const infoToggleEl = root.querySelector('[data-role="info-toggle"]');
     const sectionToggles = root.querySelectorAll('[data-role="section-toggle"]');
@@ -2871,6 +2939,12 @@ export function mountAmbassadorCabinet(target, config = {}) {
     replayButton?.addEventListener('click', () => {
       handleReplayPending().catch((error) => {
         console.error('Ambassador cabinet replay pending failed:', error);
+      });
+    });
+
+    copySlugButton?.addEventListener('click', () => {
+      handleCopySlug().catch((error) => {
+        console.error('Ambassador cabinet copy slug failed:', error);
       });
     });
 
