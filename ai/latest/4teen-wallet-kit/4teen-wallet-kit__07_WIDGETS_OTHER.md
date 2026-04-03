@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-04-02T20:48:07.081Z
+Generated: 2026-04-03T11:42:53.119Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -75,10 +75,6 @@ Branch: main
   box-shadow: none;
 }
 
-/* -------------------------------------------------------
-   HEADER / HERO
-------------------------------------------------------- */
-
 .fourteen-ambassador-cabinet-heading {
   display: flex;
   align-items: flex-start;
@@ -149,19 +145,23 @@ Branch: main
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+  width: 100%;
+  max-width: 860px;
 }
 
 .fourteen-ambassador-cabinet-hero-stat {
   min-width: 0;
   padding: 12px 14px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--fourteen-cabinet-border);
   background: linear-gradient(
     180deg,
-    rgba(26, 26, 26, 0.95) 0%,
-    rgba(17, 17, 17, 0.98) 100%
+    rgba(20, 20, 20, 0.92) 0%,
+    rgba(15, 15, 15, 0.96) 100%
   );
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.02),
+    0 10px 24px rgba(0, 0, 0, 0.18);
 }
 
 .fourteen-ambassador-cabinet-hero-stat__label {
@@ -176,10 +176,10 @@ Branch: main
 .fourteen-ambassador-cabinet-hero-stat__value {
   display: block;
   margin-top: 7px;
-  font-size: 16px;
-  line-height: 1.2;
+  font-size: 18px;
+  line-height: 1.15;
   font-weight: 800;
-  color: var(--fourteen-cabinet-white);
+  color: var(--fourteen-cabinet-text);
   word-break: break-word;
 }
 
@@ -207,10 +207,6 @@ Branch: main
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-
-/* -------------------------------------------------------
-   ACTIONS / INFO
-------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-info-toggle-wrap {
   position: relative;
@@ -337,10 +333,6 @@ Branch: main
   min-width: 96px;
 }
 
-/* -------------------------------------------------------
-   TOPBAR / CONNECT
-------------------------------------------------------- */
-
 .fourteen-ambassador-cabinet-topbar {
   display: flex;
   align-items: center;
@@ -385,10 +377,6 @@ Branch: main
   line-height: 1.45;
   text-align: center;
 }
-
-/* -------------------------------------------------------
-   BANNERS / EMPTY STATES
-------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-banner {
   margin-bottom: 14px;
@@ -441,10 +429,6 @@ Branch: main
   color: var(--fourteen-cabinet-text-faint);
 }
 
-/* -------------------------------------------------------
-   GRID / CARDS
-------------------------------------------------------- */
-
 .fourteen-ambassador-cabinet-grid {
   display: grid;
   gap: 14px;
@@ -490,10 +474,10 @@ Branch: main
 }
 
 .fourteen-ambassador-cabinet-card--graphite {
-  border-color: rgba(77, 77, 77, 0.3);
+  border-color: rgba(255, 255, 255, 0.14);
   box-shadow:
-    inset 0 0 0 1px rgba(77, 77, 77, 0.18),
-    0 0 0 1px rgba(77, 77, 77, 0.05);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 .fourteen-ambassador-cabinet-card--amber {
@@ -541,10 +525,6 @@ Branch: main
   color: var(--fourteen-cabinet-text-soft);
   word-break: break-word;
 }
-
-/* -------------------------------------------------------
-   SECTIONS / ACCORDION / LINKS
-------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-content {
   display: flex;
@@ -674,34 +654,33 @@ Branch: main
   max-width: 100%;
 }
 
-/* -------------------------------------------------------
-   TABLES
-------------------------------------------------------- */
-
 .fourteen-ambassador-cabinet-table-wrap {
+  width: 100%;
   overflow: auto;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--fourteen-cabinet-border);
   background: rgba(255, 255, 255, 0.02);
 }
 
 .fourteen-ambassador-cabinet-table {
   width: 100%;
-  border-collapse: collapse;
   min-width: 760px;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--fourteen-cabinet-text);
 }
 
 .fourteen-ambassador-cabinet-table thead th {
   text-align: left;
   padding: 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--fourteen-cabinet-border-strong);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--fourteen-cabinet-text-faint);
   white-space: nowrap;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .fourteen-ambassador-cabinet-table tbody td {
@@ -711,6 +690,7 @@ Branch: main
   line-height: 1.45;
   color: var(--fourteen-cabinet-text);
   white-space: nowrap;
+  vertical-align: middle;
 }
 
 .fourteen-ambassador-cabinet-table tbody tr:last-child td {
@@ -718,12 +698,8 @@ Branch: main
 }
 
 .fourteen-ambassador-cabinet-table tbody tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 105, 0, 0.04);
 }
-
-/* -------------------------------------------------------
-   RESPONSIVE
-------------------------------------------------------- */
 
 @media (max-width: 1100px) {
   .fourteen-ambassador-cabinet-grid--four {
@@ -758,9 +734,14 @@ Branch: main
 
   .fourteen-ambassador-cabinet-grid--two,
   .fourteen-ambassador-cabinet-grid--three,
-  .fourteen-ambassador-cabinet-grid--four,
-  .fourteen-ambassador-cabinet-hero-stats {
+  .fourteen-ambassador-cabinet-grid--four {
     grid-template-columns: 1fr;
+  }
+
+  .fourteen-ambassador-cabinet-hero-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
   }
 
   .fourteen-ambassador-cabinet-section__content {
@@ -773,6 +754,15 @@ Branch: main
 
   .fourteen-ambassador-cabinet-card__value {
     font-size: 20px;
+  }
+
+  .fourteen-ambassador-cabinet-hero-stat {
+    padding: 11px 12px;
+    border-radius: 12px;
+  }
+
+  .fourteen-ambassador-cabinet-hero-stat__value {
+    font-size: 16px;
   }
 }
 
@@ -801,9 +791,13 @@ Branch: main
 }
 
 @media (max-width: 560px) {
+  .fourteen-ambassador-cabinet-heading {
+    position: relative;
+  }
+
   .fourteen-ambassador-cabinet-hero {
     align-items: flex-start;
-    padding-top: 10px;
+    padding-top: 6px;
   }
 
   .fourteen-ambassador-cabinet-hero__title {
@@ -850,12 +844,29 @@ Branch: main
   }
 
   .fourteen-ambassador-cabinet-hero__actions {
+    order: -1;
+    align-self: flex-start;
     gap: 8px;
     flex-wrap: wrap;
+    margin-bottom: 4px;
   }
 
   .fourteen-ambassador-cabinet-badge {
     min-height: 28px;
+  }
+
+  .fourteen-ambassador-cabinet-hero-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .fourteen-ambassador-cabinet-hero-stat__label {
+    font-size: 9px;
+  }
+
+  .fourteen-ambassador-cabinet-hero-stat__value {
+    font-size: 15px;
   }
 
   .fourteen-ambassador-cabinet-table {
@@ -3818,7 +3829,10 @@ const DEFAULT_CONFIG = {
     }
   ],
   walletLookupEndpoint: '/ambassador/by-wallet',
+  slugCheckEndpoint: '/slug/check',
+  registerCompleteEndpoint: '/ambassador/register-complete',
   cabinetUrl: 'https://4teen.me/a/cab',
+  referralBaseUrl: 'https://4teen.me/?ref=',
   redirectIfRegistered: false,
   registeredTitle: 'Already registered',
   registeredText: 'This wallet is already registered as ambassador.',
@@ -3957,9 +3971,15 @@ async function readJson(response) {
   }
 }
 
-async function checkSlugAvailability(backendBaseUrl, slug) {
+function buildPath(path) {
+  const normalized = String(path || '').trim();
+  if (!normalized) return '';
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+}
+
+async function checkSlugAvailability(backendBaseUrl, endpoint, slug) {
   const response = await fetch(
-    `${normalizeBaseUrl(backendBaseUrl)}/slug/check?slug=${encodeURIComponent(slug)}`,
+    `${normalizeBaseUrl(backendBaseUrl)}${buildPath(endpoint)}?slug=${encodeURIComponent(slug)}`,
     {
       method: 'GET',
       headers: {
@@ -3981,9 +4001,9 @@ async function checkSlugAvailability(backendBaseUrl, slug) {
   return payload;
 }
 
-async function completeRegistration(backendBaseUrl, payload) {
+async function completeRegistration(backendBaseUrl, endpoint, payload) {
   const response = await fetch(
-    `${normalizeBaseUrl(backendBaseUrl)}/ambassador/register-complete`,
+    `${normalizeBaseUrl(backendBaseUrl)}${buildPath(endpoint)}`,
     {
       method: 'POST',
       headers: {
@@ -3999,18 +4019,70 @@ async function completeRegistration(backendBaseUrl, payload) {
     throw new Error((result && result.error) || 'Failed to complete registration');
   }
 
-  return result.result;
+  return result.result || result;
 }
 
 function buildWalletLookupUrl(backendBaseUrl, endpoint, walletAddress) {
   const baseUrl = normalizeBaseUrl(backendBaseUrl);
-  const normalizedEndpoint = String(endpoint || '/ambassador/by-wallet').trim() || '/ambassador/by-wallet';
-  const path = normalizedEndpoint.startsWith('/') ? normalizedEndpoint : `/${normalizedEndpoint}`;
-
+  const path = buildPath(endpoint || '/ambassador/by-wallet');
   return `${baseUrl}${path}?wallet=${encodeURIComponent(walletAddress)}`;
 }
 
-function normalizeRegisteredProfile(payload) {
+function buildReferralLinkFromSlug(baseUrl, slug) {
+  const normalizedSlug = normalizeSlug(slug);
+
+  if (!normalizedSlug) {
+    return '';
+  }
+
+  const base = String(baseUrl || '').trim();
+
+  if (!base) {
+    return normalizedSlug;
+  }
+
+  if (base.includes('{slug}')) {
+    return base.replaceAll('{slug}', normalizedSlug);
+  }
+
+  if (base.endsWith('=')) {
+    return `${base}${normalizedSlug}`;
+  }
+
+  if (base.endsWith('/')) {
+    return `${base}${normalizedSlug}`;
+  }
+
+  return `${base}/${normalizedSlug}`;
+}
+
+function buildReferralLink(value, config) {
+  const normalized = String(value || '').trim();
+
+  if (!normalized) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return normalized;
+  }
+
+  if (normalized.startsWith('?') && typeof window !== 'undefined') {
+    return `${window.location.origin}/${normalized}`;
+  }
+
+  if (normalized.startsWith('/') && typeof window !== 'undefined') {
+    return `${window.location.origin}${normalized}`;
+  }
+
+  if (/^[a-z0-9_-]{3,24}$/i.test(normalized)) {
+    return buildReferralLinkFromSlug(config.referralBaseUrl, normalized);
+  }
+
+  return normalized;
+}
+
+function normalizeRegisteredProfile(payload, config) {
   if (!payload || typeof payload !== 'object') {
     return null;
   }
@@ -4029,7 +4101,9 @@ function normalizeRegisteredProfile(payload) {
     slug,
     wallet,
     status,
-    referralLink: referralLinkRaw ? buildReferralLink(referralLinkRaw) : ''
+    referralLink: referralLinkRaw
+      ? buildReferralLink(referralLinkRaw, config)
+      : buildReferralLinkFromSlug(config.referralBaseUrl, slug)
   };
 }
 
@@ -4056,16 +4130,16 @@ function isRegisteredProfilePayload(payload) {
     return true;
   }
 
-  const profile = normalizeRegisteredProfile(payload);
+  const hasSlug = Boolean(
+    result &&
+      typeof result === 'object' &&
+      String(result.slug || result.referralSlug || result.handle || '').trim()
+  );
 
-  if (!profile) {
-    return false;
-  }
-
-  return Boolean(profile.slug || profile.wallet || profile.status);
+  return hasSlug;
 }
 
-async function lookupAmbassadorByWallet(backendBaseUrl, endpoint, walletAddress) {
+async function lookupAmbassadorByWallet(backendBaseUrl, endpoint, walletAddress, config) {
   const response = await fetch(buildWalletLookupUrl(backendBaseUrl, endpoint, walletAddress), {
     method: 'GET',
     headers: {
@@ -4099,26 +4173,8 @@ async function lookupAmbassadorByWallet(backendBaseUrl, endpoint, walletAddress)
 
   return {
     found: true,
-    profile: normalizeRegisteredProfile(payload)
+    profile: normalizeRegisteredProfile(payload, config)
   };
-}
-
-function buildReferralLink(value) {
-  const normalized = assertNonEmpty(value, 'referralLink');
-
-  if (/^https?:\/\//i.test(normalized)) {
-    return normalized;
-  }
-
-  if (normalized.startsWith('?')) {
-    return `${window.location.origin}/${normalized}`;
-  }
-
-  if (normalized.startsWith('/')) {
-    return `${window.location.origin}${normalized}`;
-  }
-
-  return `${window.location.origin}/${normalized}`;
 }
 
 function normalizeError(error) {
@@ -4148,8 +4204,16 @@ function normalizeError(error) {
     return 'Wallet is not connected.';
   }
 
-  if (text.includes('Slug is required')) {
+  if (text.includes('Slug is required') || text.includes('slug is required')) {
     return 'Slug is required.';
+  }
+
+  if (text.includes('Failed to check ambassador profile')) {
+    return 'Failed to check ambassador profile.';
+  }
+
+  if (text.includes('Failed to complete registration')) {
+    return 'Failed to complete registration.';
   }
 
   if (text.includes('contract validate error')) {
@@ -4694,7 +4758,8 @@ export function mountAmbassadorRegister(target, config = {}) {
       const lookup = await lookupAmbassadorByWallet(
         resolvedConfig.backendBaseUrl,
         resolvedConfig.walletLookupEndpoint,
-        walletAddress
+        walletAddress,
+        resolvedConfig
       );
 
       if (!isAlive() || checkId !== activeRegistrationCheckId) {
@@ -4762,7 +4827,11 @@ export function mountAmbassadorRegister(target, config = {}) {
     render();
 
     try {
-      await checkSlugAvailability(resolvedConfig.backendBaseUrl, slug);
+      await checkSlugAvailability(
+        resolvedConfig.backendBaseUrl,
+        resolvedConfig.slugCheckEndpoint,
+        slug
+      );
 
       const slugHash = keccakUtf8ToHex(slug);
       const metaHash = ZERO_BYTES32;
@@ -4774,23 +4843,32 @@ export function mountAmbassadorRegister(target, config = {}) {
 
       const txid = await contract.registerAsAmbassador(slugHash, metaHash).send();
 
-      const completed = await completeRegistration(resolvedConfig.backendBaseUrl, {
-        slug,
-        slugHash,
-        wallet: walletAddress
-      });
+      const completed = await completeRegistration(
+        resolvedConfig.backendBaseUrl,
+        resolvedConfig.registerCompleteEndpoint,
+        {
+          slug,
+          slugHash,
+          wallet: walletAddress,
+          txid: assertNonEmpty(txid, 'txid')
+        }
+      );
+
+      const referralLink =
+        buildReferralLink(completed?.referralLink, resolvedConfig) ||
+        buildReferralLinkFromSlug(resolvedConfig.referralBaseUrl, slug);
 
       state.success = {
         slug,
         txid: assertNonEmpty(txid, 'txid'),
-        referralLink: buildReferralLink(completed.referralLink)
+        referralLink
       };
 
       state.registeredProfile = {
         slug,
         wallet: walletAddress,
-        status: 'active',
-        referralLink: state.success.referralLink
+        status: String(completed?.status || 'active').trim().toLowerCase(),
+        referralLink
       };
 
       lastCheckedWallet = walletAddress;
@@ -5483,6 +5561,9 @@ const SUN = 1_000_000;
 const DEFAULT_CONTRACT_ADDRESS = 'TMLXiCW2ZAkvjmn79ZXa4vdHX5BE3n9x4A';
 const DEFAULT_TOKEN_PRICE_SUN = 1_147_500;
 
+const DEFAULT_REFERRAL_STORAGE_KEY = 'fourteen_referral_record';
+const DEFAULT_ATTRIBUTION_URL = 'https://fourteen-allocation-worker-6e0e920395d8.herokuapp.com/hooks/after-buy';
+
 const DEFAULT_CONFIG = {
   contractAddress: DEFAULT_CONTRACT_ADDRESS,
   inputLabel: 'Enter TRX amount',
@@ -5491,7 +5572,9 @@ const DEFAULT_CONFIG = {
   subtitle: 'Mint-on-Purchase Issuance',
   connectText: 'Connect Wallet',
   mobileConnectHint: 'Tap connect below to continue.',
-  afterBuy: null
+  afterBuy: null,
+  attributionUrl: DEFAULT_ATTRIBUTION_URL,
+  referralStorageKey: DEFAULT_REFERRAL_STORAGE_KEY
 };
 
 function sleep(ms) {
@@ -5748,6 +5831,106 @@ function isFunction(value) {
   return typeof value === 'function';
 }
 
+function isBrowser() {
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+}
+
+function normalizeSlug(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '')
+    .slice(0, 24);
+}
+
+function isValidSlug(value) {
+  return /^[a-z0-9_-]{3,24}$/.test(String(value || ''));
+}
+
+function safeParseJson(value) {
+  if (!value) return null;
+
+  try {
+    return JSON.parse(value);
+  } catch (_) {
+    return null;
+  }
+}
+
+function getStoredReferral(referralStorageKey, now = Date.now()) {
+  if (!isBrowser()) return null;
+
+  const raw = safeParseJson(window.localStorage.getItem(referralStorageKey));
+
+  if (!raw || typeof raw !== 'object') return null;
+  if (typeof raw.slug !== 'string') return null;
+
+  const slug = normalizeSlug(raw.slug);
+
+  if (!isValidSlug(slug)) {
+    return null;
+  }
+
+  if (typeof raw.expiresAt === 'number' && raw.expiresAt > 0 && raw.expiresAt <= now) {
+    return null;
+  }
+
+  return {
+    slug,
+    capturedAt: typeof raw.capturedAt === 'number' ? raw.capturedAt : null,
+    expiresAt: typeof raw.expiresAt === 'number' ? raw.expiresAt : null,
+    source: typeof raw.source === 'string' ? raw.source : 'unknown'
+  };
+}
+
+async function submitAttribution({
+  attributionUrl,
+  txHash,
+  buyerWallet,
+  slug
+}) {
+  const response = await fetch(attributionUrl, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      txHash,
+      buyerWallet,
+      slug: slug || null
+    })
+  });
+
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (_) {
+      data = null;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      data &&
+      typeof data === 'object' &&
+      typeof data.error === 'string' &&
+      data.error.trim()
+        ? data.error.trim()
+        : `Attribution request failed with status ${response.status}`;
+
+    throw new Error(message);
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    data
+  };
+}
+
 export function mountDirectBuy(target, config = {}) {
   const {
     contractAddress,
@@ -5756,7 +5939,9 @@ export function mountDirectBuy(target, config = {}) {
     subtitle,
     connectText,
     mobileConnectHint,
-    afterBuy
+    afterBuy,
+    attributionUrl,
+    referralStorageKey
   } = { ...DEFAULT_CONFIG, ...config };
 
   if (!target) {
@@ -6099,15 +6284,50 @@ export function mountDirectBuy(target, config = {}) {
     throw new Error('Wallet connect method is not available');
   }
 
-  async function runAfterBuyHook(txHash, buyerWallet) {
-    if (!isFunction(afterBuy)) {
-      return null;
+  async function submitInternalAfterBuy(txHash, buyerWallet) {
+    if (!attributionUrl) {
+      return {
+        status: 'skipped-no-attribution-url',
+        referralSlug: null,
+        response: null
+      };
     }
 
-    return afterBuy({
+    const referral = getStoredReferral(referralStorageKey, Date.now());
+    const slug = referral?.slug || null;
+
+    const response = await submitAttribution({
+      attributionUrl,
       txHash,
-      buyerWallet
+      buyerWallet,
+      slug
     });
+
+    return {
+      status: slug ? 'submitted-with-referral' : 'submitted-without-referral',
+      referralSlug: slug,
+      response
+    };
+  }
+
+  async function runAfterBuyHook(txHash, buyerWallet) {
+    const internalResult = await submitInternalAfterBuy(txHash, buyerWallet);
+
+    if (!isFunction(afterBuy)) {
+      return internalResult;
+    }
+
+    const externalResult = await afterBuy({
+      txHash,
+      buyerWallet,
+      referralSlug: internalResult?.referralSlug || null,
+      attributionResult: internalResult
+    });
+
+    return {
+      internalResult,
+      externalResult
+    };
   }
 
   async function buy() {
@@ -6155,7 +6375,7 @@ export function mountDirectBuy(target, config = {}) {
         await runAfterBuyHook(txid, address);
       } catch (afterBuyError) {
         console.error('Direct buy post-purchase hook failed:', afterBuyError);
-        showNeutralNotice('Purchase succeeded, but post-purchase attribution is pending.', 10000);
+        showNeutralNotice('Purchase succeeded, but post-purchase sync is pending.', 10000);
       }
 
       inputEl.value = '';
