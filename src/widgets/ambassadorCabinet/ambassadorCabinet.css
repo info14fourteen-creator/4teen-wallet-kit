@@ -40,10 +40,6 @@
   box-shadow: none;
 }
 
-/* -------------------------------------------------------
-   HEADER / HERO
-------------------------------------------------------- */
-
 .fourteen-ambassador-cabinet-heading {
   display: flex;
   align-items: flex-start;
@@ -114,19 +110,23 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+  width: 100%;
+  max-width: 860px;
 }
 
 .fourteen-ambassador-cabinet-hero-stat {
   min-width: 0;
   padding: 12px 14px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--fourteen-cabinet-border);
   background: linear-gradient(
     180deg,
-    rgba(26, 26, 26, 0.95) 0%,
-    rgba(17, 17, 17, 0.98) 100%
+    rgba(20, 20, 20, 0.92) 0%,
+    rgba(15, 15, 15, 0.96) 100%
   );
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.02),
+    0 10px 24px rgba(0, 0, 0, 0.18);
 }
 
 .fourteen-ambassador-cabinet-hero-stat__label {
@@ -141,10 +141,10 @@
 .fourteen-ambassador-cabinet-hero-stat__value {
   display: block;
   margin-top: 7px;
-  font-size: 16px;
-  line-height: 1.2;
+  font-size: 18px;
+  line-height: 1.15;
   font-weight: 800;
-  color: var(--fourteen-cabinet-white);
+  color: var(--fourteen-cabinet-text);
   word-break: break-word;
 }
 
@@ -172,10 +172,6 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-
-/* -------------------------------------------------------
-   ACTIONS / INFO
-------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-info-toggle-wrap {
   position: relative;
@@ -302,10 +298,6 @@
   min-width: 96px;
 }
 
-/* -------------------------------------------------------
-   TOPBAR / CONNECT
-------------------------------------------------------- */
-
 .fourteen-ambassador-cabinet-topbar {
   display: flex;
   align-items: center;
@@ -350,10 +342,6 @@
   line-height: 1.45;
   text-align: center;
 }
-
-/* -------------------------------------------------------
-   BANNERS / EMPTY STATES
-------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-banner {
   margin-bottom: 14px;
@@ -406,10 +394,6 @@
   color: var(--fourteen-cabinet-text-faint);
 }
 
-/* -------------------------------------------------------
-   GRID / CARDS
-------------------------------------------------------- */
-
 .fourteen-ambassador-cabinet-grid {
   display: grid;
   gap: 14px;
@@ -455,10 +439,10 @@
 }
 
 .fourteen-ambassador-cabinet-card--graphite {
-  border-color: rgba(77, 77, 77, 0.3);
+  border-color: rgba(255, 255, 255, 0.14);
   box-shadow:
-    inset 0 0 0 1px rgba(77, 77, 77, 0.18),
-    0 0 0 1px rgba(77, 77, 77, 0.05);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 .fourteen-ambassador-cabinet-card--amber {
@@ -506,10 +490,6 @@
   color: var(--fourteen-cabinet-text-soft);
   word-break: break-word;
 }
-
-/* -------------------------------------------------------
-   SECTIONS / ACCORDION / LINKS
-------------------------------------------------------- */
 
 .fourteen-ambassador-cabinet-content {
   display: flex;
@@ -639,34 +619,33 @@
   max-width: 100%;
 }
 
-/* -------------------------------------------------------
-   TABLES
-------------------------------------------------------- */
-
 .fourteen-ambassador-cabinet-table-wrap {
+  width: 100%;
   overflow: auto;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--fourteen-cabinet-border);
   background: rgba(255, 255, 255, 0.02);
 }
 
 .fourteen-ambassador-cabinet-table {
   width: 100%;
-  border-collapse: collapse;
   min-width: 760px;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--fourteen-cabinet-text);
 }
 
 .fourteen-ambassador-cabinet-table thead th {
   text-align: left;
   padding: 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--fourteen-cabinet-border-strong);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--fourteen-cabinet-text-faint);
   white-space: nowrap;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .fourteen-ambassador-cabinet-table tbody td {
@@ -676,6 +655,7 @@
   line-height: 1.45;
   color: var(--fourteen-cabinet-text);
   white-space: nowrap;
+  vertical-align: middle;
 }
 
 .fourteen-ambassador-cabinet-table tbody tr:last-child td {
@@ -683,12 +663,8 @@
 }
 
 .fourteen-ambassador-cabinet-table tbody tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 105, 0, 0.04);
 }
-
-/* -------------------------------------------------------
-   RESPONSIVE
-------------------------------------------------------- */
 
 @media (max-width: 1100px) {
   .fourteen-ambassador-cabinet-grid--four {
@@ -723,9 +699,14 @@
 
   .fourteen-ambassador-cabinet-grid--two,
   .fourteen-ambassador-cabinet-grid--three,
-  .fourteen-ambassador-cabinet-grid--four,
-  .fourteen-ambassador-cabinet-hero-stats {
+  .fourteen-ambassador-cabinet-grid--four {
     grid-template-columns: 1fr;
+  }
+
+  .fourteen-ambassador-cabinet-hero-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
   }
 
   .fourteen-ambassador-cabinet-section__content {
@@ -738,6 +719,15 @@
 
   .fourteen-ambassador-cabinet-card__value {
     font-size: 20px;
+  }
+
+  .fourteen-ambassador-cabinet-hero-stat {
+    padding: 11px 12px;
+    border-radius: 12px;
+  }
+
+  .fourteen-ambassador-cabinet-hero-stat__value {
+    font-size: 16px;
   }
 }
 
@@ -766,6 +756,10 @@
 }
 
 @media (max-width: 560px) {
+  .fourteen-ambassador-cabinet-heading {
+    position: relative;
+  }
+
   .fourteen-ambassador-cabinet-hero {
     align-items: flex-start;
     padding-top: 6px;
@@ -825,151 +819,6 @@
   .fourteen-ambassador-cabinet-badge {
     min-height: 28px;
   }
-}
-
-  .fourteen-ambassador-cabinet-table {
-    min-width: 640px;
-  }
-}
-
-/* -------------------------------------------------------
-   HERO STATS
-------------------------------------------------------- */
-
-.fourteen-ambassador-cabinet-hero-stats {
-  position: relative;
-  z-index: 1;
-  margin-top: 14px;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  width: 100%;
-  max-width: 860px;
-}
-
-.fourteen-ambassador-cabinet-hero-stat {
-  min-width: 0;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid var(--fourteen-cabinet-border);
-  background: linear-gradient(
-    180deg,
-    rgba(20, 20, 20, 0.92) 0%,
-    rgba(15, 15, 15, 0.96) 100%
-  );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.02),
-    0 10px 24px rgba(0, 0, 0, 0.18);
-}
-
-.fourteen-ambassador-cabinet-hero-stat__label {
-  display: block;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--fourteen-cabinet-text-faint);
-}
-
-.fourteen-ambassador-cabinet-hero-stat__value {
-  display: block;
-  margin-top: 7px;
-  font-size: 18px;
-  line-height: 1.15;
-  font-weight: 800;
-  color: var(--fourteen-cabinet-text);
-  word-break: break-word;
-}
-
-/* graphite card support for reward status */
-.fourteen-ambassador-cabinet-card--graphite {
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 0 0 1px rgba(255, 255, 255, 0.02);
-}
-
-/* table styling for new cabinet tables */
-.fourteen-ambassador-cabinet-table-wrap {
-  width: 100%;
-  overflow: auto;
-  border: 1px solid var(--fourteen-cabinet-border);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.fourteen-ambassador-cabinet-table {
-  width: 100%;
-  min-width: 760px;
-  border-collapse: collapse;
-  font-size: 13px;
-  color: var(--fourteen-cabinet-text);
-}
-
-.fourteen-ambassador-cabinet-table thead th {
-  padding: 12px 14px;
-  text-align: left;
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--fourteen-cabinet-text-faint);
-  border-bottom: 1px solid var(--fourteen-cabinet-border-strong);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.fourteen-ambassador-cabinet-table tbody td {
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  vertical-align: middle;
-}
-
-.fourteen-ambassador-cabinet-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.fourteen-ambassador-cabinet-table tbody tr:hover td {
-  background: rgba(255, 105, 0, 0.04);
-}
-
-@media (max-width: 1100px) {
-  .fourteen-ambassador-cabinet-hero-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 720px) {
-  .fourteen-ambassador-cabinet-hero-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 12px;
-  }
-
-  .fourteen-ambassador-cabinet-hero-stat {
-    padding: 11px 12px;
-    border-radius: 12px;
-  }
-
-  .fourteen-ambassador-cabinet-hero-stat__value {
-    font-size: 16px;
-  }
-}
-
-@media (max-width: 560px) {
-  .fourteen-ambassador-cabinet-heading {
-    position: relative;
-  }
-
-  .fourteen-ambassador-cabinet-hero__actions {
-    align-self: flex-start;
-    order: -1;
-    margin-bottom: 4px;
-  }
-
-  .fourteen-ambassador-cabinet-hero {
-    padding-top: 6px;
-  }
 
   .fourteen-ambassador-cabinet-hero-stats {
     grid-template-columns: 1fr 1fr;
@@ -983,5 +832,9 @@
 
   .fourteen-ambassador-cabinet-hero-stat__value {
     font-size: 15px;
+  }
+
+  .fourteen-ambassador-cabinet-table {
+    min-width: 640px;
   }
 }
