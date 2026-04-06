@@ -88,7 +88,7 @@ export const MOBILE_SOCIALS = [
   {
     id: 'x',
     shortName: 'x',
-    href: 'https://x.com/4teentoken',
+    href: 'https://x.com/4teenDeFi',
     icon: xSocial,
     alt: 'x'
   },
