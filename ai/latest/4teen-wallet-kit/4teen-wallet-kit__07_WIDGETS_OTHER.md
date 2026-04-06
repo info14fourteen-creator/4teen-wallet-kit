@@ -1,6 +1,6 @@
 # 4teen-wallet-kit — WIDGETS OTHER
 
-Generated: 2026-04-03T11:42:53.119Z
+Generated: 2026-04-06T08:28:52.593Z
 Repository: info14fourteen-creator/4teen-wallet-kit
 Branch: main
 
@@ -6969,7 +6969,7 @@ export function mountLiquidityController(target, config = {}) {
     }
 
     embeddedWalletUnmount = mountWalletButton(embeddedWalletButtonEl, {
-      variant: 'compact',
+      variant: 'hero',
       onConnectClick: async (walletId) => {
         if (typeof wallet.connect === 'function') {
           await wallet.connect(walletId);
