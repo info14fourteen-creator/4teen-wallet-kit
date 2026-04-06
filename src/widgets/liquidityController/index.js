@@ -449,7 +449,7 @@ export function mountLiquidityController(target, config = {}) {
     }
 
     embeddedWalletUnmount = mountWalletButton(embeddedWalletButtonEl, {
-      variant: 'compact',
+      variant: 'hero',
       onConnectClick: async (walletId) => {
         if (typeof wallet.connect === 'function') {
           await wallet.connect(walletId);
